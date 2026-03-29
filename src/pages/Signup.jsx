@@ -85,7 +85,7 @@ export default function Signup() {
     setError('')
     const token = otp.join('')
 
-    const { error: verifyError } = await supabase.auth.verifyOtp({
+    const { data, error: verifyError } = await supabase.auth.verifyOtp({
       email,
       token,
       type: 'email'
@@ -95,6 +95,17 @@ export default function Signup() {
       setError('Invalid code. Please try again.')
       setLoading(false)
       return
+    }
+
+    // Save reg number if Gmail user
+    if (regNumber) {
+      await supabase
+        .from('users')
+        .upsert({
+          id: data.user.id,
+          email: email,
+          reg_number: regNumber
+        })
     }
 
     navigate('/profile-setup')
