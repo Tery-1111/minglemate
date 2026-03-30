@@ -81,7 +81,13 @@ export default function Home() {
             <div className="profile-view">
               <div className="empty-icon">👤</div>
               <h2>{user?.full_name || 'Your Profile'}</h2>
-              <p>Profile details coming soon</p>
+              <button
+                className="start-section1-btn"
+                onClick={() => navigate('/section2')}
+                style={{ marginTop: '16px' }}
+              >
+                Open Section 2 Questions
+              </button>
             </div>
           </div>
         )}

@@ -6,6 +6,7 @@ import PhotoUpload from './pages/PhotoUpload'
 import Interests from './pages/Interests'
 import Home from './pages/Home'
 import Section1 from './pages/Section1'
+import Section2 from './pages/Section2'
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         <Route path='/interests' element={<Interests />} />
         <Route path='/home' element={<Home />} />
         <Route path='/section1' element={<Section1 />} />
+        <Route path='/section2' element={<Section2 />} />
       </Routes>
     </BrowserRouter>
   )

@@ -1,0 +1,184 @@
+.s2-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0a0a0a;
+  color: white;
+  font-size: 18px;
+}
+
+.s2-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #0a0a0a;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.s2-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 12px;
+}
+
+.s2-back {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.s2-progress-text {
+  font-size: 14px;
+  color: #888;
+  font-weight: 500;
+}
+
+.s2-free-badge {
+  background: #1a7a4a;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.s2-progress-bar {
+  height: 4px;
+  background: #333;
+  margin: 0 24px;
+  border-radius: 2px;
+}
+
+.s2-progress-fill {
+  height: 100%;
+  background: #E8416B;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.s2-content {
+  flex: 1;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.s2-question {
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+.s2-textarea {
+  width: 100%;
+  padding: 16px;
+  background: #1a1a1a;
+  border: 2px solid #333;
+  border-radius: 12px;
+  color: white;
+  font-size: 15px;
+  font-family: Arial, sans-serif;
+  resize: none;
+  outline: none;
+  transition: border 0.2s;
+  margin-bottom: 8px;
+}
+
+.s2-textarea:focus {
+  border-color: #4F2D7F;
+}
+
+.s2-char-count {
+  font-size: 12px;
+  color: #888;
+  text-align: right;
+  margin-bottom: 24px;
+}
+
+.s2-btn {
+  width: 100%;
+  padding: 16px;
+  background: #E8416B;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.s2-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.s2-locked-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #4F2D7F 0%, #1a0a2e 100%);
+  padding: 20px;
+}
+
+.s2-locked-card {
+  background: white;
+  border-radius: 20px;
+  padding: 40px;
+  text-align: center;
+  max-width: 400px;
+  width: 100%;
+}
+
+.s2-locked-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.s2-locked-card h2 {
+  font-size: 24px;
+  font-weight: 800;
+  color: #4F2D7F;
+  margin-bottom: 12px;
+}
+
+.s2-locked-card p {
+  font-size: 15px;
+  color: #888;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.s2-unlock-btn {
+  width: 100%;
+  padding: 14px;
+  background: #E8416B;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+
+.s2-back-btn {
+  width: 100%;
+  padding: 14px;
+  background: transparent;
+  color: #4F2D7F;
+  border: 2px solid #4F2D7F;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
