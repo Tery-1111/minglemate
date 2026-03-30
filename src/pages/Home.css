@@ -75,6 +75,34 @@
   border-radius: 20px;
   font-size: 16px;
   font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.start-section1-btn {
+  margin-top: 16px;
+  padding: 14px 32px;
+  background: #E8416B;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.start-section1-btn:hover {
+  opacity: 0.9;
+}
+
+.section1-done {
+  margin-top: 16px;
+  padding: 12px 24px;
+  background: #1a7a4a;
+  color: white;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .empty-state {
@@ -157,35 +185,3 @@
 .nav-btn.active .nav-icon {
   transform: scale(1.1);
 }
-```
-
-Save with `Ctrl + S`.
-
-Now add the route in PowerShell:
-```
-Set-Content src/App.jsx @'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import Landing from './pages/Landing'
-import Signup from './pages/Signup'
-import ProfileSetup from './pages/ProfileSetup'
-import PhotoUpload from './pages/PhotoUpload'
-import Interests from './pages/Interests'
-import Home from './pages/Home'
-
-function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/profile-setup" element={<ProfileSetup />} />
-        <Route path="/photo-upload" element={<PhotoUpload />} />
-        <Route path="/interests" element={<Interests />} />
-        <Route path="/home" element={<Home />} />
-      </Routes>
-    </BrowserRouter>
-  )
-}
-
-export default App
-'@

@@ -20,7 +20,7 @@ export default function Home() {
     }
     const { data } = await supabase
       .from('users')
-      .select('full_name, profile_status')
+      .select('full_name, profile_status, section1_complete')
       .eq('id', session.user.id)
       .single()
     setUser(data)
@@ -49,6 +49,19 @@ export default function Home() {
               <div className="matches-badge">
                 Welcome{user?.full_name ? `, ${user.full_name}` : ''}!
               </div>
+              {!user?.section1_complete && (
+                <button
+                  className="start-section1-btn"
+                  onClick={() => navigate('/section1')}
+                >
+                  Start Your Questions →
+                </button>
+              )}
+              {user?.section1_complete && (
+                <div className="section1-done">
+                  ✅ Questions complete — you are in the match pool!
+                </div>
+              )}
             </div>
           </div>
         )}

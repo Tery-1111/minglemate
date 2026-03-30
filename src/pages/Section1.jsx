@@ -10,10 +10,7 @@ export default function Section1() {
   const [answers, setAnswers] = useState({})
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [session, setSession] = useState(null)
-
-  const question = section1Questions[current]
-  const progress = ((current + 1) / section1Questions.length) * 100
+  const [userId, setUserId] = useState(null)
 
   useEffect(() => {
     loadProgress()
@@ -23,7 +20,7 @@ export default function Section1() {
     setLoading(true)
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { navigate('/'); return }
-    setSession(session)
+    setUserId(session.user.id)
 
     const { data: existing } = await supabase
       .from('section1_responses')
@@ -31,22 +28,24 @@ export default function Section1() {
       .eq('user_id', session.user.id)
 
     if (existing && existing.length > 0) {
-      const saved = {}
-      existing.forEach(r => { saved[r.question_number] = r.answer_value })
-      setAnswers(saved)
+      const loaded = {}
+      existing.forEach(r => { loaded[r.question_number] = r.answer_value })
+      setAnswers(loaded)
       const lastAnswered = Math.max(...existing.map(r => r.question_number))
-      setCurrent(Math.min(lastAnswered, section1Questions.length - 1))
+      const nextIndex = Math.min(lastAnswered, section1Questions.length - 1)
+      setCurrent(nextIndex)
     }
     setLoading(false)
   }
 
   async function handleAnswer(choice) {
+    const question = section1Questions[current]
     const newAnswers = { ...answers, [question.number]: choice }
     setAnswers(newAnswers)
     setSaving(true)
 
     await supabase.from('section1_responses').upsert({
-      user_id: session.user.id,
+      user_id: userId,
       question_number: question.number,
       answer_value: choice,
       category: question.category
@@ -56,64 +55,62 @@ export default function Section1() {
     if (question.number === 15) {
       await supabase
         .from('users')
-        .update({ profile_status: 'active', section1_progress: 15 })
-        .eq('id', session.user.id)
+        .update({
+          profile_status: 'active',
+          section1_progress: 15
+        })
+        .eq('id', userId)
     }
 
-    // Update progress
-    await supabase
-      .from('users')
-      .update({ section1_progress: question.number })
-      .eq('id', session.user.id)
+    // Complete at question 40
+    if (question.number === 40) {
+      await supabase
+        .from('users')
+        .update({
+          section1_complete: true,
+          section1_progress: 40,
+          section1_last_edited: new Date().toISOString()
+        })
+        .eq('id', userId)
+      setSaving(false)
+      navigate('/home')
+      return
+    }
 
     setSaving(false)
 
     if (current < section1Questions.length - 1) {
       setCurrent(current + 1)
-    } else {
-      // All 40 done
-      await supabase
-        .from('users')
-        .update({ section1_complete: true, section1_last_edited: new Date().toISOString() })
-        .eq('id', session.user.id)
-      navigate('/home')
     }
-  }
-
-  function handleBack() {
-    if (current > 0) setCurrent(current - 1)
   }
 
   if (loading) {
     return (
       <div className="s1-loading">
-        <div className="s1-spinner">💝</div>
         <p>Loading your questions...</p>
       </div>
     )
   }
 
+  const question = section1Questions[current]
+  const progress = ((current + 1) / section1Questions.length) * 100
+
   return (
     <div className="s1-container">
       <div className="s1-header">
-        <button className="s1-back" onClick={handleBack} disabled={current === 0}>
+        <button className="s1-back" onClick={() => current > 0 ? setCurrent(current - 1) : navigate('/home')}>
           ←
         </button>
-        <div className="s1-progress-bar">
-          <div className="s1-progress-fill" style={{ width: `${progress}%` }} />
-        </div>
-        <span className="s1-counter">{current + 1}/40</span>
+        <span className="s1-progress-text">Question {current + 1} of {section1Questions.length}</span>
+        <span className="s1-category">{question.category}</span>
       </div>
 
-      <div className="s1-card">
-        <p className="s1-category">{question.category}</p>
-        <h2 className="s1-question">{question.text}</h2>
+      <div className="s1-progress-bar">
+        <div className="s1-progress-fill" style={{ width: `${progress}%` }} />
+      </div>
 
-        {current === 14 && (
-          <div className="s1-milestone">
-            🎉 Almost there! After this question you enter the match pool.
-          </div>
-        )}
+      <div className="s1-content">
+        <h2 className="s1-question">{question.text}</h2>
 
         <div className="s1-choices">
           {question.choices.map((choice, i) => (
@@ -129,6 +126,12 @@ export default function Section1() {
         </div>
 
         {saving && <p className="s1-saving">Saving...</p>}
+
+        {current === 14 && (
+          <div className="s1-milestone">
+            🎉 Almost there! One more answer and you enter the match pool.
+          </div>
+        )}
       </div>
     </div>
   )

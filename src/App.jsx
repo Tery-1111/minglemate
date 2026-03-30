@@ -5,17 +5,19 @@ import ProfileSetup from './pages/ProfileSetup'
 import PhotoUpload from './pages/PhotoUpload'
 import Interests from './pages/Interests'
 import Home from './pages/Home'
+import Section1 from './pages/Section1'
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/profile-setup" element={<ProfileSetup />} />
-        <Route path="/photo-upload" element={<PhotoUpload />} />
-        <Route path="/interests" element={<Interests />} />
-        <Route path="/home" element={<Home />} />
+        <Route path='/' element={<Landing />} />
+        <Route path='/signup' element={<Signup />} />
+        <Route path='/profile-setup' element={<ProfileSetup />} />
+        <Route path='/photo-upload' element={<PhotoUpload />} />
+        <Route path='/interests' element={<Interests />} />
+        <Route path='/home' element={<Home />} />
+        <Route path='/section1' element={<Section1 />} />
       </Routes>
     </BrowserRouter>
   )
