@@ -83,8 +83,15 @@ export default function Home() {
               <h2>{user?.full_name || 'Your Profile'}</h2>
               <button
                 className="start-section1-btn"
-                onClick={() => navigate('/section2')}
+                onClick={() => navigate('/profile')}
                 style={{ marginTop: '16px' }}
+              >
+                View Full Profile →
+              </button>
+              <button
+                className="start-section1-btn"
+                onClick={() => navigate('/section2')}
+                style={{ marginTop: '12px', background: '#4F2D7F' }}
               >
                 Open Section 2 Questions
               </button>
