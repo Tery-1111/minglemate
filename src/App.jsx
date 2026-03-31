@@ -7,6 +7,7 @@ import Interests from './pages/Interests'
 import Home from './pages/Home'
 import Section1 from './pages/Section1'
 import Section2 from './pages/Section2'
+import Payment from './pages/Payment'
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <Route path='/home' element={<Home />} />
         <Route path='/section1' element={<Section1 />} />
         <Route path='/section2' element={<Section2 />} />
+        <Route path='/payment' element={<Payment />} />
       </Routes>
     </BrowserRouter>
   )
