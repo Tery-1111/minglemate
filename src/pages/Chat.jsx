@@ -27,12 +27,18 @@ export default function Chat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
+  function getWeekId() {
+    const now = new Date()
+    const start = new Date(now.getFullYear(), 0, 1)
+    const week = Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7)
+    return `${now.getFullYear()}-W${week}`
+  }
+
   async function loadChat() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { navigate('/'); return }
     setCurrentUser(session.user.id)
 
-    // Load match user profile
     const { data: matchData } = await supabase
       .from('users')
       .select('id, full_name, interests')
@@ -40,7 +46,6 @@ export default function Chat() {
       .single()
     setMatchUser(matchData)
 
-    // Load existing messages
     const { data: msgs } = await supabase
       .from('messages')
       .select('*')
@@ -48,35 +53,34 @@ export default function Chat() {
       .order('sent_at', { ascending: true })
     setMessages(msgs || [])
 
-    // Mark messages as read
     await supabase
       .from('messages')
       .update({ read: true })
       .eq('recipient_id', session.user.id)
       .eq('sender_id', matchId)
 
-    // Check engagement metrics for meetup
     const weekId = getWeekId()
     const { data: engagement } = await supabase
       .from('engagement_metrics')
       .select('meetup_confirmed')
       .eq('user_id', session.user.id)
       .eq('week_id', weekId)
-      .single()
+      .maybeSingle()
     setMeetupConfirmed(engagement?.meetup_confirmed || false)
 
     setLoading(false)
 
-    // Subscribe to realtime messages
     const channel = supabase
-      .channel('messages')
+      .channel(`chat-${session.user.id}-${matchId}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
-        table: 'messages',
-        filter: `recipient_id=eq.${session.user.id}`
+        table: 'messages'
       }, (payload) => {
-        if (payload.new.sender_id === matchId) {
+        if (
+          payload.new.sender_id === matchId &&
+          payload.new.recipient_id === session.user.id
+        ) {
           setMessages(prev => [...prev, payload.new])
         }
       })
@@ -85,37 +89,34 @@ export default function Chat() {
     return () => supabase.removeChannel(channel)
   }
 
-  function getWeekId() {
-    const now = new Date()
-    const start = new Date(now.getFullYear(), 0, 1)
-    const week = Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7)
-    return `${now.getFullYear()}-W${week}`
-  }
-
   async function handleSend() {
     if (!newMessage.trim() || sending) return
     setSending(true)
 
-    const { data } = await supabase
+    const weekId = getWeekId()
+
+    const { data, error } = await supabase
       .from('messages')
       .insert({
         sender_id: currentUser,
         recipient_id: matchId,
-        content: newMessage.trim()
+        content: newMessage.trim(),
+        match_week_id: weekId
       })
       .select()
       .single()
 
-    setMessages(prev => [...prev, data])
+    if (!error && data) {
+      setMessages(prev => [...prev, data])
+    }
+
     setNewMessage('')
 
-    // Update engagement metrics
-    const weekId = getWeekId()
     await supabase.from('engagement_metrics').upsert({
       user_id: currentUser,
       week_id: weekId,
       messages_sent: 1
-    }, { onConflict: 'user_id,week_id', ignoreDuplicates: false })
+    }, { onConflict: 'user_id,week_id' })
 
     setSending(false)
   }
@@ -150,20 +151,19 @@ export default function Chat() {
       <div className="chat-header">
         <button className="chat-back" onClick={() => navigate('/home')}>←</button>
         <div className="chat-match-info">
-          <h3 className="chat-match-name">{matchUser?.full_name}</h3>
+          <h3 className="chat-match-name">{matchUser?.full_name || 'Your Match'}</h3>
           <p className="chat-match-sub">Your match this week</p>
         </div>
-        {!meetupConfirmed && (
+        {!meetupConfirmed ? (
           <button className="meetup-btn" onClick={handleMeetupConfirm}>
             🤝 Met Up
           </button>
-        )}
-        {meetupConfirmed && (
+        ) : (
           <span className="meetup-confirmed">✅ Met Up!</span>
         )}
       </div>
 
-      {matchUser?.interests && (
+      {matchUser?.interests && matchUser.interests.length > 0 && (
         <div className="chat-icebreakers">
           <p className="icebreaker-label">💡 Talk about:</p>
           <div className="icebreaker-tags">
