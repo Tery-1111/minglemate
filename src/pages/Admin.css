@@ -1,0 +1,279 @@
+.admin-login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0a0a0a;
+}
+
+.admin-login-card {
+  background: #1a1a1a;
+  border-radius: 16px;
+  padding: 40px;
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+}
+
+.admin-login-card h2 {
+  font-size: 28px;
+  font-weight: 800;
+  color: white;
+  margin-bottom: 8px;
+}
+
+.admin-login-card p {
+  font-size: 14px;
+  color: #888;
+  margin-bottom: 24px;
+}
+
+.admin-container {
+  min-height: 100vh;
+  background: #0a0a0a;
+  max-width: 600px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+}
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background: #4F2D7F;
+}
+
+.admin-header h1 {
+  font-size: 20px;
+  font-weight: 800;
+  color: white;
+}
+
+.admin-back {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.4);
+  color: white;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.admin-tabs {
+  display: flex;
+  background: #1a1a1a;
+  border-bottom: 1px solid #333;
+}
+
+.admin-tab {
+  flex: 1;
+  padding: 14px;
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.admin-tab.active {
+  color: #E8416B;
+  border-bottom: 2px solid #E8416B;
+}
+
+.admin-section {
+  padding: 24px;
+}
+
+.admin-section h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 16px;
+}
+
+.admin-add-campus {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 32px;
+}
+
+.admin-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 10px;
+  color: white;
+  font-size: 15px;
+  outline: none;
+  margin-bottom: 8px;
+}
+
+.admin-input:focus {
+  border-color: #4F2D7F;
+}
+
+.admin-error {
+  color: #E8416B;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.admin-btn {
+  width: 100%;
+  padding: 12px;
+  background: #4F2D7F;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-loading {
+  text-align: center;
+  color: #888;
+  padding: 20px;
+}
+
+.campus-card {
+  background: #1a1a1a;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 1px solid #333;
+}
+
+.campus-info h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 4px;
+}
+
+.campus-info p {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 12px;
+}
+
+.campus-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.toggle-row span {
+  font-size: 14px;
+  color: #ccc;
+}
+
+.toggle-btn {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.toggle-btn.on {
+  background: #1a7a4a;
+  color: white;
+}
+
+.toggle-btn.off {
+  background: #333;
+  color: #888;
+}
+
+.trigger-btn {
+  width: 100%;
+  padding: 10px;
+  background: #E8416B;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+.trigger-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.stat-card {
+  background: #1a1a1a;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  border: 1px solid #333;
+}
+
+.stat-card h3 {
+  font-size: 36px;
+  font-weight: 900;
+  color: #E8416B;
+  margin-bottom: 8px;
+}
+
+.stat-card p {
+  font-size: 13px;
+  color: #888;
+}
+
+.admin-empty {
+  color: #888;
+  font-size: 14px;
+  text-align: center;
+  padding: 20px;
+}
+
+.txn-card {
+  background: #1a1a1a;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid #333;
+}
+
+.txn-id {
+  font-size: 13px;
+  color: #888;
+  flex: 1;
+}
+
+.txn-amount {
+  font-size: 15px;
+  font-weight: 700;
+  color: #4CAF50;
+  margin: 0 12px;
+}
+
+.txn-date {
+  font-size: 12px;
+  color: #888;
+}

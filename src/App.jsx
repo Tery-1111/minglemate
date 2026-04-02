@@ -12,6 +12,7 @@ import Payment from './pages/Payment'
 import Profile from './pages/Profile'
 import Chat from './pages/Chat'
 import Matches from './pages/Matches'
+import Admin from './pages/Admin'
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
         <Route path='/profile' element={<Profile />} />
         <Route path='/chat/:matchId' element={<Chat />} />
         <Route path='/matches' element={<Matches />} />
+        <Route path='/admin' element={<Admin />} />
       </Routes>
     </BrowserRouter>
   )
