@@ -11,6 +11,7 @@ import Section2 from './pages/Section2'
 import Payment from './pages/Payment'
 import Profile from './pages/Profile'
 import Chat from './pages/Chat'
+import Matches from './pages/Matches'
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
         <Route path='/payment' element={<Payment />} />
         <Route path='/profile' element={<Profile />} />
         <Route path='/chat/:matchId' element={<Chat />} />
+        <Route path='/matches' element={<Matches />} />
       </Routes>
     </BrowserRouter>
   )

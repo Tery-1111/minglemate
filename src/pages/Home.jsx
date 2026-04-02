@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import './Home.css'
+import Matches from './Matches'
 
 export default function Home() {
   const navigate = useNavigate()
@@ -33,7 +34,6 @@ export default function Home() {
 
   return (
     <div className="home-container">
-
       <div className="home-header">
         <h1 className="home-logo">MingleMate</h1>
         <button className="signout-btn" onClick={handleSignOut}>Sign Out</button>
@@ -41,28 +41,25 @@ export default function Home() {
 
       <div className="home-content">
         {activeTab === 'matches' && (
-          <div className="tab-content">
-            <div className="matches-placeholder">
-              <div className="matches-icon">💝</div>
-              <h2>Your matches drop</h2>
-              <p>Every Tuesday at 9 PM</p>
-              <div className="matches-badge">
-                Welcome{user?.full_name ? `, ${user.full_name}` : ''}!
-              </div>
-              {!user?.section1_complete && (
+          <div className="tab-content-full">
+            {!user?.section1_complete ? (
+              <div className="matches-placeholder">
+                <div className="matches-icon">💝</div>
+                <h2>Your matches drop</h2>
+                <p>Every Tuesday at 9 PM</p>
+                <div className="matches-badge">
+                  Welcome{user?.full_name ? `, ${user.full_name}` : ''}!
+                </div>
                 <button
                   className="start-section1-btn"
                   onClick={() => navigate('/section1')}
                 >
                   Start Your Questions →
                 </button>
-              )}
-              {user?.section1_complete && (
-                <div className="section1-done">
-                  ✅ Questions complete — you are in the match pool!
-                </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <Matches />
+            )}
           </div>
         )}
 
@@ -123,7 +120,6 @@ export default function Home() {
           <span className="nav-label">Profile</span>
         </button>
       </div>
-
     </div>
   )
 }
