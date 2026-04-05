@@ -185,3 +185,71 @@
 .match-chat-btn:hover {
   opacity: 0.9;
 }
+
+.match-gift-section {
+  margin-top: 16px;
+  padding: 16px;
+  background: #111;
+  border-radius: 12px;
+  border: 1px solid #333;
+}
+
+.gift-label {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.gift-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gift-btn {
+  width: 100%;
+  padding: 12px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.gift-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.prompt-btn {
+  width: 100%;
+  padding: 12px;
+  background: #4F2D7F;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.prompt-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.match-s2-unlocked {
+  margin-top: 12px;
+  padding: 10px;
+  background: #1a2a1a;
+  border-radius: 10px;
+  color: #4CAF50;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}

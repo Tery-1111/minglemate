@@ -32,21 +32,20 @@ export default function Matches() {
       .select('tier1_match_id, tier2_match_id, delivered_at')
       .eq('user_id', session.user.id)
       .eq('week_id', weekId)
-      .single()
+      .maybeSingle()
 
     if (!matchHistory) {
       setLoading(false)
       return
     }
 
-    // Load tier 1 match details
     let tier1 = null
     let tier2 = null
 
     if (matchHistory.tier1_match_id) {
       const { data: t1User } = await supabase
         .from('users')
-        .select('id, full_name, age, bio, interests, gender')
+        .select('id, full_name, age, bio, interests, gender, section2_unlocked')
         .eq('id', matchHistory.tier1_match_id)
         .single()
 
@@ -62,7 +61,7 @@ export default function Matches() {
     if (matchHistory.tier2_match_id) {
       const { data: t2User } = await supabase
         .from('users')
-        .select('id, full_name, age, bio, interests, gender')
+        .select('id, full_name, age, bio, interests, gender, section2_unlocked')
         .eq('id', matchHistory.tier2_match_id)
         .single()
 
@@ -93,9 +92,7 @@ export default function Matches() {
         <div className="matches-empty-icon">💝</div>
         <h2>No matches yet</h2>
         <p>Your matches drop every Tuesday at 9 PM</p>
-        {!matches && (
-          <p className="matches-tip">Make sure you have completed Section 1 to enter the match pool</p>
-        )}
+        <p className="matches-tip">Complete Section 1 to enter the match pool</p>
         <button className="matches-s1-btn" onClick={() => navigate('/section1')}>
           Go to Section 1 →
         </button>
@@ -106,7 +103,9 @@ export default function Matches() {
   return (
     <div className="matches-container">
       <h2 className="matches-heading">Your Matches This Week</h2>
-      <p className="matches-week">Week of {new Date(matches.deliveredAt).toLocaleDateString()}</p>
+      <p className="matches-week">
+        Week of {new Date(matches.deliveredAt).toLocaleDateString()}
+      </p>
 
       {matches.tier1 && (
         <MatchCard
@@ -114,6 +113,8 @@ export default function Matches() {
           tier="Tier 1"
           tierLabel="Similarity Match"
           tierColor="#4F2D7F"
+          currentUserId={userId}
+          weekId={getWeekId()}
           onChat={() => navigate(`/chat/${matches.tier1.id}`)}
         />
       )}
@@ -124,6 +125,8 @@ export default function Matches() {
           tier="Tier 2"
           tierLabel="Complementary Match"
           tierColor="#E8416B"
+          currentUserId={userId}
+          weekId={getWeekId()}
           onChat={() => navigate(`/chat/${matches.tier2.id}`)}
         />
       )}
@@ -131,8 +134,57 @@ export default function Matches() {
   )
 }
 
-function MatchCard({ match, tier, tierLabel, tierColor, onChat }) {
+function MatchCard({ match, tier, tierLabel, tierColor, currentUserId, weekId, onChat }) {
+  const navigate = useNavigate()
   const [currentPhoto, setCurrentPhoto] = useState(0)
+  const [promptSent, setPromptSent] = useState(false)
+  const [gifting, setGifting] = useState(false)
+  const [prompting, setPrompting] = useState(false)
+
+  useEffect(() => {
+    checkPromptSent()
+  }, [])
+
+  async function checkPromptSent() {
+    const { data } = await supabase
+      .from('payment_prompts')
+      .select('id')
+      .eq('sender_user_id', currentUserId)
+      .eq('recipient_user_id', match.id)
+      .eq('match_week_id', weekId)
+      .maybeSingle()
+    setPromptSent(!!data)
+  }
+
+  async function handleGift() {
+    setGifting(true)
+    const { error } = await supabase
+      .from('gift_transactions')
+      .insert({
+        gifter_user_id: currentUserId,
+        recipient_user_id: match.id,
+        match_week_id: weekId,
+        status: 'pending'
+      })
+    if (!error) {
+      navigate('/payment?gift=true&recipientId=' + match.id)
+    }
+    setGifting(false)
+  }
+
+  async function handlePrompt() {
+    setPrompting(true)
+    await supabase
+      .from('payment_prompts')
+      .insert({
+        sender_user_id: currentUserId,
+        recipient_user_id: match.id,
+        match_week_id: weekId
+      })
+    setPromptSent(true)
+    setPrompting(false)
+    alert('Payment prompt sent to your match!')
+  }
 
   return (
     <div className="match-card">
@@ -181,6 +233,34 @@ function MatchCard({ match, tier, tierLabel, tierColor, onChat }) {
         <button className="match-chat-btn" onClick={onChat}>
           Start Conversation →
         </button>
+
+        {!match.section2_unlocked && (
+          <div className="match-gift-section">
+            <p className="gift-label">💭 Section 2 not unlocked</p>
+            <div className="gift-buttons">
+              <button
+                className="gift-btn"
+                onClick={handleGift}
+                disabled={gifting}
+              >
+                {gifting ? 'Processing...' : '🎁 Gift Section 2'}
+              </button>
+              <button
+                className="prompt-btn"
+                onClick={handlePrompt}
+                disabled={promptSent || prompting}
+              >
+                {promptSent ? '✅ Prompt Sent' : prompting ? 'Sending...' : '💬 Ask Them to Unlock'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {match.section2_unlocked && (
+          <div className="match-s2-unlocked">
+            ✅ Section 2 unlocked — deeper matching active
+          </div>
+        )}
       </div>
     </div>
   )

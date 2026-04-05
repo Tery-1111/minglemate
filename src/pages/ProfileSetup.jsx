@@ -13,7 +13,10 @@ export default function ProfileSetup() {
     age: '',
     gender: '',
     residence_type: '',
-    bio: ''
+    bio: '',
+    phone: '',
+    whatsapp_number: '',
+    display_phone: ''
   })
 
   useEffect(() => {
@@ -52,7 +55,7 @@ export default function ProfileSetup() {
 
   async function handleSubmit() {
     if (!form.full_name || !form.age || !form.gender || !form.residence_type || !form.bio) {
-      setError('Please fill in all fields.')
+      setError('Please fill in all required fields.')
       return
     }
     if (form.bio.length < 50) {
@@ -61,6 +64,10 @@ export default function ProfileSetup() {
     }
     if (parseInt(form.age) < 18) {
       setError('You must be at least 18 years old.')
+      return
+    }
+    if (!form.phone || !form.whatsapp_number) {
+      setError('Please enter your phone and WhatsApp number.')
       return
     }
 
@@ -80,6 +87,9 @@ export default function ProfileSetup() {
         campus_id: campus?.id,
         residence_type: form.residence_type,
         bio: form.bio,
+        phone: form.phone,
+        whatsapp_number: form.whatsapp_number,
+        display_phone: form.display_phone || form.phone,
         section2_free_expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
       })
 
@@ -161,6 +171,38 @@ export default function ProfileSetup() {
           onChange={handleChange}
         />
         <p className="bio-counter">{form.bio.length} / 50 minimum</p>
+
+        <p className="contact-section-label">📞 Contact Details</p>
+        <p className="contact-section-sub">
+          These are hidden from everyone. They only reveal to your match after 14 Section 2 questions are discussed together.
+        </p>
+
+        <input
+          className="profile-input"
+          type="tel"
+          name="phone"
+          placeholder="Phone number e.g. 0712345678"
+          value={form.phone}
+          onChange={handleChange}
+        />
+
+        <input
+          className="profile-input"
+          type="tel"
+          name="whatsapp_number"
+          placeholder="WhatsApp number e.g. 0712345678"
+          value={form.whatsapp_number}
+          onChange={handleChange}
+        />
+
+        <input
+          className="profile-input"
+          type="email"
+          name="display_phone"
+          placeholder="Email to share with match (optional)"
+          value={form.display_phone}
+          onChange={handleChange}
+        />
 
         {error && <p className="profile-error">{error}</p>}
 

@@ -197,3 +197,140 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.s2-progress-bar-container {
+  height: 3px;
+  background: #333;
+  width: 100%;
+}
+
+.s2-progress-bar-fill {
+  height: 100%;
+  background: #E8416B;
+  transition: width 0.5s ease;
+}
+
+.bot-message {
+  display: flex;
+  justify-content: center;
+  padding: 8px 16px;
+}
+
+.bot-bubble {
+  background: #1a0a2e;
+  border: 1px solid #4F2D7F;
+  border-radius: 16px;
+  padding: 14px 18px;
+  max-width: 90%;
+}
+
+.bot-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #E8416B;
+  display: block;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.bot-bubble p {
+  font-size: 14px;
+  color: #ccc;
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+.paywall-card {
+  background: #1a1a1a;
+  border: 2px solid #E8416B;
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  max-width: 90%;
+}
+
+.paywall-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.paywall-card h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 8px;
+}
+
+.paywall-card p {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.paywall-btn {
+  padding: 12px 24px;
+  background: #E8416B;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.blur-warning {
+  font-size: 11px;
+  color: #E8416B;
+  margin-bottom: 4px;
+}
+
+.contact-reveal-card {
+  margin: 16px;
+  background: linear-gradient(135deg, #1a0a2e, #2a1a4e);
+  border: 2px solid #E8416B;
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+}
+
+.contact-reveal-card h3 {
+  font-size: 18px;
+  font-weight: 800;
+  color: white;
+  margin-bottom: 4px;
+}
+
+.contact-reveal-card > p {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 16px;
+}
+
+.contact-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.contact-person {
+  background: rgba(255,255,255,0.05);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: left;
+}
+
+.contact-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #E8416B;
+  margin-bottom: 8px;
+}
+
+.contact-person p {
+  font-size: 12px;
+  color: #ccc;
+  margin-bottom: 4px;
+  word-break: break-all;
+}
