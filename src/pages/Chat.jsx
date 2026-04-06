@@ -169,8 +169,9 @@ export default function Chat() {
 
     setLoading(false)
 
-    // Send first question if chat is empty
-    if ((msgs || []).length === 0 && !sendingBot) {
+    // Send first question if no bot messages exist yet
+    const hasBotMessages = (msgs || []).some(m => m.is_bot)
+    if (!hasBotMessages && !currentProgress?.last_question_sent) {
       setTimeout(() => {
         sendBotQuestion(1, currentProgress, session.user.id, matchId)
       }, 800)
@@ -202,8 +203,7 @@ export default function Chat() {
     const content = `💬 Question ${questionNumber} of 20:\n\n"${question}"`
     const weekId = getWeekId()
 
-    // Send to both users
-    await supabase.from('messages').insert({
+    const { error } = await supabase.from('messages').insert({
       sender_id: userId,
       recipient_id: recipientId,
       content,
@@ -211,15 +211,12 @@ export default function Chat() {
       is_bot: true
     })
 
-    await supabase.from('messages').insert({
-      sender_id: userId,
-      recipient_id: userId,
-      content,
-      match_week_id: weekId,
-      is_bot: true
-    })
+    if (error) {
+      console.error('Bot message error:', error)
+      setSendingBot(false)
+      return
+    }
 
-    // Update progress
     const sortedIds = [userId, recipientId].sort()
     const shouldUnlock = questionNumber >= UNLOCK_THRESHOLD
 
@@ -239,12 +236,12 @@ export default function Chat() {
     setS2Progress(updated)
     if (shouldUnlock) setContactsRevealed(true)
 
-    // Reload messages
     const { data: newMsgs } = await supabase
       .from('messages')
       .select('*')
-      .or(`and(sender_id.eq.${userId},recipient_id.eq.${recipientId}),and(sender_id.eq.${recipientId},recipient_id.eq.${userId}),and(sender_id.eq.${userId},recipient_id.eq.${userId})`)
+      .or(`and(sender_id.eq.${userId},recipient_id.eq.${recipientId}),and(sender_id.eq.${recipientId},recipient_id.eq.${userId})`)
       .order('sent_at', { ascending: true })
+
     setMessages(newMsgs || [])
     setSendingBot(false)
   }
@@ -281,14 +278,15 @@ export default function Chat() {
     setSending(false)
 
     // Check if we should send next question
-    if (s2Progress) {
+    if (s2Progress && !sendingBot) {
       const nextQ = (s2Progress.last_question_sent || 0) + 1
       const isFreeQ = nextQ <= FREE_QUESTIONS
-      const userMsgsSinceBot = messages.filter(m =>
-        !m.is_bot && m.sender_id !== currentUser
-      ).length
+      const lastBotIdx = messages.map(m => m.is_bot).lastIndexOf(true)
+      const msgsSinceBot = lastBotIdx === -1
+        ? messages.filter(m => !m.is_bot).length
+        : messages.slice(lastBotIdx + 1).filter(m => !m.is_bot).length
 
-      if ((isFreeQ || bothUnlocked) && userMsgsSinceBot >= 1 && !sendingBot) {
+      if ((isFreeQ || bothUnlocked) && msgsSinceBot >= 1) {
         setTimeout(() => {
           sendBotQuestion(nextQ, s2Progress, currentUser, matchId)
         }, 1000)
@@ -318,12 +316,12 @@ export default function Chat() {
     const isBot = msg.is_bot
 
     if (isBot) {
-      const questionNum = s2Progress?.last_question_sent || 0
-      const isPaywallPoint = questionNum >= FREE_QUESTIONS && !bothUnlocked
+      const qNum = s2Progress?.last_question_sent || 0
+      const isPaywallPoint = qNum >= FREE_QUESTIONS && !bothUnlocked
 
       return (
         <div key={index} className="bot-message">
-          {isPaywallPoint && questionNum === FREE_QUESTIONS ? (
+          {isPaywallPoint ? (
             <div className="paywall-card">
               <p className="paywall-icon">🔒</p>
               <h3>Unlock Section 2 to continue</h3>
