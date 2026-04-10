@@ -185,8 +185,15 @@ export default function Chat() {
         schema: 'public',
         table: 'messages'
       }, (payload) => {
-        if (payload.new.recipient_id === session.user.id) {
-          setMessages(prev => [...prev, payload.new])
+        if (
+          payload.new.recipient_id === session.user.id ||
+          (payload.new.sender_id === session.user.id && payload.new.is_bot)
+        ) {
+          setMessages(prev => {
+            const exists = prev.find(m => m.id === payload.new.id)
+            if (exists) return prev
+            return [...prev, payload.new]
+          })
         }
       })
       .subscribe()
@@ -203,18 +210,31 @@ export default function Chat() {
     const content = `💬 Question ${questionNumber} of 20:\n\n"${question}"`
     const weekId = getWeekId()
 
-    const { error } = await supabase.from('messages').insert({
-      sender_id: userId,
-      recipient_id: recipientId,
-      content,
-      match_week_id: weekId,
-      is_bot: true
-    })
+    const { error, data: inserted } = await supabase
+      .from('messages')
+      .insert({
+        sender_id: userId,
+        recipient_id: recipientId,
+        content,
+        match_week_id: weekId,
+        is_bot: true
+      })
+      .select()
+      .single()
 
     if (error) {
       console.error('Bot message error:', error)
       setSendingBot(false)
       return
+    }
+
+    // Add to messages immediately to avoid waiting for realtime
+    if (inserted) {
+      setMessages(prev => {
+        const exists = prev.find(m => m.id === inserted.id)
+        if (exists) return prev
+        return [...prev, inserted]
+      })
     }
 
     const sortedIds = [userId, recipientId].sort()
@@ -235,14 +255,6 @@ export default function Chat() {
 
     setS2Progress(updated)
     if (shouldUnlock) setContactsRevealed(true)
-
-    const { data: newMsgs } = await supabase
-      .from('messages')
-      .select('*')
-      .or(`and(sender_id.eq.${userId},recipient_id.eq.${recipientId}),and(sender_id.eq.${recipientId},recipient_id.eq.${userId})`)
-      .order('sent_at', { ascending: true })
-
-    setMessages(newMsgs || [])
     setSendingBot(false)
   }
 
@@ -266,7 +278,14 @@ export default function Chat() {
       .select()
       .single()
 
-    if (data) setMessages(prev => [...prev, data])
+    if (data) {
+      setMessages(prev => {
+        const exists = prev.find(m => m.id === data.id)
+        if (exists) return prev
+        return [...prev, data]
+      })
+    }
+
     setNewMessage('')
 
     await supabase.from('engagement_metrics').upsert({
@@ -320,7 +339,7 @@ export default function Chat() {
       const isPaywallPoint = qNum >= FREE_QUESTIONS && !bothUnlocked
 
       return (
-        <div key={index} className="bot-message">
+        <div key={msg.id || index} className="bot-message">
           {isPaywallPoint ? (
             <div className="paywall-card">
               <p className="paywall-icon">🔒</p>
@@ -344,7 +363,7 @@ export default function Chat() {
     const displayContent = shouldBlur ? blurContactInfo(msg.content) : msg.content
 
     return (
-      <div key={index} className={`message ${isMe ? 'sent' : 'received'}`}>
+      <div key={msg.id || index} className={`message ${isMe ? 'sent' : 'received'}`}>
         {shouldBlur && (
           <p className="blur-warning">⚠️ Contact info hidden until 14 questions are discussed</p>
         )}
