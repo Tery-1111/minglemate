@@ -56,6 +56,15 @@ function blurContactInfo(text) {
   return result
 }
 
+async function reloadMessages(userId, matchId) {
+  const { data } = await supabase
+    .from('messages')
+    .select('*')
+    .or(`and(sender_id.eq.${userId},recipient_id.eq.${matchId}),and(sender_id.eq.${matchId},recipient_id.eq.${userId})`)
+    .order('sent_at', { ascending: true })
+  return data || []
+}
+
 export default function Chat() {
   const navigate = useNavigate()
   const { matchId } = useParams()
@@ -72,6 +81,7 @@ export default function Chat() {
   const [contactsRevealed, setContactsRevealed] = useState(false)
   const [sendingBot, setSendingBot] = useState(false)
   const messagesEndRef = useRef(null)
+  const currentUserRef = useRef(null)
 
   useEffect(() => {
     loadChat()
@@ -96,6 +106,7 @@ export default function Chat() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { navigate('/'); return }
     setCurrentUser(session.user.id)
+    currentUserRef.current = session.user.id
 
     const { data: meData } = await supabase
       .from('users')
@@ -116,15 +127,10 @@ export default function Chat() {
       (meData?.section2_free_expires_at && new Date(meData.section2_free_expires_at) > now)
     const matchAccess = matchData?.section2_unlocked ||
       (matchData?.section2_free_expires_at && new Date(matchData.section2_free_expires_at) > now)
-    const bothHaveAccess = myAccess && matchAccess
-    setBothUnlocked(bothHaveAccess)
+    setBothUnlocked(myAccess && matchAccess)
 
-    const { data: msgs } = await supabase
-      .from('messages')
-      .select('*')
-      .or(`and(sender_id.eq.${session.user.id},recipient_id.eq.${matchId}),and(sender_id.eq.${matchId},recipient_id.eq.${session.user.id})`)
-      .order('sent_at', { ascending: true })
-    setMessages(msgs || [])
+    const msgs = await reloadMessages(session.user.id, matchId)
+    setMessages(msgs)
 
     await supabase
       .from('messages')
@@ -170,24 +176,24 @@ export default function Chat() {
     setLoading(false)
 
     // Send first question if no bot messages exist yet
-    const hasBotMessages = (msgs || []).some(m => m.is_bot)
+    const hasBotMessages = msgs.some(m => m.is_bot)
     if (!hasBotMessages && !currentProgress?.last_question_sent) {
       setTimeout(() => {
         sendBotQuestion(1, currentProgress, session.user.id, matchId)
       }, 800)
     }
 
-    // Realtime
+    // Realtime — only for incoming messages from match (not bot)
     const channel = supabase
       .channel(`chat-${session.user.id}-${matchId}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'messages'
-      }, (payload) => {
+      }, async (payload) => {
         if (
-          payload.new.recipient_id === session.user.id ||
-          (payload.new.sender_id === session.user.id && payload.new.is_bot)
+          payload.new.recipient_id === currentUserRef.current &&
+          !payload.new.is_bot
         ) {
           setMessages(prev => {
             const exists = prev.find(m => m.id === payload.new.id)
@@ -210,17 +216,13 @@ export default function Chat() {
     const content = `💬 Question ${questionNumber} of 20:\n\n"${question}"`
     const weekId = getWeekId()
 
-    const { error, data: inserted } = await supabase
-      .from('messages')
-      .insert({
-        sender_id: userId,
-        recipient_id: recipientId,
-        content,
-        match_week_id: weekId,
-        is_bot: true
-      })
-      .select()
-      .single()
+    const { error } = await supabase.from('messages').insert({
+      sender_id: userId,
+      recipient_id: recipientId,
+      content,
+      match_week_id: weekId,
+      is_bot: true
+    })
 
     if (error) {
       console.error('Bot message error:', error)
@@ -228,19 +230,14 @@ export default function Chat() {
       return
     }
 
-    // Add to messages immediately to avoid waiting for realtime
-    if (inserted) {
-      setMessages(prev => {
-        const exists = prev.find(m => m.id === inserted.id)
-        if (exists) return prev
-        return [...prev, inserted]
-      })
-    }
+    // Reload all messages fresh — single source of truth
+    const updated = await reloadMessages(userId, recipientId)
+    setMessages(updated)
 
     const sortedIds = [userId, recipientId].sort()
     const shouldUnlock = questionNumber >= UNLOCK_THRESHOLD
 
-    const { data: updated } = await supabase
+    const { data: updatedProgress } = await supabase
       .from('section2_chat_progress')
       .update({
         last_question_sent: questionNumber,
@@ -253,7 +250,7 @@ export default function Chat() {
       .select()
       .single()
 
-    setS2Progress(updated)
+    setS2Progress(updatedProgress)
     if (shouldUnlock) setContactsRevealed(true)
     setSendingBot(false)
   }
