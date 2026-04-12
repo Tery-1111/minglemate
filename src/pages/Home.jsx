@@ -1,3 +1,4 @@
+import { saveOneSignalPlayerId } from '../supabaseClient'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
@@ -25,6 +26,7 @@ export default function Home() {
       .eq('id', session.user.id)
       .single()
     setUser(data)
+saveOneSignalPlayerId(session.user.id)
   }
 
   async function handleSignOut() {
