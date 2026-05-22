@@ -8,11 +8,38 @@ import Matches from './Matches'
 export default function Home() {
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
+  const [userId, setUserId] = useState(null)
   const [activeTab, setActiveTab] = useState('matches')
 
   useEffect(() => {
     getUser()
   }, [])
+
+  // Real-time Notification Listener
+  useEffect(() => {
+    if (!userId) return
+
+    const channel = supabase
+      .channel('notifications-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          // Alert user of new match
+          alert("New Match Alert: " + payload.new.message)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [userId])
 
   async function getUser() {
     const { data: { session } } = await supabase.auth.getSession()
@@ -20,13 +47,17 @@ export default function Home() {
       navigate('/')
       return
     }
+    
+    setUserId(session.user.id)
+    
     const { data } = await supabase
       .from('users')
       .select('full_name, profile_status, section1_complete')
       .eq('id', session.user.id)
       .single()
+      
     setUser(data)
-saveOneSignalPlayerId(session.user.id)
+    saveOneSignalPlayerId(session.user.id)
   }
 
   async function handleSignOut() {

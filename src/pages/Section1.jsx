@@ -1,138 +1,274 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { supabase } from '../supabaseClient'
-import { section1Questions } from '../data/questions'
-import './Section1.css'
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL || '',
+  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+);
+
+// Inline mock data representing questions.js structure for standalone stability
+const CAMPUS_QUESTIONS = [
+  { id: 1, text: "What is your ideal weekend layout structure around campus?", options: ["Studying at the library", "Chilling at the eateries", "Major gym sessions", "Attending social hubs"] },
+  { id: 2, text: "How do you approach coursework group projects?", options: ["Take lead coding role", "Handle design metrics", "Manage task execution charts", "Review and debug logic"] },
+  { id: 3, text: "Your preference when listening to music production tracks?", options: ["Latin Urban & Reggaeton vibes", "Afro-pop rhythms", "R&B fusion blends", "Lo-fi background frequencies"] },
+  { id: 4, text: "Which discipline framework anchors your workflow?", options: ["Strict daily schedules", "Adaptive hyper-focus blocks", "Social tracking groups", "Fluid instinctual momentum"] }
+];
 
 export default function Section1() {
-  const navigate = useNavigate()
-  const [current, setCurrent] = useState(0)
-  const [answers, setAnswers] = useState({})
-  const [loading, setLoading] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [userId, setUserId] = useState(null)
+  const navigate = useNavigate();
+  const [current, setCurrent] = useState(0); // Clean 0-indexed default assignment array scale
+  const [answers, setAnswers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [userId, setUserId] = useState(null);
 
   useEffect(() => {
-    loadProgress()
-  }, [])
+    async function restoreSurveyProgress() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          navigate('/login');
+          return;
+        }
+        setUserId(user.id);
 
-  async function loadProgress() {
-    setLoading(true)
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) { navigate('/'); return }
-    setUserId(session.user.id)
+        // Fetch current questionnaire status profiles
+        const { data: profile, error: profileError } = await supabase
+          .from('users')
+          .select('section1_progress, section1_complete')
+          .eq('id', user.id)
+          .single();
 
-    const { data: existing } = await supabase
-      .from('section1_responses')
-      .select('question_number, answer_value')
-      .eq('user_id', session.user.id)
+        if (profileError) throw profileError;
 
-    if (existing && existing.length > 0) {
-      const loaded = {}
-      existing.forEach(r => { loaded[r.question_number] = r.answer_value })
-      setAnswers(loaded)
-      const lastAnswered = Math.max(...existing.map(r => r.question_number))
-      const nextIndex = Math.min(lastAnswered, section1Questions.length - 1)
-      setCurrent(nextIndex)
+        if (profile?.section1_complete) {
+          navigate('/dashboard');
+          return;
+        }
+
+        // 🚨 THE FIX: Map progress using absolute 0-indexed scale pointers to prevent item skipping
+        const progressPointer = profile?.section1_progress || 0;
+        setCurrent(progressPointer);
+
+        // Restore previously recorded matrix vectors if any exist
+        const { data: responseRow } = await supabase
+          .from('user_responses')
+          .select('responses_array')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (responseRow?.responses_array) {
+          setAnswers(responseRow.responses_array);
+        } else {
+          setAnswers(new Array(CAMPUS_QUESTIONS.length).fill(null));
+        }
+      } catch (err) {
+        console.error("Survey sync disruption:", err);
+        setError("Failed to coordinate profile progress maps safely.");
+      } finally {
+        setLoading(false);
+      }
     }
-    setLoading(false)
-  }
+    restoreSurveyProgress();
+  }, [navigate]);
 
-  async function handleAnswer(choice) {
-    const question = section1Questions[current]
-    const newAnswers = { ...answers, [question.number]: choice }
-    setAnswers(newAnswers)
-    setSaving(true)
+  const handleSelectOption = async (optionIndex) => {
+    if (isSaving) return;
+    setIsSaving(true);
+    setError(null);
 
-    await supabase.from('section1_responses').upsert({
-      user_id: userId,
-      question_number: question.number,
-      answer_value: choice,
-      category: question.category
-    })
+    // Update locally stored array element values cleanly
+    const updatedAnswers = [...answers];
+    updatedAnswers[current] = optionIndex;
+    setAnswers(updatedAnswers);
 
-    // Unlock early match pool at question 15
-    if (question.number === 15) {
-      await supabase
+    const nextStepIndex = current + 1;
+    const isSurveyFinished = nextStepIndex >= CAMPUS_QUESTIONS.length;
+
+    try {
+      // 1. Commit answer vectors down into the dedicated vector tracking tables
+      const { error: responseError } = await supabase
+        .from('user_responses')
+        .upsert({
+          user_id: userId,
+          responses_array: updatedAnswers,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id' });
+
+      if (responseError) throw responseError;
+
+      // 2. Advance structural state records on users master reference configuration blocks
+      const { error: userUpdateError } = await supabase
         .from('users')
         .update({
-          profile_status: 'active',
-          section1_progress: 15
-        })
-        .eq('id', userId)
-    }
-
-    // Complete at question 40
-    if (question.number === 40) {
-      await supabase
-        .from('users')
-        .update({
-          section1_complete: true,
-          section1_progress: 40,
+          section1_progress: isSurveyFinished ? current : nextStepIndex,
+          section1_complete: isSurveyFinished,
           section1_last_edited: new Date().toISOString()
         })
-        .eq('id', userId)
-      setSaving(false)
-      navigate('/home')
-      return
+        .eq('id', userId);
+
+      if (userUpdateError) throw userUpdateError;
+
+      // 3. Routing navigation pipeline logic
+      if (isSurveyFinished) {
+        navigate('/photos');
+      } else {
+        setCurrent(nextStepIndex);
+      }
+    } catch (err) {
+      console.error("Answer upload crash execution:", err);
+      setError("Failed to preserve selected metrics sequence indices securely.");
+    } finally {
+      setIsSaving(false);
     }
+  };
 
-    setSaving(false)
+  if (loading) return <div style={styles.centerContainer}>⚡ Loading Structural Survey Matrix...</div>;
+  if (error) return <div style={styles.centerContainer}><div style={styles.alertBox}>{error}</div></div>;
 
-    if (current < section1Questions.length - 1) {
-      setCurrent(current + 1)
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="s1-loading">
-        <p>Loading your questions...</p>
-      </div>
-    )
-  }
-
-  const question = section1Questions[current]
-  const progress = ((current + 1) / section1Questions.length) * 100
+  const currentQuestion = CAMPUS_QUESTIONS[current];
 
   return (
-    <div className="s1-container">
-      <div className="s1-header">
-        <button className="s1-back" onClick={() => current > 0 ? setCurrent(current - 1) : navigate('/home')}>
-          ←
-        </button>
-        <span className="s1-progress-text">Question {current + 1} of {section1Questions.length}</span>
-        <span className="s1-category">{question.category}</span>
-      </div>
+    <div style={styles.container}>
+      <div style={styles.surveyCard}>
+        {/* Progress Matrix Indicator Bar */}
+        <div style={styles.progressBarWrapper}>
+          <div 
+            style={{ 
+              ...styles.progressBarFill, 
+              width: `${((current + 1) / CAMPUS_QUESTIONS.length) * 100}%` 
+            }} 
+          />
+        </div>
 
-      <div className="s1-progress-bar">
-        <div className="s1-progress-fill" style={{ width: `${progress}%` }} />
-      </div>
+        <div style={styles.counterText}>
+          Question {current + 1} of {CAMPUS_QUESTIONS.length}
+        </div>
 
-      <div className="s1-content">
-        <h2 className="s1-question">{question.text}</h2>
+        <h2 style={styles.questionTitle}>{currentQuestion?.text}</h2>
 
-        <div className="s1-choices">
-          {question.choices.map((choice, i) => (
+        {/* Options Stack Grid Selection */}
+        <div style={styles.optionsContainer}>
+          {currentQuestion?.options.map((option, idx) => (
             <button
-              key={i}
-              className={`s1-choice ${answers[question.number] === choice ? 'selected' : ''}`}
-              onClick={() => handleAnswer(choice)}
-              disabled={saving}
+              key={idx}
+              disabled={isSaving}
+              onClick={() => handleSelectOption(idx)}
+              style={{
+                ...styles.optionButton,
+                background: answers[current] === idx ? 'rgba(232, 65, 107, 0.2)' : '#1a1a1a',
+                borderColor: answers[current] === idx ? '#E8416B' : '#333333',
+                cursor: isSaving ? 'not-allowed' : 'pointer'
+              }}
             >
-              {choice}
+              {option}
             </button>
           ))}
         </div>
 
-        {saving && <p className="s1-saving">Saving...</p>}
-
-        {current === 14 && (
-          <div className="s1-milestone">
-            🎉 Almost there! One more answer and you enter the match pool.
-          </div>
+        {current > 0 && (
+          <button 
+            disabled={isSaving}
+            onClick={() => setCurrent(prev => prev - 1)} 
+            style={styles.backBtn}
+          >
+            ← Previous Question
+          </button>
         )}
       </div>
     </div>
-  )
+  );
 }
+
+const styles = {
+  container: {
+    minHeight: '100vh',
+    background: '#0a0a0a',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '24px 16px',
+    fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif'
+  },
+  centerContainer: {
+    minHeight: '100vh',
+    background: '#0a0a0a',
+    color: '#888888',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '15px'
+  },
+  surveyCard: {
+    width: '100%',
+    maxWidth: '480px',
+    background: '#141414',
+    border: '1px solid #262626',
+    borderRadius: '16px',
+    padding: '32px 24px'
+  },
+  progressBarWrapper: {
+    width: '100%',
+    height: '6px',
+    background: '#262626',
+    borderRadius: '3px',
+    marginBottom: '20px',
+    overflow: 'hidden'
+  },
+  progressBarFill: {
+    height: '100%',
+    background: '#E8416B',
+    transition: 'width 0.3s ease-in-out'
+  },
+  counterText: {
+    color: '#888888',
+    fontSize: '13px',
+    fontWeight: '600',
+    marginBottom: '8px',
+    textTransform: 'uppercase'
+  },
+  questionTitle: {
+    color: '#ffffff',
+    fontSize: '20px',
+    fontWeight: '700',
+    lineHeight: '1.4',
+    margin: '0 0 24px 0'
+  },
+  optionsContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    marginBottom: '24px'
+  },
+  optionButton: {
+    width: '100%',
+    textAlign: 'left',
+    padding: '16px',
+    color: '#ffffff',
+    fontSize: '15px',
+    border: '1px solid #333333',
+    borderRadius: '10px',
+    transition: 'all 0.15s ease',
+    outline: 'none'
+  },
+  backBtn: {
+    background: 'none',
+    border: 'none',
+    color: '#666666',
+    fontSize: '13px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    padding: '4px',
+    outline: 'none',
+    transition: 'color 0.2s'
+  },
+  alertBox: {
+    background: 'rgba(232, 65, 107, 0.1)',
+    border: '1px solid #E8416B',
+    color: '#E8416B',
+    padding: '12px 20px',
+    borderRadius: '8px'
+  }
+};

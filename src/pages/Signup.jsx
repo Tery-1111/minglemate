@@ -1,204 +1,219 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { supabase } from '../supabaseClient'
-import { parseRegNumber } from '../utils/regNumber'
-import './Signup.css'
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize your Supabase client locally or import it from your client config file
+// import { supabase } from '../supabaseClient';
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL || '',
+  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+);
 
 export default function Signup() {
-  const navigate = useNavigate()
-  const [step, setStep] = useState(1)
-  const [email, setEmail] = useState('')
-  const [regNumber, setRegNumber] = useState('')
-  const [regError, setRegError] = useState('')
-  const [requiresRegNumber, setRequiresRegNumber] = useState(false)
-  const [otp, setOtp] = useState(['', '', '', '', '', '', '', ''])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  function handleEmailChange(e) {
-    const val = e.target.value
-    setEmail(val)
-    const domain = val.split('@')[1]
-    setRequiresRegNumber(domain === 'gmail.com')
-    setRegNumber('')
-    setRegError('')
-  }
+  const handleSignup = async (e) => {
+    e.preventDefault();
+    if (loading) return;
 
-  function handleRegNumberChange(e) {
-    const val = e.target.value
-    setRegNumber(val)
-    if (val.length > 3) {
-      const result = parseRegNumber(val)
-      setRegError(result.valid ? '' : result.error)
-    } else {
-      setRegError('')
-    }
-  }
+    setLoading(true);
+    setError(null);
 
-  async function handleEmailSubmit() {
-    setLoading(true)
-    setError('')
+    try {
+      // 1. Create the credentials account in auth.users
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
 
-    const domain = email.split('@')[1]
+      if (authError) throw authError;
 
-    const { data: campus } = await supabase
-      .from('campuses')
-      .select('id, requires_reg_number')
-      .eq('email_domain', domain)
-      .single()
+      if (authData?.user) {
+        // 2. CRITICAL: Explicitly await the database write before moving pages
+        const { error: profileError } = await supabase
+          .from('users')
+          .upsert({
+            id: authData.user.id,
+            email: email,
+            section2_unlocked: false,
+            created_at: new Date().toISOString(),
+          });
 
-    if (!campus) {
-      setError('This email is not from a registered campus.')
-      setLoading(false)
-      return
-    }
-
-    if (campus.requires_reg_number) {
-      const result = parseRegNumber(regNumber)
-      if (!result.valid) {
-        setRegError(result.error)
-        setLoading(false)
-        return
+        // If the database profile write fails, stop execution here so the app doesn't break on /onboarding
+        if (profileError) throw profileError;
+        
+        // 3. Navigation is completely safe to execute now
+        navigate('/onboarding');
       }
+    } catch (err) {
+      setError(err.message || 'An error occurred during account registration.');
+      console.error('Signup pipeline error:', err);
+    } finally {
+      setLoading(false);
     }
-
-    const { error: otpError } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        shouldCreateUser: true,
-        emailRedirectTo: null
-      }
-    })
-
-    if (otpError) {
-      setError(otpError.message)
-      setLoading(false)
-      return
-    }
-
-    setStep(2)
-    setLoading(false)
-  }
-
-  async function handleOtpSubmit() {
-    setLoading(true)
-    setError('')
-    const token = otp.join('')
-
-    const { data, error: verifyError } = await supabase.auth.verifyOtp({
-      email,
-      token,
-      type: 'email'
-    })
-
-    if (verifyError) {
-      setError('Invalid code. Please try again.')
-      setLoading(false)
-      return
-    }
-
-    // Save reg number if Gmail user
-    if (regNumber) {
-      await supabase
-        .from('users')
-        .upsert({
-          id: data.user.id,
-          email: email,
-          reg_number: regNumber
-        })
-    }
-
-    navigate('/profile-setup')
-  }
-
-  function handleOtpChange(value, index) {
-    const newOtp = [...otp]
-    newOtp[index] = value
-    setOtp(newOtp)
-    if (value && index < 7) {
-      document.getElementById(`otp-${index + 1}`).focus()
-    }
-  }
+  };
 
   return (
-    <div className="signup-container">
-      <div className="signup-card">
-        <h2 className="signup-title">
-          {step === 1 ? 'Create Account' : 'Enter Code'}
-        </h2>
+    <div style={styles.container}>
+      <div style={styles.card}>
+        <div style={styles.logoContainer}>
+          <span style={styles.logoHeart}>💝</span>
+          <h1 style={styles.title}>Create Account</h1>
+          <p style={styles.subtitle}>Join your campus matching network</p>
+        </div>
 
-        {step === 1 && (
-          <>
-            <p className="signup-subtitle">
-              Use your university email or Gmail
-            </p>
+        {error && <div style={styles.errorBox}>{error}</div>}
+
+        <form onSubmit={handleSignup} style={styles.form}>
+          <div style={styles.inputGroup}>
+            <label style={styles.label}>Campus Email Address</label>
             <input
-              className="signup-input"
               type="email"
-              placeholder="you@university.ac.ke or you@gmail.com"
               value={email}
-              onChange={handleEmailChange}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="username@student.egerton.ac.ke"
+              required
+              disabled={loading}
+              style={styles.input}
             />
-            {requiresRegNumber && (
-              <>
-                <input
-                  className={`signup-input ${regError ? 'input-error' : ''}`}
-                  type="text"
-                  placeholder="Registration number e.g. S17/02920/24"
-                  value={regNumber}
-                  onChange={handleRegNumberChange}
-                />
-                {regError && <p className="signup-error">{regError}</p>}
-              </>
-            )}
-            {error && <p className="signup-error">{error}</p>}
-            <button
-              className="signup-btn"
-              onClick={handleEmailSubmit}
-              disabled={loading || !email || (requiresRegNumber && !regNumber)}
-            >
-              {loading ? 'Sending...' : 'Continue'}
-            </button>
-            <p className="signup-login">
-              Already have an account?{' '}
-              <span onClick={() => navigate('/login')}>Log In</span>
-            </p>
-          </>
-        )}
+          </div>
 
-        {step === 2 && (
-          <>
-            <p className="signup-subtitle">
-              We sent an 8-digit code to {email}
-            </p>
-            <div className="otp-container">
-              {otp.map((digit, index) => (
-                <input
-                  key={index}
-                  id={`otp-${index}`}
-                  className="otp-input"
-                  type="text"
-                  maxLength={1}
-                  value={digit}
-                  onChange={e => handleOtpChange(e.target.value, index)}
-                />
-              ))}
-            </div>
-            {error && <p className="signup-error">{error}</p>}
-            <button
-              className="signup-btn"
-              onClick={handleOtpSubmit}
-              disabled={loading || otp.join('').length < 8}
-            >
-              {loading ? 'Verifying...' : 'Verify'}
-            </button>
-            <p className="signup-login">
-              Wrong email?{' '}
-              <span onClick={() => setStep(1)}>Go back</span>
-            </p>
-          </>
-        )}
+          <div style={styles.inputGroup}>
+            <label style={styles.label}>Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              disabled={loading}
+              style={styles.input}
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              ...styles.submitBtn,
+              opacity: loading ? 0.7 : 1,
+              cursor: loading ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {loading ? 'Creating Profile...' : 'Sign Up'}
+          </button>
+        </form>
+
+        <div style={styles.footer}>
+          Already have an account?{' '}
+          <Link to="/login" style={styles.link}>
+            Log In
+          </Link>
+        </div>
       </div>
     </div>
-  )
+  );
 }
+
+// Inline styles designed to blend perfectly with your midnight theme
+const styles = {
+  container: {
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: '#0a0a0a',
+    padding: '20px',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  },
+  card: {
+    width: '100%',
+    maxWidth: '400px',
+    background: '#141414',
+    border: '1px solid #262626',
+    borderRadius: '16px',
+    padding: '32px 24px',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+  },
+  logoContainer: {
+    textAlign: 'center',
+    marginBottom: '28px',
+  },
+  logoHeart: {
+    fontSize: '36px',
+    display: 'block',
+    marginBottom: '8px',
+  },
+  title: {
+    color: '#ffffff',
+    fontSize: '24px',
+    fontWeight: '800',
+    margin: '0 0 6px 0',
+  },
+  subtitle: {
+    color: '#888888',
+    fontSize: '14px',
+    margin: 0,
+  },
+  errorBox: {
+    background: 'rgba(232, 65, 107, 0.1)',
+    border: '1px solid #E8416B',
+    color: '#E8416B',
+    padding: '12px',
+    borderRadius: '8px',
+    fontSize: '14px',
+    marginBottom: '20px',
+    lineHeight: '1.4',
+  },
+  form: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '20px',
+  },
+  inputGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+  },
+  label: {
+    color: '#cccccc',
+    fontSize: '13px',
+    fontWeight: '500',
+  },
+  input: {
+    background: '#1a1a1a',
+    border: '1px solid #333333',
+    borderRadius: '10px',
+    padding: '14px',
+    color: '#ffffff',
+    fontSize: '15px',
+    outline: 'none',
+    transition: 'border-color 0.2s',
+  },
+  submitBtn: {
+    background: '#E8416B',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '10px',
+    padding: '14px',
+    fontSize: '16px',
+    fontWeight: '700',
+    marginTop: '10px',
+    transition: 'opacity 0.2s',
+  },
+  footer: {
+    textAlign: 'center',
+    marginTop: '24px',
+    color: '#888888',
+    fontSize: '14px',
+  },
+  link: {
+    color: '#E8416B',
+    textDecoration: 'none',
+    fontWeight: '600',
+  },
+};
