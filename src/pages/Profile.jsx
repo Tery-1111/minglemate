@@ -149,12 +149,7 @@ export default function Profile() {
           >
             📝 Section 1 Questions
           </button>
-          <button
-            className="profile-action-btn"
-            onClick={() => navigate('/section2')}
-          >
-            💭 Section 2 Questions
-          </button>
+          {/* Section 2 button successfully removed to lock down flow integrity */}
         </div>
       </div>
     </div>

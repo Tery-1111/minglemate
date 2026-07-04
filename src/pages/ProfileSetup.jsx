@@ -99,7 +99,7 @@ export default function ProfileSetup() {
       return
     }
 
-    navigate('/photo-upload')
+    navigate('/photoupload')
   }
 
   return (

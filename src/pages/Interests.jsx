@@ -48,7 +48,7 @@ export default function Interests() {
       return
     }
 
-    navigate('/home')
+navigate('/section1')
   }
 
   return (

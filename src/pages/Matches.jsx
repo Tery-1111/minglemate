@@ -1,267 +1,227 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { supabase } from '../supabaseClient'
-import './Matches.css'
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
 
 export default function Matches() {
-  const navigate = useNavigate()
-  const [matches, setMatches] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [userId, setUserId] = useState(null)
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [userId,  setUserId]  = useState(null);
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    loadMatches()
-  }, [])
+  useEffect(() => { fetchMatches(); }, []);
 
-  function getWeekId() {
-    const now = new Date()
-    const start = new Date(now.getFullYear(), 0, 1)
-    const week = Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7)
-    return `${now.getFullYear()}-W${week}`
+  async function fetchMatches() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { navigate('/'); return; }
+    const uid = session.user.id;
+    setUserId(uid);
+
+    const { data: matchRows, error } = await supabase
+      .from('matches')
+      .select('id, user_a_id, user_b_id, compatibility_score, status, is_visible, created_at, interested_at, discarded_at')
+      .or(`user_a_id.eq.${uid},user_b_id.eq.${uid}`)
+      .in('status', ['pending', 'interested', 'matched'])
+      .order('created_at', { ascending: false });
+
+    if (error) { console.error('Matches fetch error:', error); setLoading(false); return; }
+    if (!matchRows || matchRows.length === 0) { setLoading(false); return; }
+
+    const otherIds = matchRows.map(m => m.user_a_id === uid ? m.user_b_id : m.user_a_id);
+
+    const [{ data: profiles }, { data: photos }, { data: paidMatches }] = await Promise.all([
+      supabase.from('users').select('id, full_name, age, campus_id, bio').in('id', otherIds),
+      supabase.from('photos').select('user_id, photo_url').in('user_id', otherIds),
+      supabase.from('payments').select('match_id, status').in('match_id', matchRows.map(m => m.id)).eq('status', 'completed'),
+    ]);
+
+    const paidMatchIds = new Set((paidMatches || []).map(p => p.match_id));
+
+    const merged = matchRows.map(m => {
+      const otherId = m.user_a_id === uid ? m.user_b_id : m.user_a_id;
+      const profile = profiles?.find(p => p.id === otherId) || {};
+      const photo   = photos?.find(p => p.user_id === otherId);
+      return {
+        matchId:     m.id,
+        userId:      otherId,
+        full_name:   profile.full_name || 'Unknown',
+        age:         profile.age,
+        campus_id:   profile.campus_id,
+        bio:         profile.bio,
+        photo_url:   photo?.photo_url || null,
+        score:       m.compatibility_score,
+        status:      m.status,
+        is_unlocked: paidMatchIds.has(m.id),
+        is_visible:  m.is_visible,
+        created_at:  m.created_at,
+      };
+    });
+
+    setMatches(merged);
+    setLoading(false);
   }
 
-  async function loadMatches() {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) { navigate('/'); return }
-    setUserId(session.user.id)
-
-    const weekId = getWeekId()
-
-    const { data: matchHistory } = await supabase
-      .from('match_history')
-      .select('tier1_match_id, tier2_match_id, delivered_at')
-      .eq('user_id', session.user.id)
-      .eq('week_id', weekId)
-      .maybeSingle()
-
-    if (!matchHistory) {
-      setLoading(false)
-      return
-    }
-
-    let tier1 = null
-    let tier2 = null
-
-    if (matchHistory.tier1_match_id) {
-      const { data: t1User } = await supabase
-        .from('users')
-        .select('id, full_name, age, bio, interests, gender, section2_unlocked')
-        .eq('id', matchHistory.tier1_match_id)
-        .single()
-
-      const { data: t1Photos } = await supabase
-        .from('photos')
-        .select('photo_url, photo_type')
-        .eq('user_id', matchHistory.tier1_match_id)
-        .order('display_order')
-
-      tier1 = { ...t1User, photos: t1Photos || [] }
-    }
-
-    if (matchHistory.tier2_match_id) {
-      const { data: t2User } = await supabase
-        .from('users')
-        .select('id, full_name, age, bio, interests, gender, section2_unlocked')
-        .eq('id', matchHistory.tier2_match_id)
-        .single()
-
-      const { data: t2Photos } = await supabase
-        .from('photos')
-        .select('photo_url, photo_type')
-        .eq('user_id', matchHistory.tier2_match_id)
-        .order('display_order')
-
-      tier2 = { ...t2User, photos: t2Photos || [] }
-    }
-
-    setMatches({ tier1, tier2, deliveredAt: matchHistory.delivered_at })
-    setLoading(false)
-  }
-
-  if (loading) {
-    return (
-      <div className="matches-loading">
-        <p>Loading your matches...</p>
-      </div>
-    )
-  }
-
-  if (!matches) {
-    return (
-      <div className="matches-empty">
-        <div className="matches-empty-icon">💝</div>
-        <h2>No matches yet</h2>
-        <p>Your matches drop every Tuesday at 9 PM</p>
-        <p className="matches-tip">Complete Section 1 to enter the match pool</p>
-        <button className="matches-s1-btn" onClick={() => navigate('/section1')}>
-          Go to Section 1 →
-        </button>
-      </div>
-    )
-  }
-
-  return (
-    <div className="matches-container">
-      <h2 className="matches-heading">Your Matches This Week</h2>
-      <p className="matches-week">
-        Week of {new Date(matches.deliveredAt).toLocaleDateString()}
-      </p>
-
-      {matches.tier1 && (
-        <MatchCard
-          match={matches.tier1}
-          tier="Tier 1"
-          tierLabel="Similarity Match"
-          tierColor="#4F2D7F"
-          currentUserId={userId}
-          weekId={getWeekId()}
-          onChat={() => navigate(`/chat/${matches.tier1.id}`)}
-        />
-      )}
-
-      {matches.tier2 && (
-        <MatchCard
-          match={matches.tier2}
-          tier="Tier 2"
-          tierLabel="Complementary Match"
-          tierColor="#E8416B"
-          currentUserId={userId}
-          weekId={getWeekId()}
-          onChat={() => navigate(`/chat/${matches.tier2.id}`)}
-        />
-      )}
-    </div>
-  )
-}
-
-function MatchCard({ match, tier, tierLabel, tierColor, currentUserId, weekId, onChat }) {
-  const navigate = useNavigate()
-  const [currentPhoto, setCurrentPhoto] = useState(0)
-  const [promptSent, setPromptSent] = useState(false)
-  const [gifting, setGifting] = useState(false)
-  const [prompting, setPrompting] = useState(false)
-
-  useEffect(() => {
-    checkPromptSent()
-  }, [])
-
-  async function checkPromptSent() {
-    const { data } = await supabase
-      .from('payment_prompts')
-      .select('id')
-      .eq('sender_user_id', currentUserId)
-      .eq('recipient_user_id', match.id)
-      .eq('match_week_id', weekId)
-      .maybeSingle()
-    setPromptSent(!!data)
-  }
-
-  async function handleGift() {
-    setGifting(true)
+  async function handleInterest(match) {
     const { error } = await supabase
-      .from('gift_transactions')
-      .insert({
-        gifter_user_id: currentUserId,
-        recipient_user_id: match.id,
-        match_week_id: weekId,
-        status: 'pending'
-      })
-    if (!error) {
-      navigate('/payment?gift=true&recipientId=' + match.id)
-    }
-    setGifting(false)
+      .from('matches')
+      .update({ interested_at: new Date().toISOString(), status: 'interested' })
+      .eq('id', match.matchId);
+
+    if (error) { console.error('Interest error:', error); alert('Something went wrong. Please try again.'); return; }
+
+    await supabase.from('match_interactions').insert({
+      match_id:   match.matchId,
+      user_id:    userId,
+      action:     'interested',
+      created_at: new Date().toISOString(),
+    }).throwOnError().catch(() => {});
+
+    navigate(`/payment?matchId=${match.matchId}&recipientId=${match.userId}`);
   }
 
-  async function handlePrompt() {
-    setPrompting(true)
+  async function handleDiscard(match) {
     await supabase
-      .from('payment_prompts')
-      .insert({
-        sender_user_id: currentUserId,
-        recipient_user_id: match.id,
-        match_week_id: weekId
-      })
-    setPromptSent(true)
-    setPrompting(false)
-    alert('Payment prompt sent to your match!')
+      .from('matches')
+      .update({ discarded_at: new Date().toISOString(), status: 'discarded' })
+      .eq('id', match.matchId);
+
+    await supabase.from('match_interactions').insert({
+      match_id:   match.matchId,
+      user_id:    userId,
+      action:     'discarded',
+      created_at: new Date().toISOString(),
+    }).throwOnError().catch(() => {});
+
+    setMatches(prev => prev.filter(m => m.matchId !== match.matchId));
   }
+
+  if (loading) return (
+    <div style={{ padding: "40px", textAlign: "center", color: "#888", fontFamily: "Inter, system-ui, sans-serif" }}>
+      Finding your matches…
+    </div>
+  );
+
+  if (matches.length === 0) return (
+    <div style={{ padding: "40px", textAlign: "center", fontFamily: "Inter, system-ui, sans-serif" }}>
+      <div style={{ fontSize: "40px", marginBottom: "16px" }}>🔍</div>
+      <p style={{ color: "#888", fontSize: "15px" }}>No matches yet. Check back soon.</p>
+    </div>
+  );
 
   return (
-    <div className="match-card">
-      <div className="match-tier-badge" style={{ background: tierColor }}>
-        {tier} — {tierLabel}
-      </div>
+    <div style={{ padding: "16px", maxWidth: "480px", margin: "0 auto", fontFamily: "Inter, system-ui, sans-serif" }}>
+      <h2 style={{ fontSize: "20px", fontWeight: 700, color: "#f0f0f8", marginBottom: "20px" }}>
+        Your Matches
+      </h2>
 
-      {match.photos && match.photos.length > 0 ? (
-        <div className="match-photos">
-          <img
-            src={match.photos[currentPhoto]?.photo_url}
-            alt={match.full_name}
-            className="match-photo"
-          />
-          {match.photos.length > 1 && (
-            <div className="photo-dots">
-              {match.photos.map((_, i) => (
-                <button
-                  key={i}
-                  className={`photo-dot ${i === currentPhoto ? 'active' : ''}`}
-                  onClick={() => setCurrentPhoto(i)}
-                />
-              ))}
+      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        {matches.map(m => (
+          <div key={m.matchId} style={{
+            backgroundColor: "#111118",
+            border: "1px solid #2a2a3a",
+            borderRadius: "16px",
+            overflow: "hidden",
+          }}>
+
+            {/* Photo */}
+            {m.photo_url
+              ? <div style={{ height: "220px", overflow: "hidden" }}>
+                  <img src={m.photo_url} alt={m.full_name}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                </div>
+              : <div style={{
+                  height: "120px", backgroundColor: "#1a1a24",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <span style={{ fontSize: "48px" }}>👤</span>
+                </div>
+            }
+
+            <div style={{ padding: "16px" }}>
+
+              {/* Name + score */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "#f0f0f8" }}>
+                  {m.full_name}{m.age ? `, ${m.age}` : ""}
+                </h3>
+                {m.score && (
+                  <span style={{
+                    fontSize: "12px", fontWeight: 700, padding: "4px 10px", borderRadius: "20px",
+                    backgroundColor: m.score >= 80 ? "#4ade8022" : m.score >= 60 ? "#f5c84222" : "#ff6b8a22",
+                    color:           m.score >= 80 ? "#4ade80"   : m.score >= 60 ? "#f5c842"   : "#ff6b8a",
+                  }}>
+                    {m.score}% match
+                  </span>
+                )}
+              </div>
+
+              {/* Campus */}
+              {m.campus_id && (
+                <p style={{ margin: "0 0 8px", fontSize: "12px", color: "#8888aa" }}>
+                  📍 {m.campus_id}
+                </p>
+              )}
+
+              {/* Bio */}
+              {m.bio && (
+                <p style={{
+                  margin: "0 0 14px", fontSize: "13px", color: "#aaa", lineHeight: 1.5,
+                  display: "-webkit-box", WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical", overflow: "hidden",
+                }}>
+                  {m.bio}
+                </p>
+              )}
+
+              {/* Unlocked badge */}
+              {m.is_unlocked && (
+                <div style={{ marginBottom: "12px" }}>
+                  <span style={{
+                    fontSize: "11px", fontWeight: 600, padding: "3px 10px",
+                    borderRadius: "20px", backgroundColor: "#f5c84222", color: "#f5c842",
+                  }}>
+                    ✓ Contact Unlocked
+                  </span>
+                </div>
+              )}
+
+              {/* Buttons */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+
+                {/* Reveal Contact */}
+                {!m.is_unlocked && (
+                  <button onClick={() => handleInterest(m)} style={{
+                    width: "100%", padding: "13px", borderRadius: "10px",
+                    backgroundColor: "#7c6aff", border: "none",
+                    color: "#fff", fontSize: "14px", fontWeight: 600, cursor: "pointer",
+                  }}>
+                    Reveal Contact 🔓
+                  </button>
+                )}
+
+                {/* View Chemistry */}
+                <button onClick={() => navigate(`/section2-comparison/${m.userId}`)} style={{
+                  width: "100%", padding: "13px", borderRadius: "10px",
+                  backgroundColor: "transparent", border: "1px solid #2a2a3a",
+                  color: "#7c6aff", fontSize: "14px", fontWeight: 600, cursor: "pointer",
+                }}>
+                  💬 View Our Chemistry
+                </button>
+
+                {/* Not Interested */}
+                {!m.is_unlocked && (
+                  <button onClick={() => handleDiscard(m)} style={{
+                    background: "none", border: "none",
+                    color: "#555", fontSize: "12px",
+                    cursor: "pointer", padding: "4px", textAlign: "center",
+                  }}>
+                    Not Interested
+                  </button>
+                )}
+              </div>
             </div>
-          )}
-        </div>
-      ) : (
-        <div className="match-no-photo">
-          <span>👤</span>
-        </div>
-      )}
-
-      <div className="match-info">
-        <h3 className="match-name">{match.full_name}</h3>
-        <p className="match-age">{match.age} years old</p>
-        <p className="match-bio">{match.bio}</p>
-
-        {match.interests && match.interests.length > 0 && (
-          <div className="match-interests">
-            {match.interests.slice(0, 4).map((tag, i) => (
-              <span key={i} className="match-tag">{tag}</span>
-            ))}
           </div>
-        )}
-
-        <button className="match-chat-btn" onClick={onChat}>
-          Start Conversation →
-        </button>
-
-        {!match.section2_unlocked && (
-          <div className="match-gift-section">
-            <p className="gift-label">💭 Section 2 not unlocked</p>
-            <div className="gift-buttons">
-              <button
-                className="gift-btn"
-                onClick={handleGift}
-                disabled={gifting}
-              >
-                {gifting ? 'Processing...' : '🎁 Gift Section 2'}
-              </button>
-              <button
-                className="prompt-btn"
-                onClick={handlePrompt}
-                disabled={promptSent || prompting}
-              >
-                {promptSent ? '✅ Prompt Sent' : prompting ? 'Sending...' : '💬 Ask Them to Unlock'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {match.section2_unlocked && (
-          <div className="match-s2-unlocked">
-            ✅ Section 2 unlocked — deeper matching active
-          </div>
-        )}
+        ))}
       </div>
     </div>
-  )
+  );
 }

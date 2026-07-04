@@ -1,3 +1,4 @@
+/* Layout Wrapper */
 .home-container {
   min-height: 100vh;
   display: flex;
@@ -5,14 +6,17 @@
   background: #0a0a0a;
   max-width: 480px;
   margin: 0 auto;
+  position: relative; /* Essential for fixed bottom-nav */
 }
 
+/* Header */
 .home-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
   background: #4F2D7F;
+  flex-shrink: 0; /* Prevents header from squishing */
 }
 
 .home-logo {
@@ -31,11 +35,16 @@
   cursor: pointer;
 }
 
+/* Scrollable Content Area */
 .home-content {
   flex: 1;
   overflow-y: auto;
+  width: 100%;
+  /* Ensure content doesn't get hidden behind bottom nav */
+  padding-bottom: 20px; 
 }
 
+/* Tab Contents */
 .tab-content {
   display: flex;
   flex-direction: column;
@@ -46,114 +55,18 @@
 }
 
 .tab-content-full {
-  flex: 1;
-  overflow-y: auto;
+  width: 100%;
+  height: 100%;
 }
 
+/* Matches Placeholder */
 .matches-placeholder {
   text-align: center;
   color: white;
   padding: 40px 24px;
 }
 
-.matches-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
-}
-
-.matches-placeholder h2 {
-  font-size: 24px;
-  font-weight: 700;
-  color: white;
-  margin-bottom: 8px;
-}
-
-.matches-placeholder p {
-  font-size: 16px;
-  color: #E8416B;
-  margin-bottom: 24px;
-}
-
-.matches-badge {
-  background: #4F2D7F;
-  color: white;
-  padding: 12px 24px;
-  border-radius: 20px;
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 16px;
-  display: inline-block;
-}
-
-.start-section1-btn {
-  margin-top: 16px;
-  padding: 14px 32px;
-  background: #E8416B;
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: opacity 0.2s;
-  display: block;
-  width: 100%;
-}
-
-.start-section1-btn:hover {
-  opacity: 0.9;
-}
-
-.section1-done {
-  margin-top: 16px;
-  padding: 12px 24px;
-  background: #1a7a4a;
-  color: white;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.empty-state {
-  text-align: center;
-  color: white;
-}
-
-.empty-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
-}
-
-.empty-state h2 {
-  font-size: 22px;
-  font-weight: 700;
-  color: white;
-  margin-bottom: 8px;
-}
-
-.empty-state p {
-  font-size: 15px;
-  color: #888;
-}
-
-.profile-view {
-  text-align: center;
-  color: white;
-  width: 100%;
-}
-
-.profile-view h2 {
-  font-size: 22px;
-  font-weight: 700;
-  color: white;
-  margin-bottom: 8px;
-}
-
-.profile-view p {
-  font-size: 15px;
-  color: #888;
-}
-
+/* Navigation - FIXED POSITIONING */
 .bottom-nav {
   display: flex;
   justify-content: space-around;
@@ -161,8 +74,11 @@
   padding: 12px 0;
   background: #1a1a1a;
   border-top: 1px solid #333;
-  position: sticky;
+  width: 100%;
+  max-width: 480px;
+  position: fixed; /* Pins to bottom of viewport */
   bottom: 0;
+  z-index: 1000;
 }
 
 .nav-btn {
@@ -178,10 +94,6 @@
   transition: all 0.2s;
 }
 
-.nav-icon {
-  font-size: 24px;
-}
-
 .nav-label {
   font-size: 12px;
   color: #888;
@@ -192,6 +104,16 @@
   color: #E8416B;
 }
 
-.nav-btn.active .nav-icon {
-  transform: scale(1.1);
+/* ... keep your existing classes (start-section1-btn, profile-view, etc) ... */
+.start-section1-btn {
+  margin-top: 16px;
+  padding: 14px 32px;
+  background: #E8416B;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
 }
