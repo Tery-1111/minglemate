@@ -1,14 +1,6 @@
 // src/utils/compatibilityEngine.js
 // src/utils/compatibilityEngine.js
 
-// Add 'export' to all your functions
-export function hasDealbreaker(userA, userB) { /* ... */ }
-export function calculateCommunicationScore(userA, userB) { /* ... */ }
-export function calculateConflictScore(userA, userB) { /* ... */ }
-export function calculateEmotionalScore(userA, userB) { /* ... */ }
-export function calculateExpectationsScore(userA, userB) { /* ... */ }
-export function calculateValuesScore(userA, userB) { /* ... */ }
-export function calculateComplementaryBonus(userA, userB) { /* ... */ }
 
 // Export variables as well
 export { questionWeights };
@@ -96,7 +88,8 @@ const commitmentMatrix = {
   'Somewhat important': { 'Extremely important': 50, 'Important': 70, 'Somewhat important': 100, 'Not important': 65 },
   'Not important': { 'Extremely important': 20, 'Important': 40, 'Somewhat important': 65, 'Not important': 100 }
 };
-
+ 
+// eslint-disable-next-line no-unused-vars -- intentionally unused pending BUG-001 follow-up: no scoring function currently uses this matrix; do not wire it in without confirming which question it was meant to score
 const attractionMatrix = {
   'Confidence': { 'Confidence': 100, 'Kindness': 70, 'Intelligence': 80, 'Ambition': 85 },
   'Kindness': { 'Confidence': 70, 'Kindness': 100, 'Intelligence': 75, 'Ambition': 65 },
@@ -209,7 +202,7 @@ export function calculateValuesScore(userA, userB) {
     let totalScore = 0;
     let totalWeight = 0;
     
-    totalScore += getMatrixScore(attractionMatrix, userA.answers[43], userB.answers[43]) * questionWeights[43];
+    totalScore += getMatrixScore(valueMatrix, userA.answers[43], userB.answers[43]) * questionWeights[43];
     totalWeight += questionWeights[43];
     
     return totalWeight > 0 ? (totalScore / totalWeight) : 70;
