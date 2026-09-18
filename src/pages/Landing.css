@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap');
+
 * {
   margin: 0;
   padding: 0;
@@ -10,71 +12,127 @@ body {
 }
 
 .landing-container {
+  position: relative;
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, #4F2D7F 0%, #1a0a2e 100%);
+  font-family: 'Poppins', 'Segoe UI', -apple-system, sans-serif;
+  overflow: hidden;
+}
+
+/* soft pink glow behind the content for depth */
+.landing-container::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 640px;
+  height: 640px;
+  transform: translate(-50%, -55%);
+  background: radial-gradient(circle, rgba(232, 65, 107, 0.16) 0%, transparent 65%);
+  pointer-events: none;
 }
 
 .landing-content {
+  position: relative;
   text-align: center;
-  padding: 40px 20px;
+  padding: 40px 24px;
 }
 
 .landing-title {
-  font-size: 64px;
+  font-size: clamp(48px, 11vw, 76px);
   font-weight: 900;
   color: #ffffff;
-  letter-spacing: -2px;
-  margin-bottom: 16px;
-}
-
-.landing-tagline {
-  font-size: 20px;
-  color: #E8416B;
-  margin-bottom: 48px;
-  font-weight: 400;
+  letter-spacing: -3px;
+  line-height: 1.1;
+  margin-bottom: 56px;
+  animation: riseIn 0.7s ease-out both;
 }
 
 .landing-buttons {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
   align-items: center;
+  animation: riseIn 0.7s ease-out 0.15s both;
 }
 
 .btn-primary {
-  width: 280px;
-  padding: 16px;
-  background: #E8416B;
+  width: min(300px, 82vw);
+  padding: 17px;
+  background: linear-gradient(135deg, #E8416B 0%, #d63357 100%);
   color: white;
   border: none;
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 18px;
   font-weight: 700;
+  letter-spacing: 0.3px;
   cursor: pointer;
-  transition: opacity 0.2s;
+  box-shadow: 0 8px 24px rgba(232, 65, 107, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  animation: softPulse 3s ease-in-out 0.9s infinite;
 }
 
 .btn-primary:hover {
-  opacity: 0.9;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(232, 65, 107, 0.5);
+}
+
+.btn-primary:active {
+  transform: translateY(0) scale(0.98);
 }
 
 .btn-secondary {
-  width: 280px;
-  padding: 16px;
+  width: min(300px, 82vw);
+  padding: 17px;
   background: transparent;
   color: white;
-  border: 2px solid white;
-  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 14px;
   font-size: 18px;
   font-weight: 700;
+  letter-spacing: 0.3px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
 }
 
 .btn-secondary:hover {
   background: white;
+  border-color: white;
   color: #4F2D7F;
+  transform: translateY(-2px);
+}
+
+.btn-secondary:active {
+  transform: translateY(0) scale(0.98);
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes softPulse {
+  0%, 100% {
+    box-shadow: 0 8px 24px rgba(232, 65, 107, 0.35);
+  }
+  50% {
+    box-shadow: 0 8px 30px rgba(232, 65, 107, 0.55);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-title,
+  .landing-buttons,
+  .btn-primary {
+    animation: none;
+  }
 }

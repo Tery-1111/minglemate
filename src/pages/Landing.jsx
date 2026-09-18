@@ -8,7 +8,6 @@ export default function Landing() {
     <div className="landing-container">
       <div className="landing-content">
         <h1 className="landing-title">MingleMate</h1>
-        <p className="landing-tagline">Weekly matches. Real campus connections.</p>
         <div className="landing-buttons">
           <button 
             className="btn-primary"
