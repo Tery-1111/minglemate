@@ -1,0 +1,26 @@
+# MingleMate — robots.txt
+# Public marketing pages are crawlable; everything behind auth is not.
+# Note: robots.txt only blocks crawling. Private pages also carry
+# noindex via AuthGuard so the two layers agree (see src/seo.js).
+
+User-agent: *
+Allow: /
+Disallow: /signup
+Disallow: /login
+Disallow: /profile-setup
+Disallow: /photo-upload
+Disallow: /interests
+Disallow: /onboarding
+Disallow: /home
+Disallow: /section1
+Disallow: /section2
+Disallow: /payment
+Disallow: /profile
+Disallow: /matches
+Disallow: /dashboard
+Disallow: /photos
+Disallow: /chat
+Disallow: /admin
+Disallow: /section1-demo.html
+
+Sitemap: https://minglemate.vercel.app/sitemap.xml

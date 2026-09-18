@@ -49,7 +49,7 @@ export default function Signup() {
         
         // 3. Navigation is safe: auth user exists, profile row exists
         // (created by trigger if the upsert above was skipped).
-        navigate('/onboarding');
+        navigate('/profile-setup');
       }
     } catch (err) {
       setError(err.message || 'An error occurred during account registration.');

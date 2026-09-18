@@ -2,9 +2,39 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MingleMate</title>
+    <title>MingleMate — Compatibility-Based Dating for Kenyan Campus Students</title>
+    <meta
+      name="description"
+      content="MingleMate matches Kenyan university students by real relationship compatibility. Answer 50 guided questions, get two curated matches a week, and chat safely on campus."
+    />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://minglemate.vercel.app/" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Open Graph (defaults; per-route tags override at runtime) -->
+    <meta property="og:site_name" content="MingleMate" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="MingleMate — Compatibility-Based Dating for Kenyan Campus Students" />
+    <meta
+      property="og:description"
+      content="Matched by real compatibility, not endless swiping. 50 guided questions, two curated weekly matches, safe campus chat."
+    />
+    <meta property="og:url" content="https://minglemate.vercel.app/" />
+    <meta property="og:image" content="https://minglemate.vercel.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="MingleMate — compatibility-based dating" />
+
+    <!-- Twitter/X -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="MingleMate — Compatibility-Based Dating" />
+    <meta
+      name="twitter:description"
+      content="Matched by real compatibility, not endless swiping. Built for Kenyan campus students."
+    />
+    <meta name="twitter:image" content="https://minglemate.vercel.app/og-image.png" />
+
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
     <script>
       window.OneSignalDeferred = window.OneSignalDeferred || [];
@@ -18,6 +48,15 @@
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <h1>MingleMate — compatibility-based dating for campus students</h1>
+      <p>
+        MingleMate matches Kenyan university students by real relationship
+        compatibility. You answer 50 guided questions about communication,
+        conflict, emotional style, expectations and values — then receive two
+        curated matches every week. Enable JavaScript to sign up.
+      </p>
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

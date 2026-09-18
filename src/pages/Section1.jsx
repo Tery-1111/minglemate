@@ -101,7 +101,7 @@ export default function Section1() {
 
       // 3. Routing navigation pipeline logic
       if (isSurveyFinished) {
-        navigate('/photos');
+        navigate('/dashboard');
       } else {
         setCurrent(nextStepIndex);
       }

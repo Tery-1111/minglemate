@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import { resizeImage } from '../utils/imageResize';
 
 // Define 6 static grid slots for the profile layout
 const TOTAL_SLOTS = [1, 2, 3, 4, 5, 6];
@@ -69,8 +70,12 @@ async function sniffMagic(file, bytes, offset = 0) {
     setError(null);
 
     try {
-      const fileExt = file.name.split('.').pop();
-      const storageFilePath = `${userId}/${slotKey}_${Date.now()}.${fileExt}`;
+      // PERF: resize + compress before upload. UI displays photos at
+      // ≤300px; storing originals (3–6 MB phone shots) wasted ~20x
+      // storage/bandwidth. Capped at 1200px longest edge, JPEG q0.85.
+      const resized = await resizeImage(file, 1200, 0.85);
+
+      const storageFilePath = `${userId}/${slotKey}_${Date.now()}.jpg`;
 
       // 🚨 AUTOMATED CLEANUP MECHANISM
       // If a photo already exists in this target slot key, strip it from the storage bucket first
@@ -89,12 +94,13 @@ async function sniffMagic(file, bytes, offset = 0) {
           }
         } catch (cleanupErr) {
           // Old-photo cleanup is best-effort; upload still proceeds.
+        }
       }
 
       // 1. Ship new asset binary chunks up to your profile bucket
       const { error: uploadError } = await supabase.storage
         .from('profile_photos')
-        .upload(storageFilePath, file, { cacheControl: '3600', upsert: true });
+        .upload(storageFilePath, resized, { cacheControl: '3600', upsert: true, contentType: 'image/jpeg' });
 
       if (uploadError) throw uploadError;
 

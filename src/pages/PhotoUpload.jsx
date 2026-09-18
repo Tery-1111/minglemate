@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import { resizeImage } from '../utils/imageResize'
 import './PhotoUpload.css'
 
 export default function PhotoUpload() {
@@ -27,21 +28,11 @@ export default function PhotoUpload() {
     { key: 'facial_2',   label: 'Facial Close-up 2', type: 'facial' },
   ]
 
+  // PERF: shared resize helper — caps longest edge at 1200px and
+  // compresses to JPEG q0.85 (previously re-encoded at original
+  // dimensions, so 12MP uploads stored at full size).
   async function convertToJpeg(file) {
-    return new Promise((resolve) => {
-      const img = new Image()
-      img.onload = () => {
-        const canvas = document.createElement('canvas')
-        canvas.width = img.width
-        canvas.height = img.height
-        const ctx = canvas.getContext('2d')
-        ctx.drawImage(img, 0, 0)
-        canvas.toBlob((blob) => {
-          resolve(new File([blob], 'photo.jpg', { type: 'image/jpeg' }))
-        }, 'image/jpeg', 0.85)
-      }
-      img.src = URL.createObjectURL(file)
-    })
+    return resizeImage(file, 1200, 0.85)
   }
 
   function handleFileSelect(e, key) {
