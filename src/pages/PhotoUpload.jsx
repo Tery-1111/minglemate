@@ -67,7 +67,9 @@ export default function PhotoUpload() {
     setLoading(true)
     setError('')
 
+    // Route is wrapped in AuthGuard; session is guaranteed here.
     const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
     const userId = session.user.id
 
     for (const slot of slots) {

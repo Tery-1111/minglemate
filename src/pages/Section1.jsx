@@ -15,8 +15,8 @@ export default function Section1() {
   useEffect(() => {
     async function restoreSurveyProgress() {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) {
           navigate('/login');
           return;
         }

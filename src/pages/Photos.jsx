@@ -14,8 +14,11 @@ export default function Photos() {
 
   useEffect(() => {
     async function fetchExistingPhotos() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        navigate('/login');
+        return;
+      }
       setUserId(user.id);
 
       // Extract existing pictures associated with this student profile
