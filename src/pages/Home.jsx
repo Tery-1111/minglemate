@@ -1,5 +1,5 @@
 import { saveOneSignalPlayerId } from '../supabaseClient'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import './Home.css'
@@ -10,6 +10,7 @@ export default function Home() {
   const [user, setUser] = useState(null)
   const [userId, setUserId] = useState(null)
   const [activeTab, setActiveTab] = useState('matches')
+  const notificationsEnabledRef = useRef(true)
 
   useEffect(() => {
     getUser()
@@ -30,8 +31,12 @@ export default function Home() {
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          // Alert user of new match
-          alert("New Match Alert: " + payload.new.message)
+          // Alert user of new match — respects the owner's notification
+          // setting (users.notifications_enabled, owner-only toggle in
+          // Settings).
+          if (notificationsEnabledRef.current) {
+            alert("New Match Alert: " + payload.new.message)
+          }
         }
       )
       .subscribe()
@@ -49,14 +54,15 @@ export default function Home() {
     }
     
     setUserId(session.user.id)
-    
+
     const { data } = await supabase
       .from('users')
-      .select('full_name, profile_status, section1_complete')
+      .select('full_name, profile_status, section1_complete, notifications_enabled')
       .eq('id', session.user.id)
       .single()
-      
+    
     setUser(data)
+    notificationsEnabledRef.current = data?.notifications_enabled !== false
     saveOneSignalPlayerId(session.user.id)
   }
 
@@ -69,7 +75,10 @@ export default function Home() {
     <div className="home-container">
       <div className="home-header">
         <h1 className="home-logo">MingleMate</h1>
-        <button className="signout-btn" onClick={handleSignOut}>Sign Out</button>
+        <div className="home-header-actions">
+          <button className="settings-btn" onClick={() => navigate('/settings')} title="Settings">⚙︎</button>
+          <button className="signout-btn" onClick={handleSignOut}>Sign Out</button>
+        </div>
       </div>
 
       <div className="home-content">

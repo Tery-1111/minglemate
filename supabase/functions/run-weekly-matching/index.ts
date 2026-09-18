@@ -157,6 +157,24 @@ async function runMatchingForCampus(supabase: any, campusId: string, weekId: str
     .in('user_id', userIds)
     .eq('week_id', prevWeekId)
 
+  // Blocks: never (re)pair blocked users in either direction.
+  const { data: blockRows } = await supabase
+    .from('user_blocks')
+    .select('blocker_id, blocked_id')
+    .in('blocker_id', userIds)
+  const { data: blockRowsIn } = await supabase
+    .from('user_blocks')
+    .select('blocker_id, blocked_id')
+    .in('blocked_id', userIds)
+  const blockedPairs = new Set<string>()
+  for (const b of [...(blockRows || []), ...(blockRowsIn || [])]) {
+    blockedPairs.add(
+      b.blocker_id < b.blocked_id
+        ? `${b.blocker_id}|${b.blocked_id}`
+        : `${b.blocked_id}|${b.blocker_id}`
+    )
+  }
+
   const previousPairs = new Set<string>()
   for (const match of (lastWeekMatches || [])) {
     if (match.tier1_match_id) previousPairs.add(`${match.user_id}-${match.tier1_match_id}`)
@@ -177,9 +195,12 @@ async function runMatchingForCampus(supabase: any, campusId: string, weekId: str
   let matchesCreated = 0
 
   for (const user of users) {
-    const candidates = users.filter((u: any) =>
-      u.id !== user.id && u.gender !== user.gender
-    )
+    const candidates = users.filter((u: any) => {
+      if (u.id === user.id || u.gender === user.gender) return false
+      const pair = user.id < u.id ? `${user.id}|${u.id}` : `${u.id}|${user.id}`
+      if (blockedPairs.has(pair)) return false
+      return true
+    })
 
     if (candidates.length === 0) continue
 

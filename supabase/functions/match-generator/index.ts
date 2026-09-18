@@ -7,6 +7,11 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 )
 
+// Direction-agnostic pair key for block checks.
+function pairKey(a: string, b: string): string {
+  return a < b ? `${a}|${b}` : `${b}|${a}`
+}
+
 serve(async (req) => {
   // H5 fix: only admins or the cron/service may run the generator.
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -39,6 +44,8 @@ serve(async (req) => {
     .from('users')
     .select('id, gender')
     .eq('section1_complete', true)
+    // Account states: paused/pending-deletion profiles leave matching
+    .eq('profile_status', 'active')
 
   if (usersError) {
     return new Response(JSON.stringify({ error: usersError.message }), { status: 400 })
@@ -67,6 +74,15 @@ serve(async (req) => {
     profiles.set(response.user_id, { id: response.user_id, answers })
   }
 
+  // Load block relationships once; skip blocked pairs during pairing.
+  const { data: blockRows } = await supabase
+    .from('user_blocks')
+    .select('blocker_id, blocked_id')
+  const blockedPairs = new Set<string>()
+  for (const b of blockRows || []) {
+    blockedPairs.add(pairKey(b.blocker_id, b.blocked_id))
+  }
+
   const matches = []
   for (let firstIndex = 0; firstIndex < (users || []).length; firstIndex++) {
     for (let secondIndex = firstIndex + 1; secondIndex < (users || []).length; secondIndex++) {
@@ -74,6 +90,10 @@ serve(async (req) => {
       const secondUser = users[secondIndex]
 
       if (firstUser.gender === secondUser.gender) continue
+
+      // Blocks are enforced here too: never pair blocked users,
+      // regardless of compatibility score.
+      if (blockedPairs.has(pairKey(firstUser.id, secondUser.id))) continue
 
       const firstProfile = profiles.get(firstUser.id)
       const secondProfile = profiles.get(secondUser.id)

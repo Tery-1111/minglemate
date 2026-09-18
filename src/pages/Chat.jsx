@@ -57,12 +57,15 @@ function blurContactInfo(text) {
 }
 
 async function reloadMessages(userId, matchId) {
+  // PERF: unbounded history grows forever per match; load the most
+  // recent 200 (fetched desc, then reversed for display order).
   const { data } = await supabase
     .from('messages')
     .select('*')
     .or(`and(sender_id.eq.${userId},recipient_id.eq.${matchId}),and(sender_id.eq.${matchId},recipient_id.eq.${userId})`)
-    .order('sent_at', { ascending: true })
-  return data || []
+    .order('sent_at', { ascending: false })
+    .limit(200)
+  return (data || []).reverse()
 }
 
 export default function Chat() {
@@ -81,6 +84,9 @@ export default function Chat() {
   const [contactsRevealed, setContactsRevealed] = useState(false)
   const [matchContact, setMatchContact] = useState(null)
   const [sendingBot, setSendingBot] = useState(false)
+  const [isBlocked, setIsBlocked] = useState(false)
+  const [blockedByMe, setBlockedByMe] = useState(false)
+  const [blockedByThem, setBlockedByThem] = useState(false)
   const messagesEndRef = useRef(null)
   const currentUserRef = useRef(null)
 
@@ -121,6 +127,15 @@ export default function Chat() {
       .eq('id', matchId)
       .single()
     setMatchUser(matchData)
+
+    // Safety: does a block exist between me and this match (either
+    // direction)? Either side blocks the whole conversation.
+    const { data: blockRows } = await supabase
+      .from('user_blocks')
+      .select('blocker_id, blocked_id')
+      .or(`and(blocker_id.eq.${session.user.id},blocked_id.eq.${matchId}),and(blocker_id.eq.${matchId},blocked_id.eq.${session.user.id})`)
+    setBlockedByMe(blockRows?.some(b => b.blocker_id === session.user.id) || false)
+    setBlockedByThem(blockRows?.some(b => b.blocker_id === matchId) || false)
 
     const now = new Date()
     const myAccess = meData?.section2_unlocked ||
@@ -261,6 +276,25 @@ export default function Chat() {
     setSendingBot(false)
   }
 
+  async function handleBlock() {
+    if (blockedByMe) {
+      // Unblock
+      const { error } = await supabase
+        .from('user_blocks')
+        .delete()
+        .eq('blocker_id', currentUser)
+        .eq('blocked_id', matchId)
+      if (!error) setBlockedByMe(false)
+    } else {
+      // Block — DB policy restricts to blocker=me; messages policy
+      // immediately stops either side from sending.
+      const { error } = await supabase
+        .from('user_blocks')
+        .insert({ blocker_id: currentUser, blocked_id: matchId })
+      if (!error) setBlockedByMe(true)
+    }
+  }
+
   async function handleSend() {
     if (!newMessage.trim() || sending) return
     setSending(true)
@@ -396,10 +430,14 @@ export default function Chat() {
             {s2Progress ? `${s2Progress.questions_discussed || 0}/20 questions` : 'Section 2 Chat'}
           </p>
         </div>
-        {!meetupConfirmed ? (
+        {!meetupConfirmed && !blockedByMe && !blockedByThem ? (
           <button className="meetup-btn" onClick={handleMeetupConfirm}>🤝 Met Up</button>
-        ) : (
+        ) : meetupConfirmed ? (
           <span className="meetup-confirmed">✅ Met Up!</span>
+        ) : (
+          <button className="meetup-btn" onClick={handleBlock} title={blockedByMe ? 'Unblock' : 'Blocked'}>
+            {blockedByMe ? 'Unblock' : '⛔'}
+          </button>
         )}
       </div>
 
@@ -433,6 +471,12 @@ export default function Chat() {
         </div>
       )}
 
+      {blockedByThem && (
+        <div className="chat-blocked-notice">
+          Conversation unavailable.
+        </div>
+      )}
+
       <div className="chat-messages">
         {messages.length === 0 && (
           <div className="chat-empty">
@@ -443,6 +487,16 @@ export default function Chat() {
         <div ref={messagesEndRef} />
       </div>
 
+      {blockedByMe ? (
+        <div className="chat-input-area chat-input-blocked">
+          <span>You blocked this match.</span>
+          <button className="chat-unblock-btn" onClick={handleBlock}>Unblock</button>
+        </div>
+      ) : blockedByThem ? (
+        <div className="chat-input-area chat-input-blocked">
+          <span>Messaging is unavailable.</span>
+        </div>
+      ) : (
       <div className="chat-input-area">
         <textarea
           className="chat-input"
@@ -460,6 +514,7 @@ export default function Chat() {
           {sending ? '...' : '➤'}
         </button>
       </div>
+      )}
     </div>
   )
 }

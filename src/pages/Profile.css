@@ -197,3 +197,162 @@
 .profile-action-btn:hover {
   border-color: #4F2D7F;
 }
+/* ---- Account-settings additions ---- */
+
+.profile-paused-banner {
+  margin: 8px 16px 0;
+  padding: 10px 14px;
+  background: rgba(255, 184, 77, 0.12);
+  border: 1px solid rgba(255, 184, 77, 0.4);
+  border-radius: 10px;
+  color: #ffb84d;
+  font-size: 13px;
+}
+
+.profile-error-text {
+  color: #e8416b;
+  font-size: 13px;
+  margin: 8px 0;
+}
+
+.bio-counter {
+  font-size: 12px;
+  color: #8b8b9e;
+  text-align: right;
+  margin: 4px 0 0;
+}
+
+.bio-counter.at-limit {
+  color: #ffb84d;
+  font-weight: 600;
+}
+
+.profile-field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8b8b9e;
+  margin: 18px 0 6px;
+}
+
+.prompt-edit-block {
+  background: #161620;
+  border: 1px solid #262633;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.prompt-edit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.prompt-edit-question {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e8416b;
+}
+
+.prompt-remove {
+  background: none;
+  border: none;
+  color: #6b6b80;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.prompt-answer-input {
+  width: 100%;
+  background: #0a0a0a;
+  border: 1px solid #3a3a4d;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  padding: 8px 10px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.prompt-answer-counter {
+  font-size: 11px;
+  color: #8b8b9e;
+  text-align: right;
+  margin: 4px 0 0;
+}
+
+.prompt-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.prompt-choice {
+  text-align: left;
+  background: #161620;
+  border: 1px dashed #3a3a4d;
+  border-radius: 10px;
+  color: #c9c9d4;
+  font-size: 13px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.prompt-choice:hover {
+  border-color: #e8416b;
+  color: #fff;
+}
+
+.interests-editor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.interest-chip {
+  background: #161620;
+  border: 1px solid #3a3a4d;
+  border-radius: 16px;
+  color: #c9c9d4;
+  font-size: 13px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.interest-chip.selected {
+  background: rgba(232, 65, 107, 0.18);
+  border-color: #e8416b;
+  color: #ff8fab;
+}
+
+.profile-prompts {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.profile-prompt {
+  background: #161620;
+  border: 1px solid #262633;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.profile-prompt-q {
+  color: #e8416b;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+.profile-prompt-a {
+  color: #e6e6ee;
+  font-size: 14px;
+  margin: 0;
+}

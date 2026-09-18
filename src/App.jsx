@@ -1,38 +1,87 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { useEffect, lazy, Suspense } from 'react'
+import { applySeo, applySiteJsonLd, applyWebAppJsonLd, ROUTE_SEO } from './seo'
 import AuthGuard from './components/AuthGuard'
 import Landing from './pages/Landing'
+import HowItWorks from './pages/HowItWorks'
+import Faq from './pages/Faq'
 import Signup from './pages/Signup'
 import Login from './pages/Login'
-import ProfileSetup from './pages/ProfileSetup'
-import PhotoUpload from './pages/PhotoUpload'
-import Interests from './pages/Interests'
-import Home from './pages/Home'
-import Section1 from './pages/Section1'
-import Section2 from './pages/Section2'
-import Payment from './pages/Payment'
-import Profile from './pages/Profile'
-import Chat from './pages/Chat'
-import Matches from './pages/Matches'
-import Admin from './pages/Admin'
+
+// PERF: route-level code splitting. The landing/marketing routes stay
+// eager (fast first paint for visitors); the 12 authenticated app
+// routes — admin, chat, payments, questionnaire — are only downloaded
+// when actually navigated to. All are small, so a single shared
+// fallback suffices.
+const ProfileSetup = lazy(() => import('./pages/ProfileSetup'))
+const PhotoUpload = lazy(() => import('./pages/PhotoUpload'))
+const Interests = lazy(() => import('./pages/Interests'))
+const Home = lazy(() => import('./pages/Home'))
+const Section1 = lazy(() => import('./pages/Section1'))
+const Section2 = lazy(() => import('./pages/Section2'))
+const Payment = lazy(() => import('./pages/Payment'))
+const Profile = lazy(() => import('./pages/Profile'))
+const Chat = lazy(() => import('./pages/Chat'))
+const Matches = lazy(() => import('./pages/Matches'))
+const Admin = lazy(() => import('./pages/Admin'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Photos = lazy(() => import('./pages/Photos'))
+const Settings = lazy(() => import('./pages/Settings'))
+const Blocked = lazy(() => import('./pages/Blocked'))
+
+function RouteFallback() {
+  return (
+    <div style={{
+      minHeight: '100vh', display: 'flex', alignItems: 'center',
+      justifyContent: 'center', background: '#0a0a0a', color: '#666',
+      fontSize: 14
+    }}>
+      Loading…
+    </div>
+  )
+}// Route-driven SEO: applies on EVERY navigation so private pages get
+// their noindex metadata too (public pages additionally call useSeo
+// for copy-coupled JSON-LD).
+function SeoManager() {
+  const { pathname } = useLocation()
+  const base = pathname.startsWith('/chat/') ? '/chat' : pathname
+
+  useEffect(() => {
+    applySeo(base)
+    const indexable = ROUTE_SEO[base]?.index === true
+    applySiteJsonLd(indexable)
+    applyWebAppJsonLd(indexable)
+  }, [base])
+
+  return null
+}
 
 function App() {
+
   return (
     <BrowserRouter>
+      <SeoManager />
       <Routes>
         <Route path='/' element={<Landing />} />
+        <Route path='/matches-info' element={<HowItWorks />} />
+        <Route path='/faq' element={<Faq />} />
         <Route path='/signup' element={<Signup />} />
         <Route path='/login' element={<Login />} />
-        <Route path='/profile-setup' element={<AuthGuard><ProfileSetup /></AuthGuard>} />
-        <Route path='/photo-upload' element={<AuthGuard><PhotoUpload /></AuthGuard>} />
-        <Route path='/interests' element={<AuthGuard><Interests /></AuthGuard>} />
-        <Route path='/home' element={<AuthGuard><Home /></AuthGuard>} />
-        <Route path='/section1' element={<AuthGuard><Section1 /></AuthGuard>} />
-        <Route path='/section2' element={<AuthGuard><Section2 /></AuthGuard>} />
-        <Route path='/payment' element={<AuthGuard><Payment /></AuthGuard>} />
-        <Route path='/profile' element={<AuthGuard><Profile /></AuthGuard>} />
-        <Route path='/chat/:matchId' element={<AuthGuard><Chat /></AuthGuard>} />
-        <Route path='/matches' element={<AuthGuard><Matches /></AuthGuard>} />
-        <Route path='/admin' element={<AuthGuard><Admin /></AuthGuard>} />
+        <Route path='/profile-setup' element={<AuthGuard><Suspense fallback={<RouteFallback />}><ProfileSetup /></Suspense></AuthGuard>} />
+        <Route path='/photo-upload' element={<AuthGuard><Suspense fallback={<RouteFallback />}><PhotoUpload /></Suspense></AuthGuard>} />
+        <Route path='/interests' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Interests /></Suspense></AuthGuard>} />
+        <Route path='/home' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Home /></Suspense></AuthGuard>} />
+        <Route path='/section1' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Section1 /></Suspense></AuthGuard>} />
+        <Route path='/section2' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Section2 /></Suspense></AuthGuard>} />
+        <Route path='/payment' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Payment /></Suspense></AuthGuard>} />
+        <Route path='/profile' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Profile /></Suspense></AuthGuard>} />
+        <Route path='/chat/:matchId' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Chat /></Suspense></AuthGuard>} />
+        <Route path='/matches' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Matches /></Suspense></AuthGuard>} />
+        <Route path='/admin' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Admin /></Suspense></AuthGuard>} />
+        <Route path='/dashboard' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Dashboard /></Suspense></AuthGuard>} />
+        <Route path='/photos' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Photos /></Suspense></AuthGuard>} />
+        <Route path='/settings' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Settings /></Suspense></AuthGuard>} />
+        <Route path='/blocked' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Blocked /></Suspense></AuthGuard>} />
       </Routes>
     </BrowserRouter>
   )
