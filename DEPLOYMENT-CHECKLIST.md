@@ -16,7 +16,9 @@ Run in this exact order:
       `admin_users` table + admin RPCs (`am_i_admin`, `admin_overview`, campus mutations).
 - [ ] **1.4** `supabase/sql/remediation_bundle.sql`
       `payment_intents` table, txn idempotency constraint, `messages` + `section2_chat_progress` RLS, `contacts_unlocked` trigger.
-- [ ] **1.5** Insert yourself as admin (get your UUID from Dashboard → Authentication → Users):
+- [ ] **1.5** `supabase/sql/storage_rls.sql`
+      `profile_photos` storage policies: public read, owner-scoped insert/update/delete (blocks cross-user photo BOLA).
+- [ ] **1.6** Insert yourself as admin (get your UUID from Dashboard → Authentication → Users):
       ```sql
       insert into public.admin_users (user_id) values ('YOUR-AUTH-USER-UUID');
       ```
@@ -58,7 +60,7 @@ Run in this exact order:
 
 ## 5. Dashboard settings (no code)
 
-- [ ] **5.1** Storage → `profile_photos` bucket → Policies: confirm **write** scoped to `auth.uid()/*` path prefix and owner-only delete; public read is fine for profile pics.
+- [ ] **5.1** Storage → `profile_photos` bucket → confirm `storage_rls.sql` policies applied (public read; write/delete owner-scoped to `auth.uid()/*`).
 - [ ] **5.2** Auth → Rate Limits: confirm sane OTP caps (default 30/hr/email ok to start).
 - [ ] **5.3** Auth → URL Configuration: production redirect allow-list only.
 - [ ] **5.4** OneSignal dashboard: confirm allowed origins = `https://minglemate.vercel.app` (localhost already there for dev).
