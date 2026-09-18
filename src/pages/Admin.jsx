@@ -3,132 +3,117 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import './Admin.css'
 
-const ADMIN_PASSWORD = 'minglemate-admin-2025'
-
 export default function Admin() {
   const navigate = useNavigate()
-  const [authed, setAuthed] = useState(false)
-  const [password, setPassword] = useState('')
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [checking, setChecking] = useState(true)
   const [error, setError] = useState('')
   const [campuses, setCampuses] = useState([])
   const [stats, setStats] = useState({})
+  const [transactions, setTransactions] = useState([])
   const [loading, setLoading] = useState(false)
   const [newCampus, setNewCampus] = useState({ name: '', email_domain: '' })
   const [triggering, setTriggering] = useState(null)
-  const [transactions, setTransactions] = useState([])
   const [activeTab, setActiveTab] = useState('campuses')
 
-  function handleLogin() {
-    if (password === ADMIN_PASSWORD) {
-      setAuthed(true)
-      loadData()
-    } else {
-      setError('Incorrect password')
+  // Verify admin role server-side on mount. No client password:
+  // membership lives in admin_users and is checked by RPCs.
+  useEffect(() => {
+    async function checkAdmin() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { navigate('/login'); return }
+
+      const { data, error: rpcError } = await supabase.rpc('am_i_admin')
+      if (rpcError) {
+        setError('Admin check failed: ' + rpcError.message)
+      } else if (data === true) {
+        setIsAdmin(true)
+        loadData()
+      }
+      setChecking(false)
     }
-  }
+    checkAdmin()
+  }, [navigate])
 
   async function loadData() {
     setLoading(true)
 
-    const { data: campusData } = await supabase
-      .from('campuses')
-      .select('*')
-      .order('created_at')
-    setCampuses(campusData || [])
+    // One server-side call; the function re-verifies admin and
+    // returns campuses, stats, and transactions as JSON.
+    const { data, error: rpcError } = await supabase.rpc('admin_overview')
 
-    const { data: userData } = await supabase
-      .from('users')
-      .select('id, profile_status, section1_complete, section2_unlocked, campus_id')
-    
-    const { data: msgData } = await supabase
-      .from('messages')
-      .select('id')
-
-    const { data: txnData } = await supabase
-      .from('token_purchases')
-      .select('*')
-      .order('created_at', { ascending: false })
-    setTransactions(txnData || [])
-
-    setStats({
-      totalUsers: userData?.length || 0,
-      activeUsers: userData?.filter(u => u.profile_status === 'active').length || 0,
-      section1Complete: userData?.filter(u => u.section1_complete).length || 0,
-      section2Unlocked: userData?.filter(u => u.section2_unlocked).length || 0,
-      totalMessages: msgData?.length || 0,
-    })
+    if (rpcError) {
+      setError(rpcError.message)
+    } else if (data) {
+      setCampuses(data.campuses || [])
+      setTransactions(data.transactions || [])
+      setStats(data.stats || {})
+    }
 
     setLoading(false)
   }
 
   async function handleAddCampus() {
     if (!newCampus.name || !newCampus.email_domain) return
-    const { error } = await supabase
-      .from('campuses')
-      .insert({
-        name: newCampus.name,
-        email_domain: newCampus.email_domain
-      })
-    if (!error) {
-      setNewCampus({ name: '', email_domain: '' })
-      loadData()
+    const { error: rpcError } = await supabase.rpc('admin_add_campus', {
+      p_name: newCampus.name,
+      p_email_domain: newCampus.email_domain
+    })
+    if (rpcError) {
+      setError(rpcError.message)
+      return
     }
+    setNewCampus({ name: '', email_domain: '' })
+    loadData()
   }
 
   async function toggleMatching(campusId, current) {
-    await supabase
-      .from('campuses')
-      .update({ matching_enabled: !current })
-      .eq('id', campusId)
+    await supabase.rpc('admin_set_campus_matching', { p_campus_id: campusId, p_value: !current })
     loadData()
   }
 
   async function toggleActive(campusId, current) {
-    await supabase
-      .from('campuses')
-      .update({ is_active: !current })
-      .eq('id', campusId)
+    await supabase.rpc('admin_set_campus_active', { p_campus_id: campusId, p_value: !current })
     loadData()
   }
 
   async function triggerMatching(campusId) {
     setTriggering(campusId)
     try {
-      const response = await fetch(
-        'https://mhdjnhiqahsllbczbzpk.supabase.co/functions/v1/run-weekly-matching',
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1oZGpuaGlxYWhzbGxiY3pienBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NjYzNjUsImV4cCI6MjA5MDA0MjM2NX0.3Oz9TBeTNq1owUD4zJXBXADx5-r4jIPlqcnQH3nqNto`,
-            'Content-Type': 'application/json'
-          }
-        }
-      )
-      const data = await response.json()
-      alert(`Matching complete! ${data.totalMatches || 0} matches created for week ${data.weekId}`)
+      // Invoke via the SDK so the user's own JWT is attached;
+      // the function must verify the caller is an admin.
+      const { data, error: fnError } = await supabase.functions.invoke('run-weekly-matching', {
+        body: { campus_id: campusId }
+      })
+      if (fnError) throw fnError
+      alert(`Matching complete! ${data?.totalMatches || 0} matches created for week ${data?.weekId || ''}`)
     } catch (err) {
       alert('Matching failed: ' + err.message)
     }
     setTriggering(null)
   }
 
-  if (!authed) {
+  if (checking) {
+    return (
+      <div className="admin-login">
+        <div className="admin-login-card">
+          <p>Checking access…</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAdmin) {
     return (
       <div className="admin-login">
         <div className="admin-login-card">
           <h2>Admin Panel</h2>
           <p>MingleMate Administration</p>
-          <input
-            className="admin-input"
-            type="password"
-            placeholder="Enter admin password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            onKeyPress={e => e.key === 'Enter' && handleLogin()}
-          />
-          {error && <p className="admin-error">{error}</p>}
-          <button className="admin-btn" onClick={handleLogin}>
-            Login
+          <p className="admin-error">
+            {error || 'Your account does not have admin access. Log in with an admin account.'}
+          </p>
+          <button className="admin-btn" onClick={() => navigate('/login')}>
+            Go to Login
           </button>
         </div>
       </div>
@@ -148,6 +133,7 @@ export default function Admin() {
         <button className={`admin-tab ${activeTab === 'payments' ? 'active' : ''}`} onClick={() => setActiveTab('payments')}>Payments</button>
       </div>
 
+      {error && <p className="admin-error">{error}</p>}
       {loading && <p className="admin-loading">Loading...</p>}
 
       {activeTab === 'campuses' && (
@@ -213,23 +199,23 @@ export default function Admin() {
           <h2>Platform Stats</h2>
           <div className="stats-grid">
             <div className="stat-card">
-              <h3>{stats.totalUsers}</h3>
+              <h3>{stats.totalUsers ?? 0}</h3>
               <p>Total Users</p>
             </div>
             <div className="stat-card">
-              <h3>{stats.activeUsers}</h3>
+              <h3>{stats.activeUsers ?? 0}</h3>
               <p>Active Users</p>
             </div>
             <div className="stat-card">
-              <h3>{stats.section1Complete}</h3>
+              <h3>{stats.section1Complete ?? 0}</h3>
               <p>Section 1 Done</p>
             </div>
             <div className="stat-card">
-              <h3>{stats.section2Unlocked}</h3>
+              <h3>{stats.section2Unlocked ?? 0}</h3>
               <p>Section 2 Unlocked</p>
             </div>
             <div className="stat-card">
-              <h3>{stats.totalMessages}</h3>
+              <h3>{stats.totalMessages ?? 0}</h3>
               <p>Messages Sent</p>
             </div>
           </div>

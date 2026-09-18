@@ -42,12 +42,10 @@ export default function Payment() {
     setStatus('Sending payment request to your phone...')
 
     try {
+      // C2: only the phone is sent — amount and user identity are
+      // server-derived (price constant + JWT).
       const { data, error: fnError } = await supabase.functions.invoke('initiate-payment', {
-        body: {
-          phone: formatted,
-          amount: 99,
-          userId: userId
-        }
+        body: { phone: formatted }
       })
 
       if (fnError) throw fnError

@@ -4,9 +4,45 @@ import { normalizeAnswer } from './normalize.ts'
 import { categoryWeights } from './weights.ts'
 import { cosineSimilarity, jaccardSimilarity, complementarityScore } from './similarity.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+// M7: restrict browser callers to our own origins. Cron calls
+// without an Origin header fall back to the primary origin.
+const ALLOWED_ORIGINS = [
+  'https://minglemate.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000'
+]
+
+function corsFor(req: Request) {
+  const origin = req.headers.get('Origin') || ''
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    Vary: 'Origin'
+  }
+}
+
+// H5 fix: only admins or the cron/service may trigger matching.
+// The service key skips the check (cron path); human callers must
+// present a JWT whose user is in admin_users.
+async function isAuthorized(req: Request, admin: any): Promise<boolean> {
+  const authHeader = req.headers.get('Authorization') || ''
+  const token = authHeader.replace('Bearer ', '').trim()
+  if (!token) return false
+  try {
+    const { data } = await admin.auth.getUser(token)
+    if (!data?.user) return false
+    const { data: isAdmin } = await admin.rpc('is_admin')
+    // rpc('is_admin') under service role has no uid context — fall
+    // back to a direct membership lookup for the calling user.
+    const { data: member } = await admin
+      .from('admin_users')
+      .select('user_id')
+      .eq('user_id', data.user.id)
+      .maybeSingle()
+    return Boolean(isAdmin === true || member)
+  } catch {
+    return false
+  }
 }
 
 function getWeekId(): string {
@@ -26,7 +62,7 @@ function getPreviousWeekId(): string {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: corsFor(req) })
   }
 
   try {
@@ -34,6 +70,18 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SERVICE_ROLE_KEY')!
     )
+
+    // H5: verify caller is an admin or the service itself.
+    const serviceKey = Deno.env.get('SERVICE_ROLE_KEY')!
+    const presentedKey = req.headers.get('apikey') || ''
+    if (presentedKey !== serviceKey) {
+      const admin = createClient(Deno.env.get('SUPABASE_URL')!, serviceKey)
+      if (!(await isAuthorized(req, admin))) {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), {
+          headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 403
+        })
+      }
+    }
 
     const weekId = getWeekId()
     const prevWeekId = getPreviousWeekId()
@@ -46,7 +94,7 @@ serve(async (req) => {
 
     if (!campuses || campuses.length === 0) {
       return new Response(JSON.stringify({ message: 'No active campuses' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsFor(req), 'Content-Type': 'application/json' }
       })
     }
 
@@ -58,13 +106,13 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ success: true, totalMatches, weekId }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: { ...corsFor(req), 'Content-Type': 'application/json' }
     })
 
   } catch (error) {
     console.error('Matching error:', error)
     return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...corsFor(req), 'Content-Type': 'application/json' },
       status: 500
     })
   }

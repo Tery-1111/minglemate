@@ -79,6 +79,7 @@ export default function Chat() {
   const [s2Progress, setS2Progress] = useState(null)
   const [bothUnlocked, setBothUnlocked] = useState(false)
   const [contactsRevealed, setContactsRevealed] = useState(false)
+  const [matchContact, setMatchContact] = useState(null)
   const [sendingBot, setSendingBot] = useState(false)
   const messagesEndRef = useRef(null)
   const currentUserRef = useRef(null)
@@ -108,16 +109,15 @@ export default function Chat() {
     setCurrentUser(session.user.id)
     currentUserRef.current = session.user.id
 
-    const { data: meData } = await supabase
-      .from('users')
-      .select('id, full_name, section2_unlocked, section2_free_expires_at, email, phone, whatsapp_number, display_phone')
-      .eq('id', session.user.id)
-      .single()
+    // Own row via RPC: full column access to MY data only
+    const { data: meRows } = await supabase.rpc('my_profile')
+    const meData = meRows?.[0] || null
     setCurrentUserData(meData)
 
+    // Match row via hardened view: no sensitive columns exist here
     const { data: matchData } = await supabase
-      .from('users')
-      .select('id, full_name, interests, section2_unlocked, section2_free_expires_at, email, phone, whatsapp_number, display_phone')
+      .from('profiles_public')
+      .select('id, full_name, interests, section2_unlocked, section2_free_expires_at, display_phone')
       .eq('id', matchId)
       .single()
     setMatchUser(matchData)
@@ -128,6 +128,12 @@ export default function Chat() {
     const matchAccess = matchData?.section2_unlocked ||
       (matchData?.section2_free_expires_at && new Date(matchData.section2_free_expires_at) > now)
     setBothUnlocked(myAccess && matchAccess)
+
+    // Server-side paywall: RPC returns contact info ONLY when the
+    // real unlock + pairing conditions hold in the database.
+    const { data: contactRows } = await supabase
+      .rpc('get_match_contact', { match_user_id: matchId })
+    setMatchContact(contactRows?.[0] || null)
 
     const msgs = await reloadMessages(session.user.id, matchId)
     setMessages(msgs)
@@ -406,16 +412,16 @@ export default function Chat() {
         </div>
       )}
 
-      {contactsRevealed && matchUser && currentUserData && (
+      {contactsRevealed && matchUser && currentUserData && matchContact && (
         <div className="contact-reveal-card">
           <h3>🎉 Contact Details Unlocked!</h3>
           <p>You have discussed 14+ questions together.</p>
           <div className="contact-grid">
             <div className="contact-person">
               <p className="contact-name">{matchUser.full_name}</p>
-              <p>📱 {matchUser.display_phone || matchUser.phone}</p>
-              <p>💬 {matchUser.whatsapp_number}</p>
-              <p>📧 {matchUser.email}</p>
+              <p>📱 {matchContact.display_phone || matchContact.phone}</p>
+              <p>💬 {matchContact.whatsapp_number}</p>
+              <p>📧 {matchContact.email}</p>
             </div>
             <div className="contact-person">
               <p className="contact-name">You</p>

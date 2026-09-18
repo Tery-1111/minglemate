@@ -1,13 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize your Supabase client locally or import it from your client config file
-// import { supabase } from '../supabaseClient';
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL || '',
-  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
-);
+import { supabase } from '../supabaseClient';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -33,7 +26,12 @@ export default function Signup() {
       if (authError) throw authError;
 
       if (authData?.user) {
-        // 2. CRITICAL: Explicitly await the database write before moving pages
+        // 2. Profile row: the DB trigger (fix_rls.sql) already creates it
+        // via SECURITY DEFINER. This upsert is a fallback for setups
+        // without the trigger — e.g. email-confirmation-disabled flows
+        // where the client DOES have a session here. If it fails with
+        // RLS (session-less confirmation flow), the trigger has it
+        // covered, so treat that specific case as success.
         const { error: profileError } = await supabase
           .from('users')
           .upsert({
@@ -43,10 +41,14 @@ export default function Signup() {
             created_at: new Date().toISOString(),
           });
 
-        // If the database profile write fails, stop execution here so the app doesn't break on /onboarding
-        if (profileError) throw profileError;
+        const isRlsSessionless =
+          profileError &&
+          /row-level security/i.test(profileError.message || '');
+
+        if (profileError && !isRlsSessionless) throw profileError;
         
-        // 3. Navigation is completely safe to execute now
+        // 3. Navigation is safe: auth user exists, profile row exists
+        // (created by trigger if the upsert above was skipped).
         navigate('/onboarding');
       }
     } catch (err) {

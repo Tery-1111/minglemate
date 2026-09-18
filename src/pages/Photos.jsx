@@ -1,11 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL || '',
-  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
-);
+import { supabase } from '../supabaseClient';
 
 // Define 6 static grid slots for the profile layout
 const TOTAL_SLOTS = [1, 2, 3, 4, 5, 6];
@@ -41,13 +36,29 @@ export default function Photos() {
     fetchExistingPhotos();
   }, []);
 
+// M1: read the file's leading bytes to confirm the declared type.
+// offset lets WebP skip its 8-byte RIFF header.
+async function sniffMagic(file, bytes, offset = 0) {
+  const head = new Uint8Array(await file.slice(offset, offset + bytes.length).arrayBuffer());
+  return bytes.every((b, i) => head[i] === b);
+}
+
   const handlePhotoUpload = async (e, slotKey) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Validate image format types
-    if (!file.type.startsWith('image/')) {
-      setError('Please upload a valid image asset file format.');
+    // M1: real byte sniffing — client-reported MIME types are spoofable
+    const isJpeg = file.type === 'image/jpeg' && await sniffMagic(file, [0xFF, 0xD8, 0xFF]);
+    const isPng  = file.type === 'image/png'  && await sniffMagic(file, [0x89, 0x50, 0x4E, 0x47]);
+    const isWebp = file.type === 'image/webp' && await sniffMagic(file, [0x57, 0x45, 0x42, 0x50], 8);
+    if (!isJpeg && !isPng && !isWebp) {
+      setError('Only JPG, PNG, or WebP images are allowed.');
+      return;
+    }
+
+    // M1: hard size cap (5 MB) — protects storage + bandwidth
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image is too large. Maximum size is 5 MB.');
       return;
     }
 
@@ -71,11 +82,10 @@ export default function Photos() {
             await supabase.storage
               .from('profile_photos')
               .remove([oldStoragePath]);
-            console.log(`Cleaned up orphaned storage asset: ${oldStoragePath}`);
+            // L1: path logging removed from prod output
           }
         } catch (cleanupErr) {
-          console.warn("Minor asset storage cleanup bypass:", cleanupErr);
-        }
+          // Old-photo cleanup is best-effort; upload still proceeds.
       }
 
       // 1. Ship new asset binary chunks up to your profile bucket
@@ -109,8 +119,8 @@ export default function Photos() {
       }));
 
     } catch (err) {
-      setError(err.message || 'Media pipeline operational disruption occurred.');
-      console.error(err);
+      setError(err.message || 'Upload failed. Please try a different image.');
+      // L1: no console output in prod bundles
     } finally {
       setUploadingSlot(null); // Release interface interaction controls
     }

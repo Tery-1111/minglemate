@@ -44,7 +44,7 @@ export default function Matches() {
 
     if (matchHistory.tier1_match_id) {
       const { data: t1User } = await supabase
-        .from('users')
+        .from('profiles_public')
         .select('id, full_name, age, bio, interests, gender, section2_unlocked')
         .eq('id', matchHistory.tier1_match_id)
         .single()
@@ -60,7 +60,7 @@ export default function Matches() {
 
     if (matchHistory.tier2_match_id) {
       const { data: t2User } = await supabase
-        .from('users')
+        .from('profiles_public')
         .select('id, full_name, age, bio, interests, gender, section2_unlocked')
         .eq('id', matchHistory.tier2_match_id)
         .single()

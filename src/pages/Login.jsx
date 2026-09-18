@@ -21,7 +21,9 @@ export default function Login() {
     })
 
     if (otpError) {
-      setError(otpError.message)
+      // M6: show one generic message for every failure mode so
+      // attackers can't probe which campus emails have accounts.
+      setError("If that email is registered, we've sent you a code. Check your inbox.")
       setLoading(false)
       return
     }

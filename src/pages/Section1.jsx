@@ -1,19 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL || '',
-  import.meta.env.VITE_SUPABASE_ANON_KEY || ''
-);
-
-// Inline mock data representing questions.js structure for standalone stability
-const CAMPUS_QUESTIONS = [
-  { id: 1, text: "What is your ideal weekend layout structure around campus?", options: ["Studying at the library", "Chilling at the eateries", "Major gym sessions", "Attending social hubs"] },
-  { id: 2, text: "How do you approach coursework group projects?", options: ["Take lead coding role", "Handle design metrics", "Manage task execution charts", "Review and debug logic"] },
-  { id: 3, text: "Your preference when listening to music production tracks?", options: ["Latin Urban & Reggaeton vibes", "Afro-pop rhythms", "R&B fusion blends", "Lo-fi background frequencies"] },
-  { id: 4, text: "Which discipline framework anchors your workflow?", options: ["Strict daily schedules", "Adaptive hyper-focus blocks", "Social tracking groups", "Fluid instinctual momentum"] }
-];
+import { supabase } from '../supabaseClient';
+import { section1Questions as CAMPUS_QUESTIONS } from '../data/section1Questions';
 
 export default function Section1() {
   const navigate = useNavigate();
@@ -81,7 +69,7 @@ export default function Section1() {
 
     // Update locally stored array element values cleanly
     const updatedAnswers = [...answers];
-    updatedAnswers[current] = optionIndex;
+    updatedAnswers[current] = CAMPUS_QUESTIONS[current].options[optionIndex];
     setAnswers(updatedAnswers);
 
     const nextStepIndex = current + 1;
