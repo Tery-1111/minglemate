@@ -18,12 +18,14 @@ Run in this exact order:
       `payment_intents` table, txn idempotency constraint, `messages` + `section2_chat_progress` RLS, `contacts_unlocked` trigger.
 - [ ] **1.5** `supabase/sql/storage_rls.sql`
       `profile_photos` storage policies: public read, owner-scoped insert/update/delete (blocks cross-user photo BOLA).
-- [ ] **1.6** Insert yourself as admin (get your UUID from Dashboard → Authentication → Users):
+- [ ] **1.6** `supabase/sql/account_settings_bundle.sql`
+      Profile prompts column + bio 300-char constraint, `user_blocks` table with owner-scoped RLS, blocked-pair enforcement on `messages` inserts, private `notifications_enabled` column, and the `request_account_deletion()` RPC (anonymizes sent messages, deletes profile + auth user → cascades the rest). Requires 1.2 to have run first.
+- [ ] **1.7** Insert yourself as admin (get your UUID from Dashboard → Authentication → Users):
       ```sql
       insert into public.admin_users (user_id) values ('YOUR-AUTH-USER-UUID');
       ```
 
-**Verify:** run `supabase/sql/audit_rls.sql` — check `users` has policies incl. `users_select_authenticated`, `user_responses` has owner-only policies, `payment_intents` exists with zero policies, trigger `on_auth_user_created` and `trg_contacts_unlocked` exist.
+**Verify:** run `supabase/sql/audit_rls.sql` — check `users` has policies incl. `users_select_authenticated`, `user_responses` has owner-only policies, `payment_intents` exists with zero policies, trigger `on_auth_user_created` and `trg_contacts_unlocked` exist. After 1.6: `user_blocks` exists with its 3 policies and `request_account_deletion` appears in `\df public.request*`.
 
 ---
 
@@ -34,6 +36,8 @@ Run in this exact order:
 - [ ] **2.3** `npx supabase functions deploy send-notification`
 - [ ] **2.4** `npx supabase functions deploy run-weekly-matching`
 - [ ] **2.5** `npx supabase functions deploy match-generator`
+
+Both 2.4 and 2.5 carry the pause/block enforcement from the account-settings foundation (they skip `profile_status <> 'active'` and blocked pairs). Redeploying them is **required after 1.6** — including if they were already deployed before.
 
 **Secrets check** (`npx supabase secrets list`): must include `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_SHORTCODE`, `MPESA_PASSKEY`, `MPESA_CALLBACK_URL`, `ONESIGNAL_API_KEY`, `ONESIGNAL_APP_ID`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (and `SERVICE_ROLE_KEY` for run-weekly-matching — set both spellings if needed).
 
@@ -79,6 +83,7 @@ Run in this exact order:
 - [ ] **6.7** **Push:** trigger a notification → arrives on subscribed device; confirm a non-logged-in curl to `send-notification` returns 401.
 - [ ] **6.8** **Photos:** try a 10 MB upload → blocked with message; rename a `.txt` to `.jpg` → blocked by magic-byte sniff.
 - [ ] **6.9** **Headers:** external scan (securityheaders.com) → grade A or better.
+- [ ] **6.10** **Account settings:** Settings page loads and pause toggle flips `users.profile_status`; a blocked user cannot insert a message (RLS rejects); delete-account flow anonymizes sent messages and removes the auth user.
 
 ---
 
