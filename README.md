@@ -5,7 +5,7 @@ MingleMate is a matchmaking web app that pairs people through a guided, conversa
 ## Features
 
 - **Guided onboarding** — profile setup, photo upload, and interests collected step by step, with a bot-driven question flow (`Section1` / `Section2`)
-- **Weekly matching** — a Supabase Edge Function (`run-weekly-matching`) computes matches on a schedule
+- **Weekly matching** — a Supabase Edge Function (`match-generator`) computes 50-question compatibility matches and delivers weekly Tier 1 / Tier 2 picks
 - **Match chat** — real conversation view with contact details blurred behind a paywall
 - **Payments** — checkout and verification handled by the `initiate-payment` and `payment-callback` edge functions
 - **Push notifications** — OneSignal web push, with player IDs linked to user rows and delivery via the `send-notification` edge function
@@ -73,7 +73,7 @@ MingleMate is a matchmaking web app that pairs people through a guided, conversa
 │   └── functions/           # Edge functions:
 │       ├── initiate-payment/
 │       ├── payment-callback/
-│       ├── run-weekly-matching/
+│       ├── match-generator/
 │       └── send-notification/
 └── vercel.json
 ```

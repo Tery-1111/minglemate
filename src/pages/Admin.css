@@ -277,3 +277,37 @@
   font-size: 12px;
   color: #888;
 }
+/* ---- Admin v2 additions ---- */
+.admin-hint { font-size: 12px; color: #888; margin: 4px 0 10px; }
+.admin-dim { color: #888; font-size: 12px; margin: 2px 0; }
+.admin-empty { color: #888; font-style: italic; padding: 8px 0; }
+
+.admin-user-row { display: flex; align-items: center; gap: 10px; }
+.admin-user-row > div:first-child { flex: 1; min-width: 0; }
+.admin-user-row .admin-btn { padding: 6px 12px; }
+
+.admin-chip {
+  display: inline-block; font-size: 10px; padding: 2px 8px;
+  border-radius: 10px; border: 1px solid #333; color: #888;
+  margin-left: 6px; text-transform: uppercase; letter-spacing: 0.4px;
+}
+.chip-ok { border-color: #1d7a3e; color: #4ade80; }
+.chip-warn { border-color: #7a5b1d; color: #facc15; }
+
+.admin-pager { display: flex; align-items: center; gap: 12px; margin: 12px 0; }
+.admin-pager .admin-btn { padding: 6px 12px; }
+
+.admin-subtabs { margin-bottom: 12px; }
+
+.admin-check { display: block; font-size: 13px; color: #ccc; margin: 6px 0; cursor: pointer; }
+.admin-check input { margin-right: 6px; }
+
+.admin-detail { margin-top: 20px; }
+.admin-detail h3 { margin: 14px 0 6px; font-size: 15px; color: #eee; }
+.admin-detail-grid p { margin: 3px 0; font-size: 13px; }
+.admin-bio { color: #aaa; border-left: 2px solid #333; padding-left: 8px; }
+
+.admin-photos { display: flex; gap: 12px; margin: 10px 0; }
+.admin-photos figure { margin: 0; }
+.admin-photos img { width: 110px; height: 140px; object-fit: cover; border-radius: 8px; border: 1px solid #333; }
+.admin-photos figcaption { font-size: 11px; color: #888; margin-top: 4px; }

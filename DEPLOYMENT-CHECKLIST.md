@@ -12,36 +12,40 @@ Run in this exact order:
       Profile-creation trigger (fixes signup) + `users` RLS policies.
 - [ ] **1.2** `supabase/sql/harden_profile_reads.sql`
       Column-level grants on `users`, `profiles_public` view, `my_profile()` + `get_match_contact()` RPCs.
-- [ ] **1.3** `supabase/sql/admin_role.sql`
-      `admin_users` table + admin RPCs (`am_i_admin`, `admin_overview`, campus mutations).
+- [ ] **1.3** `supabase/sql/fix_responses_column.sql`
+      Section 1 answer-crash fix: converts `user_responses.responses_array` `integer[]` → `text[]` (legacy type from the old 40-question system). Standalone, idempotent — every questionnaire answer click fails until this runs.
 - [ ] **1.4** `supabase/sql/remediation_bundle.sql`
-      `payment_intents` table, txn idempotency constraint, `messages` + `section2_chat_progress` RLS, `contacts_unlocked` trigger.
-- [ ] **1.5** `supabase/sql/storage_rls.sql`
-      `profile_photos` storage policies: public read, owner-scoped insert/update/delete (blocks cross-user photo BOLA).
-- [ ] **1.6** `supabase/sql/account_settings_bundle.sql`
+      `payment_intents` table, txn idempotency constraint, `messages` + `section2_chat_progress` RLS, `contacts_unlocked` trigger. **Must run before 1.8** (admin overview reads `payment_intents`).
+- [ ] **1.5** `supabase/sql/account_settings_bundle.sql`
       Profile prompts column + bio 300-char constraint, `user_blocks` table with owner-scoped RLS, blocked-pair enforcement on `messages` inserts, private `notifications_enabled` column, and the `request_account_deletion()` RPC (anonymizes sent messages, deletes profile + auth user → cascades the rest). Requires 1.2 to have run first.
-- [ ] **1.7** Insert yourself as admin (get your UUID from Dashboard → Authentication → Users):
+- [ ] **1.6** `supabase/sql/product_flow_bundle.sql`
+      Product-flow foundation: `matches` (Qrashe), `connect_unlocks` (paid contact snapshots), `conversations` (lifecycle: active → locked → archived), `reports`, contact-sharing columns on `users`, `discover_candidates()` + `complete_force_connect()` + `complete_connect_unlock()` + `get_unlocked_contacts()` + `unmatch_conversation()` RPCs, and updated messages RLS (blocked/locked/archived enforcement). Requires 1.4 + 1.5 (references `payment_intents` and `user_blocks`).
+- [ ] **1.7** `supabase/sql/storage_rls.sql`
+      `profile_photos` storage policies: public read, owner-scoped insert/update/delete (blocks cross-user photo BOLA). Order-independent.
+- [ ] **1.8** `supabase/sql/admin_role.sql`
+      Admin backend v2: `admin_users` + `admin_audit_log` tables, `is_admin()`/`am_i_admin()`, `admin_overview()` (payments from `payment_intents`, legacy merged), `is_admin()`-guarded campus mutations, plus `admin_users_list()`, `admin_user_detail()` (audit-logged sensitive access), `admin_matches_list()`. Requires 1.4.
+- [ ] **1.9** Insert yourself as admin (get your UUID from Dashboard → Authentication → Users):
       ```sql
       insert into public.admin_users (user_id) values ('YOUR-AUTH-USER-UUID');
       ```
 
-**Verify:** run `supabase/sql/audit_rls.sql` — check `users` has policies incl. `users_select_authenticated`, `user_responses` has owner-only policies, `payment_intents` exists with zero policies, trigger `on_auth_user_created` and `trg_contacts_unlocked` exist. After 1.6: `user_blocks` exists with its 3 policies and `request_account_deletion` appears in `\df public.request*`.
+**Verify:** run `supabase/sql/audit_rls.sql` — check `users` has policies incl. `users_select_authenticated`, `user_responses` has owner-only policies, `payment_intents` exists with zero policies, trigger `on_auth_user_created` and `trg_contacts_unlocked` exist. After 1.5: `user_blocks` exists with its 3 policies. After 1.3: `responses_array` is `text[]`. `request_account_deletion` appears in `\df public.request*`.
 
 ---
 
 ## 2. Deploy edge functions (from `minglemate/`, requires `supabase login` + `supabase link --project-ref mhdjnhiqahsllbczbzpk`)
 
-- [ ] **2.1** `npx supabase functions deploy initiate-payment`
-- [ ] **2.2** `npx supabase functions deploy payment-callback`
+- [ ] **2.1** `npx supabase functions deploy initiate-payment` (purpose-based pricing: section2 200 / force_connect 80 / connect_tier1 70 / connect_tier2 + connect_qrashe 50 — server-enforced)
+- [ ] **2.2** `npx supabase functions deploy payment-callback` (dispatches by purpose: Qrashe creation + recipient push for force_connect; contact snapshot + conversation lock for connect_*)
 - [ ] **2.3** `npx supabase functions deploy send-notification`
-- [ ] **2.4** `npx supabase functions deploy run-weekly-matching`
+- [ ] **2.4** ~~`run-weekly-matching`~~ — **retired**: it read `section1_responses`, a table nothing writes, so it always produced zero matches; the live engine is `match-generator`. No cron or code calls it (verified repo-wide). **Undeploy:** `npx supabase functions delete run-weekly-matching`
 - [ ] **2.5** `npx supabase functions deploy match-generator`
 
-Both 2.4 and 2.5 carry the pause/block enforcement from the account-settings foundation (they skip `profile_status <> 'active'` and blocked pairs). Redeploying them is **required after 1.6** — including if they were already deployed before.
+2.5 carries the pause/block enforcement from the account-settings foundation (it skips `profile_status <> 'active'` and blocked pairs). Redeploying it is **required after 1.6** — including if it was already deployed before.
 
-**Secrets check** (`npx supabase secrets list`): must include `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_SHORTCODE`, `MPESA_PASSKEY`, `MPESA_CALLBACK_URL`, `ONESIGNAL_API_KEY`, `ONESIGNAL_APP_ID`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (and `SERVICE_ROLE_KEY` for run-weekly-matching — set both spellings if needed).
+**Secrets check** (`npx supabase secrets list`): must include `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_SHORTCODE`, `MPESA_PASSKEY`, `MPESA_CALLBACK_URL`, `ONESIGNAL_API_KEY`, `ONESIGNAL_APP_ID`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (and `SERVICE_ROLE_KEY` for match-generator's cron path — set both spellings if needed).
 
-**Verify:** `curl -X POST https://mhdjnhiqahsllbczbzpk.supabase.co/functions/v1/initiate-payment` with no auth → expect `401 Authentication required` (was: it accepted anything). Same for `run-weekly-matching` → `403 Forbidden`.
+**Verify:** `curl -X POST https://mhdjnhiqahsllbczbzpk.supabase.co/functions/v1/initiate-payment` with no auth → expect `401 Authentication required` (was: it accepted anything). Same for `match-generator` → `403 Forbidden`.
 
 ---
 
@@ -68,7 +72,7 @@ Both 2.4 and 2.5 carry the pause/block enforcement from the account-settings fou
 - [ ] **5.2** Auth → Rate Limits: confirm sane OTP caps (default 30/hr/email ok to start).
 - [ ] **5.3** Auth → URL Configuration: production redirect allow-list only.
 - [ ] **5.4** OneSignal dashboard: confirm allowed origins = `https://minglemate.vercel.app` (localhost already there for dev).
-- [ ] **5.5** Delete the abandoned test user `buffy.tester@student.egerton.ac.ke` (Authentication → Users).
+- [ ] **5.5** Delete the abandoned test user `buffy.tester@student.university.ac.ke` (Authentication → Users).
 
 ---
 

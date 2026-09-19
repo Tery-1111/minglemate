@@ -90,10 +90,10 @@ Found **22 findings: 5 Critical, 8 High, 7 Medium, 2 Low/Info**. The most seriou
 - **Where:** `4d783d8` added `.env` with anon key + `VITE_ADMIN_PASSWORD`; removed later (48b77e7) but recoverable from history
 - **Impact:** Anon keys are by design public; the admin password is not. Consider history rewrite + rotation. Note `supabaseClient.js` reads `VITE_SUPABASE_ANON_KEY` while current `.env` uses `sb_publishable_...` — verify names match the deployed env.
 
-### H5. Matching edge functions are public compute
-- **Where:** `run-weekly-matching`, `match-generator` — no admin/service check; O(n²) per call
-- **Impact:** Any authenticated user can force full-campus recompute loops (DoS-ish, burns function time). Admin panel now calls with user JWT but the function doesn't verify it.
-- **Fix:** check `is_admin()` or restrict to cron with service key.
+### H5. Matching edge functions are public compute — RESOLVED
+- **Where:** `match-generator` — now admin/service-key gated (JWT user must be in `admin_users`, or the service key must be presented). `run-weekly-matching` was **retired and deleted**: it read `section1_responses`, a table nothing writes, so it always produced zero matches; no cron or code called it (verified repo-wide).
+- **Impact:** An authenticated user could force full-campus recompute loops (DoS-ish, burns function time).
+- **Fix:** implemented — service-key or admin-membership check inside `match-generator`; unauthorized calls get `403 Forbidden`.
 
 ### H6. Dead unsafe notification util
 - **Where:** `src/utils/notifications.js` — imported nowhere, but fetches *other users'* `onesignal_player_id` from the client
