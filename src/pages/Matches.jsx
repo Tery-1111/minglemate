@@ -78,8 +78,8 @@ export default function Matches() {
 
   if (loading) {
     return (
-      <div className="matches-loading">
-        <p>Loading your matches...</p>
+      <div className="matches-page">
+        <p className="matches-loading loading-dots">Loading your matches</p>
       </div>
     )
   }
@@ -88,31 +88,37 @@ export default function Matches() {
 
   if (!hasAny) {
     return (
-      <div className="matches-empty">
-        <div className="matches-empty-icon">💝</div>
-        <h2>No matches yet</h2>
-        <p>Your matches drop every Tuesday at 9 PM</p>
-        <p className="matches-tip">Complete Section 1 to enter the match pool</p>
-        <button className="matches-s1-btn" onClick={() => navigate('/discover')}>
-          Explore Discover →
-        </button>
+      <div className="matches-page">
+        <div className="matches-empty">
+          <div className="matches-empty-icon">💝</div>
+          <h2 className="matches-empty-title display">No matches yet</h2>
+          <p>Your matches drop every <strong>Tuesday at 9 PM</strong></p>
+          <p className="matches-tip">Complete Section 1 to enter the match pool</p>
+          <button className="btn-accent matches-cta" onClick={() => navigate('/discover')}>
+            Explore Discover
+          </button>
+        </div>
       </div>
     )
   }
 
   // ONE screen, three sections: Tier 1 / Tier 2 / Qrashe. No tabs.
   return (
-    <div className="matches-container">
+    <div className="matches-page">
+      <header className="matches-header">
+        <h1 className="matches-title display">Matches</h1>
+        {matches.deliveredAt && (
+          <p className="matches-week">Delivered {new Date(matches.deliveredAt).toLocaleDateString('en-KE', { weekday: 'long', month: 'short', day: 'numeric' })}</p>
+        )}
+      </header>
+
       {matches.tier1 && (
         <section>
-          <h2 className="matches-section-title" style={{ color: '#4F2D7F' }}>Tier 1 Matches</h2>
+          <p className="section-label">Tier 1 · Similarity</p>
           <MatchCard
             match={matches.tier1}
             tier="Tier 1"
-            tierLabel="Similarity Match"
-            tierColor="#4F2D7F"
             currentUserId={userId}
-            weekId={getWeekId()}
             onOpen={() => navigate(`/match/${matches.tier1.id}`)}
           />
         </section>
@@ -120,14 +126,11 @@ export default function Matches() {
 
       {matches.tier2 && (
         <section>
-          <h2 className="matches-section-title" style={{ color: '#E8416B' }}>Tier 2 Matches</h2>
+          <p className="section-label">Tier 2 · Complementary</p>
           <MatchCard
             match={matches.tier2}
             tier="Tier 2"
-            tierLabel="Complementary Match"
-            tierColor="#E8416B"
             currentUserId={userId}
-            weekId={getWeekId()}
             onOpen={() => navigate(`/match/${matches.tier2.id}`)}
           />
         </section>
@@ -135,16 +138,13 @@ export default function Matches() {
 
       {matches.qrashe && matches.qrashe.length > 0 && (
         <section>
-          <h2 className="matches-section-title" style={{ color: '#b794f6' }}>Qrashe Matches</h2>
+          <p className="section-label">Qrashe · Force Connect</p>
           {matches.qrashe.map(q => (
             <MatchCard
               key={q.id}
               match={q}
               tier="Qrashe"
-              tierLabel="Force Connect"
-              tierColor="#6b46c1"
               currentUserId={userId}
-              weekId={getWeekId()}
               onOpen={() => navigate(`/match/${q.id}`)}
             />
           ))}
@@ -154,42 +154,40 @@ export default function Matches() {
   )
 }
 
-function MatchCard({ match, tier, tierLabel, tierColor, onOpen }) {
+function MatchCard({ match, tier, onOpen }) {
   // Reconciliation pass: the old gift/prompt actions (gift_transactions /
   // payment_prompts) were a parallel payment path superseded by the
   // purpose-based Connect system. Removed from the card; the tables
   // remain in the DB for historical rows.
 
-  return (
-    <div className="match-card">
-      <div className="match-tier-badge" style={{ background: tierColor }}>
-        {tier} — {tierLabel}
-      </div>
+  const facial = match.photos?.find(p => p.photo_type === 'facial') || match.photos?.[0]
+  const firstName = (match.full_name || '').split(' ')[0]
 
-      {match.photos && match.photos.length > 0 ? (
-        <div className="match-photos">
-          {/* Cards show the FACIAL photo; full-body is shown on the
-              opened match screen. */}
-          <img
-            src={(match.photos.find(p => p.photo_type === 'facial') || match.photos[0]).photo_url}
-            alt={match.full_name}
-            className="match-photo"
-          />
-        </div>
+  return (
+    <div
+      className="match-card"
+      role="button"
+      tabIndex={0}
+      aria-label={`Open match with ${match.full_name}`}
+      onClick={onOpen}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen() } }}
+    >
+      {facial ? (
+        <img src={facial.photo_url} alt="" className="match-photo" loading="lazy" />
       ) : (
-        <div className="match-no-photo">
-          <span>👤</span>
-        </div>
+        <div className="match-photo match-photo-empty" aria-hidden="true">{firstName.charAt(0).toUpperCase() || '👤'}</div>
       )}
 
-      <div className="match-info">
-        <h3 className="match-name">{match.full_name}</h3>
-        <p className="match-age">{match.age} years old</p>
-
-        <button className="match-chat-btn" onClick={onOpen}>
-          Open Match →
-        </button>
+      {/* Cards show the FACIAL photo; full-body is shown on the opened
+          match screen. Name sits on a scrim, exactly like Discover. */}
+      <div className="match-scrim">
+        <span className="match-name">{match.full_name}</span>
+        <span className="match-age">{match.age}</span>
       </div>
+
+      <span className={`match-tier-chip match-tier-${tier.toLowerCase()}`}>{tier}</span>
+
+      <span className="match-open-hint">Open →</span>
     </div>
   )
 }

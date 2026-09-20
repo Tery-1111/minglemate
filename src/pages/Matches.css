@@ -1,262 +1,190 @@
-.matches-loading {
-  min-height: 60vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 16px;
+/* MATCHES — personal + relational + organized.
+   Photo-first cards that rhyme with Discover (same scrim anatomy),
+   quiet tier chips instead of full-color badge bars, editorial header. */
+
+.matches-page {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text-primary);
+  padding: var(--space-5) var(--space-4) calc(var(--nav-h) + 40px + env(safe-area-inset-bottom));
+  max-width: var(--content-w);
+  margin: 0 auto;
 }
 
-.matches-empty {
-  min-height: 60vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 24px;
-  color: white;
+.matches-header {
+  margin-bottom: var(--space-6);
 }
 
-.matches-empty-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
-}
-
-.matches-empty h2 {
-  font-size: 24px;
-  font-weight: 700;
-  color: white;
-  margin-bottom: 8px;
-}
-
-.matches-empty p {
-  font-size: 15px;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-}
-
-.matches-tip {
-  font-size: 13px;
-  color: var(--accent);
-  margin-bottom: 20px;
-}
-
-.matches-s1-btn {
-  padding: 12px 24px;
-  background: var(--accent);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.matches-container {
-  padding: 20px;
-}
-
-.matches-heading {
-  font-size: 22px;
-  font-weight: 800;
-  color: white;
-  margin-bottom: 4px;
+.matches-title {
+  font-size: var(--fs-title);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  margin: 0;
 }
 
 .matches-week {
-  font-size: 13px;
   color: var(--text-muted);
-  margin-bottom: 24px;
+  font-size: var(--fs-secondary);
+  margin: 4px 0 0;
 }
 
-.match-card {
-  background: var(--surface-raised);
-  border-radius: 16px;
-  overflow: hidden;
-  margin-bottom: 24px;
-  border: 1px solid var(--border-strong);
-}
-
-.match-tier-badge {
-  padding: 8px 16px;
-  color: white;
-  font-size: 13px;
-  font-weight: 700;
+/* Loading state */
+.matches-loading {
   text-align: center;
+  color: var(--text-muted);
+  padding: 96px 0;
 }
 
-.match-photos {
+/* Empty state — editorial, honest, one action */
+.matches-empty {
+  text-align: center;
+  padding: var(--space-8) var(--space-4);
+}
+
+.matches-empty-icon {
+  font-size: 40px;
+  margin-bottom: var(--space-3);
+  opacity: 0.7;
+}
+
+.matches-empty-title {
+  font-size: 20px;
+  margin: 0 0 var(--space-2);
+}
+
+.matches-empty p {
+  color: var(--text-muted);
+  font-size: var(--fs-secondary);
+  margin: 0 0 var(--space-1);
+}
+
+.matches-empty p strong { color: var(--text-secondary); font-weight: 600; }
+
+.matches-tip {
+  font-size: var(--fs-meta) !important;
+  margin-bottom: var(--space-5) !important;
+}
+
+.matches-cta {
+  max-width: 280px;
+  margin: var(--space-5) auto 0;
+}
+
+/* ------------------------------------------------------------
+   Sections: hierarchy via the shared .section-label caps label —
+   the tier stays quiet; the person is the loud thing.
+   ------------------------------------------------------------ */
+.matches-page section { margin-bottom: var(--space-5); }
+
+/* Card: the photo IS the card (same anatomy as Discover) */
+.match-card {
   position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+}
+
+.match-card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+}
+
+.match-card:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
 }
 
 .match-photo {
   width: 100%;
-  height: 280px;
+  aspect-ratio: 4 / 3;
   object-fit: cover;
+  display: block;
 }
 
-.match-no-photo {
-  width: 100%;
-  height: 200px;
+.match-photo-empty {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--surface-active);
-  font-size: 64px;
+  font-family: var(--font-display);
+  font-size: 44px;
+  font-weight: 560;
+  color: var(--text-muted);
+  background: var(--surface-raised);
 }
 
-.photo-dots {
+/* Name scrim: identical treatment to Discover for one visual voice */
+.match-scrim {
   position: absolute;
-  bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
+  inset-inline: 0;
+  bottom: 0;
+  padding: 40px var(--space-4) 12px;
+  background: linear-gradient(to top, rgba(6, 5, 7, 0.88) 0%, rgba(6, 5, 7, 0.45) 55%, transparent 100%);
   display: flex;
-  gap: 6px;
-}
-
-.photo-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.4);
-  border: none;
-  cursor: pointer;
-  padding: 0;
-}
-
-.photo-dot.active {
-  background: var(--surface);
-}
-
-.match-info {
-  padding: 20px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  pointer-events: none;
 }
 
 .match-name {
-  font-size: 22px;
-  font-weight: 800;
-  color: white;
-  margin-bottom: 4px;
+  font-weight: 650;
+  font-size: 17px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .match-age {
-  font-size: 14px;
-  color: var(--text-muted);
-  margin-bottom: 12px;
+  color: rgba(244, 241, 244, 0.72);
+  font-size: var(--fs-meta);
+  flex-shrink: 0;
 }
 
-.match-bio {
-  font-size: 14px;
-  color: var(--text-secondary);
-  line-height: 1.5;
-  margin-bottom: 16px;
+/* Tier chip: quiet identification, not a loud badge bar */
+.match-tier-chip {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(6, 5, 7, 0.6);
+  backdrop-filter: blur(4px);
+  color: rgba(244, 241, 244, 0.9);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  pointer-events: none;
 }
 
-.match-interests {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 20px;
-}
-
-.match-tag {
-  padding: 6px 12px;
-  background: var(--surface-active);
-  color: var(--text-secondary);
-  border-radius: 20px;
-  font-size: 12px;
-  border: 1px solid var(--text-muted);
-}
-
-.match-chat-btn {
-  width: 100%;
-  padding: 14px;
+.match-tier-qrashe {
   background: var(--accent);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: opacity 0.2s;
+  color: var(--text-on-accent);
 }
 
-.match-chat-btn:hover {
-  opacity: 0.9;
-}
-
-.match-gift-section {
-  margin-top: 16px;
-  padding: 16px;
-  background: #111;
-  border-radius: 12px;
-  border: 1px solid var(--border-strong);
-}
-
-.gift-label {
-  font-size: 13px;
-  color: var(--text-muted);
-  margin-bottom: 12px;
-  text-align: center;
-}
-
-.gift-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.gift-btn {
-  width: 100%;
-  padding: 12px;
-  background: var(--positive);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.gift-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.prompt-btn {
-  width: 100%;
-  padding: 12px;
-  background: var(--accent);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.prompt-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.match-s2-unlocked {
-  margin-top: 12px;
-  padding: 10px;
-  background: #1a2a1a;
-  border-radius: 10px;
-  color: var(--positive);
-  font-size: 13px;
+/* Quiet affordance on hover — desktop only */
+.match-open-hint {
+  position: absolute;
+  right: 12px;
+  bottom: 44px;
+  color: rgba(244, 241, 244, 0.85);
+  font-size: var(--fs-meta);
   font-weight: 600;
-  text-align: center;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+  pointer-events: none;
 }
-.matches-section-title {
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: 0.3px;
-  text-transform: uppercase;
-  margin: 22px 0 10px;
+
+.match-card:hover .match-open-hint,
+.match-card:focus-visible .match-open-hint {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (hover: none) {
+  .match-open-hint { display: none; }
 }

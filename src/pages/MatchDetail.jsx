@@ -140,33 +140,45 @@ export default function MatchDetail() {
   }
 
   if (loading) {
-    return <div className="md-page"><p className="md-loading">Loading…</p></div>
+    return <div className="md-page"><p className="md-loading loading-dots">Loading</p></div>
   }
 
   if (!profile) {
     return (
       <div className="md-page">
-        <div className="md-card"><p className="md-none">Profile not found.</p></div>
+        <div className="md-missing">
+          <h2 className="display">Profile not found</h2>
+          <p>This match may have ended or the profile is no longer available.</p>
+          <button className="btn-ghost md-missing-btn" onClick={() => navigate('/matches')}>
+            Back to Matches
+          </button>
+        </div>
       </div>
     )
   }
 
   const { price } = connectPurpose()
+  const firstName = profile.full_name.split(' ')[0]
 
   return (
     <div className="md-page">
       <div className="md-card">
-        <button className="md-back" onClick={() => navigate(-1)}>←</button>
+        <button className="md-back" onClick={() => navigate(-1)} aria-label="Go back">←</button>
 
+        {/* Full-body photo is the hero; facial remains the card photo */}
         {bodyPhoto ? (
           <img src={bodyPhoto} alt={profile.full_name} className="md-photo" />
         ) : facePhoto ? (
           <img src={facePhoto} alt={profile.full_name} className="md-photo" />
         ) : (
-          <div className="md-photo md-photo-empty">👤</div>
+          <div className="md-photo md-photo-empty" aria-hidden="true">{firstName.charAt(0).toUpperCase()}</div>
         )}
 
-        <h1 className="md-name">{profile.full_name}, {profile.age}</h1>
+        <div className="md-id">
+          <span className={`md-tier-chip md-tier-${tier || 'none'}`}>{tier === 'qrashe' ? 'Qrashe' : tier === 'tier1' ? 'Tier 1' : tier === 'tier2' ? 'Tier 2' : 'Match'}</span>
+          <h1 className="md-name display">{profile.full_name}, {profile.age}</h1>
+        </div>
+
         {profile.bio && <p className="md-bio">{profile.bio}</p>}
 
         {profile.interests && profile.interests.length > 0 && (
@@ -178,39 +190,52 @@ export default function MatchDetail() {
         )}
 
         {!unlock && (
-          <>
-            <button className="md-btn md-btn-primary" onClick={() => navigate(`/chat/${matchId}`)}>
-              Start Conversation →
+          <div className="md-cta-block">
+            <button className="btn-accent md-btn" onClick={() => navigate(`/chat/${matchId}`)}>
+              Start Conversation
             </button>
-            <button className="md-btn md-btn-connect" onClick={goConnect}>
-              Connect with {profile.full_name.split(' ')[0]} · {price}
+            <button className="btn-ghost md-btn md-btn-connect" onClick={goConnect}>
+              Connect with {firstName} · {price}
             </button>
             <p className="md-connect-note">
               Connect unlocks their contact details according to their sharing choices.
             </p>
-          </>
+          </div>
         )}
 
         {unlock && (
           <div className="md-unlocked">
-            <h3>🎉 Connected</h3>
+            <p className="md-unlocked-label">Connected</p>
             {contacts && (
               <div className="md-contacts">
-                {contacts.phone && <p>📱 {contacts.phone}</p>}
-                {contacts.whatsapp_number && <p>💬 {contacts.whatsapp_number}</p>}
-                {contacts.email && <p>📧 {contacts.email}</p>}
-                {contacts.social_instagram && <p>📷 @{contacts.social_instagram}</p>}
-                {contacts.social_x && <p>𝕏 @{contacts.social_x}</p>}
-                {contacts.social_tiktok && <p>🎵 @{contacts.social_tiktok}</p>}
+                {contacts.phone && (
+                  <div className="md-contact-row"><span className="md-contact-kind">Phone</span><span className="md-contact-val">{contacts.phone}</span></div>
+                )}
+                {contacts.whatsapp_number && (
+                  <div className="md-contact-row"><span className="md-contact-kind">WhatsApp</span><span className="md-contact-val">{contacts.whatsapp_number}</span></div>
+                )}
+                {contacts.email && (
+                  <div className="md-contact-row"><span className="md-contact-kind">Email</span><span className="md-contact-val">{contacts.email}</span></div>
+                )}
+                {contacts.social_instagram && (
+                  <div className="md-contact-row"><span className="md-contact-kind">Instagram</span><span className="md-contact-val">@{contacts.social_instagram}</span></div>
+                )}
+                {contacts.social_x && (
+                  <div className="md-contact-row"><span className="md-contact-kind">X</span><span className="md-contact-val">@{contacts.social_x}</span></div>
+                )}
+                {contacts.social_tiktok && (
+                  <div className="md-contact-row"><span className="md-contact-kind">TikTok</span><span className="md-contact-val">@{contacts.social_tiktok}</span></div>
+                )}
                 {!contacts.phone && !contacts.whatsapp_number && !contacts.email &&
                   !contacts.social_instagram && !contacts.social_x && !contacts.social_tiktok && (
                     <p className="md-contacts-none">They haven't enabled any contact sharing yet.</p>
                   )}
               </div>
             )}
-            <button className="md-btn md-btn-primary" onClick={() => navigate(`/chat/${matchId}`)}>
-              Open Conversation (read-only after Connect)
+            <button className="btn-ghost md-btn" onClick={() => navigate(`/chat/${matchId}`)}>
+              Open Conversation
             </button>
+            <p className="md-connect-note">The conversation is read-only now that you're connected.</p>
           </div>
         )}
 
