@@ -117,7 +117,7 @@ export default function Section1() {
       }
     } catch (err) {
       console.error("Answer upload crash execution:", err);
-      setError("Failed to preserve selected metrics sequence indices securely.");
+      setError("We couldn't save that answer. Check your connection and try again.");
     } finally {
       setIsSaving(false);
     }

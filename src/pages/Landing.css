@@ -11,19 +11,8 @@
   overflow: hidden;
 }
 
-/* A single, very quiet rose field behind the wordmark — depth without
-   the radial-glow cliché. Reads as atmosphere, not decoration. */
-.landing-container::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: min(560px, 120vw);
-  height: min(560px, 120vw);
-  transform: translate(-50%, -58%);
-  background: radial-gradient(circle, var(--accent-soft) 0%, transparent 62%);
-  pointer-events: none;
-}
+/* Depth comes from type scale and whitespace — no ambient gradients
+   (design rule: gradients are not a substitute for composition). */
 
 .landing-content {
   position: relative;
