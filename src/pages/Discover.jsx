@@ -103,7 +103,12 @@ export default function Discover() {
                   loading="lazy"
                 />
               ) : (
-                <div className="discover-photo discover-photo-empty">👤</div>
+                <div className="discover-photo discover-photo-empty" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                    <circle cx="12" cy="8" r="4" />
+                    <path d="M4.5 20.5c1.2-3.5 4-5.5 7.5-5.5s6.3 2 7.5 5.5" />
+                  </svg>
+                </div>
               )}
               {isSelected ? (
                 <span className="discover-fc-chip">Force Connect · KSh 80</span>

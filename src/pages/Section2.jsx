@@ -127,7 +127,12 @@ export default function Section2() {
     return (
       <div className="s2-locked-container">
         <div className="s2-locked-card">
-          <div className="s2-locked-icon">🔒</div>
+          <div className="s2-locked-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="5" y="11" width="14" height="9" rx="2" />
+              <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+            </svg>
+          </div>
           <h2>Section 2 Locked</h2>
           <p>Your free access period has ended. Unlock Section 2 to get deeper matches.</p>
           <button

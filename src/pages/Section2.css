@@ -4,7 +4,7 @@
   align-items: center;
   justify-content: center;
   background: var(--bg);
-  color: white;
+  color: var(--text-secondary);
   font-size: 18px;
 }
 
@@ -27,7 +27,7 @@
 .s2-back {
   background: transparent;
   border: none;
-  color: white;
+  color: var(--text-primary);
   font-size: 24px;
   cursor: pointer;
   padding: 4px 8px;
@@ -40,8 +40,8 @@
 }
 
 .s2-free-badge {
-  background: #1a7a4a;
-  color: white;
+  background: var(--positive);
+  color: var(--bg);
   padding: 4px 10px;
   border-radius: 12px;
   font-size: 12px;
@@ -140,8 +140,10 @@
 }
 
 .s2-locked-icon {
-  font-size: 48px;
+  display: flex;
+  justify-content: center;
   margin-bottom: 16px;
+  color: var(--text-muted);
 }
 
 .s2-locked-card h2 {

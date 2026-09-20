@@ -207,7 +207,7 @@
   transition: background var(--dur-fast) ease, opacity var(--dur-fast) ease;
 }
 
-.discover-fc-btn:hover:not(:disabled) { background: #ef5680; }
+.discover-fc-btn:hover:not(:disabled) { background: var(--accent-hover); }
 .discover-fc-btn:active:not(:disabled) { background: var(--accent-strong); }
 .discover-fc-btn:disabled { opacity: 0.35; }
 .discover-fc-btn:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }
@@ -235,7 +235,7 @@
 .discover-error {
   max-width: var(--content-w);
   margin: 0 auto var(--space-3);
-  color: var(--accent);
+  color: var(--danger);
   font-size: var(--fs-secondary);
 }
 

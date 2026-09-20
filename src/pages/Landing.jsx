@@ -16,27 +16,11 @@ export default function Landing() {
             Log In
           </button>
         </div>
-        <nav
-          style={{
-            marginTop: 48,
-            display: 'flex',
-            gap: 24,
-            justifyContent: 'center',
-            fontSize: 14,
-          }}
-        >
-          <Link to="/matches-info" style={{ color: '#b9b3c6', textDecoration: 'none' }}>
-            How matching works
-          </Link>
-          <Link to="/faq" style={{ color: '#b9b3c6', textDecoration: 'none' }}>
-            FAQ
-          </Link>
-          <Link to="/terms" style={{ color: '#b9b3c6', textDecoration: 'none' }}>
-            Terms
-          </Link>
-          <Link to="/privacy" style={{ color: '#b9b3c6', textDecoration: 'none' }}>
-            Privacy
-          </Link>
+        <nav className="landing-nav">
+          <Link to="/matches-info">How matching works</Link>
+          <Link to="/faq">FAQ</Link>
+          <Link to="/terms">Terms</Link>
+          <Link to="/privacy">Privacy</Link>
         </nav>
       </div>
     </div>

@@ -3,7 +3,7 @@
 .info-page {
   min-height: 100vh;
   background: var(--bg);
-  color: #ffffff;
+  color: var(--text-primary);
   font-family: 'Poppins', 'Segoe UI', -apple-system, sans-serif;
   display: flex;
   flex-direction: column;
@@ -35,7 +35,7 @@
 
 .info-cta {
   background: var(--accent);
-  color: white;
+  color: var(--text-on-accent);
   border: none;
   padding: 10px 20px;
 }
@@ -60,7 +60,7 @@
 .info-lede {
   font-size: 18px;
   line-height: 1.65;
-  color: #c9c4d4;
+  color: var(--text-secondary);
   margin-bottom: 40px;
 }
 
@@ -68,7 +68,7 @@
   font-size: 24px;
   font-weight: 800;
   margin: 40px 0 12px;
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .info-main h3 {
@@ -82,11 +82,11 @@
 .info-main li {
   font-size: 16px;
   line-height: 1.7;
-  color: #b9b3c6;
+  color: var(--text-muted);
   margin-bottom: 12px;
 }
 
-.info-main strong { color: #ffffff; }
+.info-main strong { color: var(--text-primary); }
 
 .dimension-list {
   list-style: none;
@@ -142,7 +142,7 @@
 
 .btn-primary {
   background: var(--accent);
-  color: white;
+  color: var(--text-on-accent);
   border: none;
   border-radius: 10px;
   padding: 14px 28px;
@@ -155,7 +155,7 @@
 
 .btn-ghost {
   background: transparent;
-  color: #c9c4d4;
+  color: var(--text-secondary);
   border: 1px solid var(--border-strong);
   padding: 14px 28px;
   font-size: 16px;
@@ -163,7 +163,7 @@
 
 .btn-ghost:hover {
   border-color: var(--accent);
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .info-footer {

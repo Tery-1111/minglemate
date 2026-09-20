@@ -174,7 +174,7 @@ export default function Photos() {
 const styles = {
   container: {
     minHeight: '100vh',
-    background: '#0a0a0a',
+    background: 'var(--bg)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -184,18 +184,18 @@ const styles = {
   layoutBox: {
     width: '100%',
     maxWidth: '520px',
-    background: '#141414',
-    border: '1px solid #262626',
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
     borderRadius: '16px',
     padding: '28px'
   },
   header: { marginBottom: '24px', textAlign: 'center' },
-  title: { color: '#ffffff', fontSize: '22px', fontWeight: '800', margin: '0 0 6px 0' },
-  subtitle: { color: '#888888', fontSize: '14px', margin: 0 },
+  title: { color: 'var(--text-primary)', fontSize: '22px', fontWeight: '800', margin: '0 0 6px 0' },
+  subtitle: { color: 'var(--text-muted)', fontSize: '14px', margin: 0 },
   alertError: {
-    background: 'rgba(232, 65, 107, 0.1)',
-    border: '1px solid #E8416B',
-    color: '#E8416B',
+    background: 'var(--danger-soft)',
+    border: '1px solid var(--danger)',
+    color: 'var(--danger)',
     padding: '12px',
     borderRadius: '8px',
     fontSize: '13px',
@@ -206,8 +206,8 @@ const styles = {
   slotCard: {
     display: 'flex',
     gap: '14px',
-    background: '#1a1a1a',
-    border: '1px solid #262626',
+    background: 'var(--surface-raised)',
+    border: '1px solid var(--border)',
     borderRadius: '12px',
     padding: '12px'
   },
@@ -225,7 +225,7 @@ const styles = {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     textAlign: 'center', padding: '8px'
   },
-  slotIndicator: { color: '#555555', fontSize: '11px', fontWeight: '600' },
+  slotIndicator: { color: 'var(--text-muted)', fontSize: '11px', fontWeight: '600' },
   overlayLoader: {
     position: 'absolute', inset: 0,
     background: 'rgba(0,0,0,0.75)',
@@ -236,10 +236,10 @@ const styles = {
     flex: 1, display: 'flex', flexDirection: 'column',
     justifyContent: 'center', gap: '10px'
   },
-  slotTitle: { color: '#ffffff', fontSize: '15px', fontWeight: '700' },
+  slotTitle: { color: 'var(--text-primary)', fontSize: '15px', fontWeight: '700' },
   uploadTriggerLabel: {
-    background: '#E8416B',
-    color: '#ffffff',
+    background: 'var(--accent)',
+    color: 'var(--text-on-accent)',
     padding: '8px 14px',
     borderRadius: '20px',
     fontSize: '12px',
@@ -251,8 +251,8 @@ const styles = {
   hiddenNativeInput: { display: 'none' },
   actionBtn: {
     width: '100%',
-    background: '#E8416B',
-    color: '#ffffff',
+    background: 'var(--accent)',
+    color: 'var(--text-on-accent)',
     border: 'none',
     borderRadius: '10px',
     padding: '14px',

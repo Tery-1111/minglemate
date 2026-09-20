@@ -1,7 +1,7 @@
 .settings-page {
   min-height: 100vh;
   background: var(--bg);
-  color: #ffffff;
+  color: var(--text-primary);
   padding-bottom: 60px;
 }
 
@@ -25,7 +25,7 @@
 .settings-back {
   background: none;
   border: none;
-  color: #fff;
+  color: var(--text-primary);
   font-size: 22px;
   cursor: pointer;
   width: 36px;
@@ -63,10 +63,10 @@
   width: 100%;
   padding: 13px 14px;
   margin-bottom: 6px;
-  background: #161620;
-  border: 1px solid #262633;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 12px;
-  color: #fff;
+  color: var(--text-primary);
   font-size: 15px;
   text-align: left;
   text-decoration: none;
@@ -90,7 +90,7 @@
 }
 
 .settings-row-arrow {
-  color: #6b6b80;
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 
@@ -104,8 +104,8 @@
   width: 46px;
   height: 26px;
   border-radius: 13px;
-  background: #2a2a3a;
-  border: 1px solid #3a3a4d;
+  background: var(--surface-active);
+  border: 1px solid var(--border-strong);
   position: relative;
   cursor: pointer;
   flex-shrink: 0;
@@ -142,7 +142,7 @@
 .settings-section-danger {
   margin-top: 28px;
   padding-top: 8px;
-  border-top: 1px solid #262633;
+  border-top: 1px solid var(--border);
 }
 
 .settings-row-logout span {
@@ -155,16 +155,23 @@
   margin-top: 10px;
   padding: 13px;
   background: transparent;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--danger);
   border-radius: 12px;
-  color: var(--accent);
+  color: var(--danger);
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
 }
 
 .settings-delete-btn:hover {
-  background: rgba(232, 65, 107, 0.08);
+  background: var(--danger-soft);
+}
+
+.settings-delete-btn:focus-visible,
+.toggle:focus-visible,
+.settings-row:focus-visible {
+  outline: 2px solid var(--champagne);
+  outline-offset: 2px;
 }
 
 /* Delete modal */
@@ -180,8 +187,8 @@
 }
 
 .delete-modal {
-  background: #161620;
-  border: 1px solid #3a2a33;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
   border-radius: 16px;
   padding: 24px;
   max-width: 400px;
@@ -191,13 +198,13 @@
 .delete-modal h3 {
   margin: 0 0 12px;
   font-size: 18px;
-  color: var(--accent);
+  color: var(--danger);
 }
 
 .delete-modal p {
   font-size: 14px;
   line-height: 1.5;
-  color: #c9c9d4;
+  color: var(--text-secondary);
   margin: 0 0 12px;
 }
 
@@ -210,9 +217,9 @@
   width: 100%;
   padding: 11px 12px;
   background: var(--bg);
-  border: 1px solid #3a3a4d;
+  border: 1px solid var(--border-strong);
   border-radius: 10px;
-  color: #fff;
+  color: var(--text-primary);
   font-size: 15px;
   margin-bottom: 8px;
   box-sizing: border-box;
@@ -220,11 +227,11 @@
 
 .delete-input:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: var(--danger);
 }
 
 .delete-error {
-  color: var(--accent);
+  color: var(--danger);
   font-size: 13px;
   margin: 0 0 8px;
 }
@@ -246,15 +253,15 @@
 }
 
 .delete-cancel {
-  background: #262633;
+  background: var(--surface-active);
   border: none;
-  color: #fff;
+  color: var(--text-primary);
 }
 
 .delete-confirm {
   background: var(--danger);
   border: none;
-  color: #fff;
+  color: var(--text-on-accent);
 }
 
 .delete-confirm:disabled {

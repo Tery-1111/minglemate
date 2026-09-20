@@ -163,7 +163,7 @@
   transition: background var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
 }
 
-.fc-btn:hover:not(:disabled) { background: #ef5680; }
+.fc-btn:hover:not(:disabled) { background: var(--accent-hover); }
 .fc-btn:active:not(:disabled) { background: var(--accent-strong); transform: scale(0.985); }
 .fc-btn:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }
 

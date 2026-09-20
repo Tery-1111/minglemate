@@ -4,8 +4,8 @@
   left: 0;
   right: 0;
   display: flex;
-  background: #141414;
-  border-top: 1px solid #262626;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
   padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
   z-index: 50;
 }
@@ -18,14 +18,21 @@
   gap: 2px;
   background: none;
   border: none;
-  color: #888;
+  color: var(--text-muted);
   font-size: 11px;
   padding: 6px 0;
   cursor: pointer;
+  transition: color var(--dur-fast) ease;
+}
+
+.bottom-nav .nav-btn:focus-visible {
+  outline: 2px solid var(--champagne);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
 }
 
 .bottom-nav .nav-btn.active {
-  color: #E8416B;
+  color: var(--accent);
 }
 
 .bottom-nav .nav-icon {

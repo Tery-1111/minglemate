@@ -359,7 +359,7 @@ export default function Admin() {
             weekly Tier 1 / Tier 2 matches. Covers all campuses.
           </p>
           <button className="admin-btn" onClick={triggerMatching} disabled={triggering}>
-            {triggering ? 'Running…' : '⚡ Run Matching Now'}
+            {triggering ? 'Running…' : 'Run Matching Now'}
           </button>
           {matchResult.global && <p className="admin-hint">{matchResult.global}</p>}
         </div>

@@ -1,34 +1,51 @@
 /* ============================================================
    MingleMate design tokens — single source of truth.
    Pages consume var(--*) only; no raw hexes in page CSS.
+
+   IDENTITY: EMERALD INK (#064E3B) + CHAMPAGNE (#F8E7C9)
+   A mature, intimate brand: deep green-ink surfaces, cream-
+   tinted type, emerald actions carrying champagne text.
+   Signal Blue / Butter Yellow / Lime Spark exist as strictly
+   controlled utility accents (see "utility accents" below).
    ============================================================ */
 
 :root {
-  /* ---- Color: surfaces (warm near-black, photography-first) ---- */
-  --bg: #0b0a0c;                 /* page background */
-  --surface: #151316;            /* cards, panels */
-  --surface-raised: #1d1a1f;     /* headers, composer, chips */
-  --surface-active: #26222b;     /* hover/active fills */
+  /* ---- Color: surfaces (green-ink near-black, photography-first) ---- */
+  --bg: #090f0d;                 /* page background — ink black with green undertone */
+  --surface: #101714;            /* cards, panels */
+  --surface-raised: #17201c;     /* headers, composer, chips */
+  --surface-active: #1e2a25;     /* hover/active fills */
 
-  /* ---- Color: text ---- */
-  --text-primary: #f4f1f4;       /* headings, names, key numbers */
-  --text-secondary: #a8a2ad;     /* supporting copy */
-  --text-muted: #6f6a75;         /* metadata, timestamps, hints */
-  --text-on-accent: #ffffff;
+  /* ---- Color: text (champagne-tinted ramp — never pure gray) ---- */
+  --text-primary: #f6efdd;       /* headings, names, key numbers — champagne white */
+  --text-secondary: #b5ac99;     /* supporting copy — warm champagne-gray */
+  --text-muted: #7e7768;         /* metadata, timestamps, hints */
+  --text-on-accent: #f8e7c9;     /* champagne on emerald — the brand moment */
 
   /* ---- Color: brand ---- */
-  --accent: #e8416b;             /* rose — primary actions */
-  --accent-strong: #d23359;      /* pressed */
-  --accent-soft: rgba(232, 65, 107, 0.12);  /* selected fills, quiet highlights */
+  --accent: #0e6b51;             /* Emerald Ink, lifted for dark surfaces — primary actions */
+  --accent-hover: #12805f;       /* hover */
+  --accent-strong: #0a5440;      /* pressed */
+  --accent-soft: rgba(14, 107, 81, 0.18);   /* selected fills, quiet emerald fields */
+  --champagne: #f8e7c9;          /* brand secondary — reserved highlights, borders */
+  --champagne-soft: rgba(248, 231, 201, 0.08); /* quiet champagne fields on ink */
+  --border-champagne: rgba(248, 231, 201, 0.24); /* premium hairlines (payment, celebration) */
 
-  /* ---- Color: status (used sparingly, semantic only) ---- */
-  --positive: #56b47c;           /* payment success, confirmed states */
-  --warning: #d99a3d;            /* pending payment states */
-  --danger: #e8416b;             /* destructive + errors (same rose family) */
+  /* ---- Color: status (semantic only, used sparingly) ---- */
+  --positive: #57d9a3;           /* payment success, confirmed states — mint, reads against emerald */
+  --warning: #e0b25c;            /* pending payment states — champagne-adjacent amber */
+  --danger: #e5484d;             /* destructive + errors — clearly NOT brand green */
+  --danger-soft: rgba(229, 72, 77, 0.10);  /* quiet danger fills (hover, tinted panels) */
+
+  /* ---- Color: utility accents (controlled — only where a specific
+         interface purpose genuinely needs them; never decorative) ---- */
+  --info: #4d8dff;               /* Signal Blue, lifted for dark-bg legibility — informational only */
+  --highlight: #fff275;          /* Butter Yellow — rare attention states */
+  --spark: #b6ff2e;              /* Lime Spark — reserved; do not use without a product reason */
 
   /* ---- Borders ---- */
-  --border: #2a262e;             /* default hairlines */
-  --border-strong: #3a353e;      /* emphasized dividers */
+  --border: #1f2b26;             /* default hairlines — green-gray */
+  --border-strong: #2d3d36;      /* emphasized dividers */
 
   /* ---- Typography ----
      Display: Fraunces (editorial serif — warm, human, unmistakably
@@ -77,7 +94,7 @@
   --nav-h: 64px;         /* bottom nav height + safe area handled separately */
 }
 
-/* ---- Base type + resets (replaces the Vite-starter index.css) ---- */
+/* ---- Base type + resets ---- */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 html { color-scheme: dark; }
@@ -112,7 +129,7 @@ input, textarea, select { font-family: inherit; }
 
 /* ---- Shared primitives ---- */
 
-/* Primary action — flat rose, no glow */
+/* Primary action — flat emerald, champagne text. No glow, no gradient. */
 .btn-accent {
   display: block;
   width: 100%;
@@ -125,11 +142,11 @@ input, textarea, select { font-family: inherit; }
   font-weight: 650;
   transition: background var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
 }
-.btn-accent:hover { background: #ef5680; }
+.btn-accent:hover { background: var(--accent-hover); }
 .btn-accent:active { background: var(--accent-strong); transform: scale(0.985); }
 .btn-accent:disabled { opacity: 0.45; }
 .btn-accent:focus-visible {
-  outline: 2px solid var(--text-primary);
+  outline: 2px solid var(--champagne);
   outline-offset: 2px;
 }
 
@@ -146,9 +163,9 @@ input, textarea, select { font-family: inherit; }
   font-weight: 600;
   transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease;
 }
-.btn-ghost:hover { border-color: #4a4450; background: var(--surface); }
+.btn-ghost:hover { border-color: var(--text-muted); background: var(--surface); }
 .btn-ghost:focus-visible {
-  outline: 2px solid var(--text-primary);
+  outline: 2px solid var(--champagne);
   outline-offset: 2px;
 }
 
@@ -173,6 +190,24 @@ input, textarea, select { font-family: inherit; }
 .page-sub {
   color: var(--text-muted);
   font-size: var(--fs-secondary);
+}
+
+/* Brand mark: serif-M monogram roundel — the app's identity mark.
+   Used on auth, empty states and celebration surfaces. Never an emoji. */
+.brand-roundel {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--space-4);
+  background: var(--accent-soft);
+  border: 1.5px solid var(--border-champagne);
+  border-radius: 50%;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--champagne);
 }
 
 /* Section header: tiny caps label — hierarchy via typography */
@@ -201,6 +236,7 @@ input, textarea, select { font-family: inherit; }
   to { background-position: -200% 0; }
 }
 .skeleton {
+  /* gradient is structural (shimmer bands), not decorative color */
   background: linear-gradient(100deg, var(--surface) 40%, var(--surface-raised) 50%, var(--surface) 60%);
   background-size: 200% 100%;
   animation: mm-shimmer 1.4s linear infinite;

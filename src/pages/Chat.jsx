@@ -270,7 +270,7 @@ export default function Chat() {
     setSendingBot(true)
 
     const question = section2Questions[questionNumber - 1]
-    const content = `💬 Question ${questionNumber} of 20:\n\n"${question}"`
+    const content = `Question ${questionNumber} of 20:\n\n"${question}"`
     const weekId = getWeekId()
 
     const { error } = await supabase.from('messages').insert({
@@ -449,7 +449,12 @@ export default function Chat() {
         <div key={msg.id || index} className="bot-message">
           {isPaywallPoint ? (
             <div className="paywall-card">
-              <p className="paywall-icon">🔒</p>
+              <p className="paywall-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="5" y="11" width="14" height="9" rx="2" />
+                  <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                </svg>
+              </p>
               <h3>Unlock Section 2 to continue</h3>
               <p>You have completed the 4 free questions. Both users must unlock Section 2 to continue.</p>
               <button className="paywall-btn" onClick={() => navigate('/payment')}>
@@ -502,11 +507,11 @@ export default function Chat() {
         </div>
         <div className="chat-header-actions">
           {!meetupConfirmed && !blockedByMe && !blockedByThem && conversationStatus === 'active' && (
-            <button className="meetup-btn" onClick={handleMeetupConfirm}>🤝 Met Up</button>
+            <button className="meetup-btn" onClick={handleMeetupConfirm}>Met Up</button>
           )}
-          {meetupConfirmed && <span className="meetup-confirmed">✅ Met Up!</span>}
+          {meetupConfirmed && <span className="meetup-confirmed">Met Up ✓</span>}
           <button className="meetup-btn" onClick={handleBlock} title={blockedByMe ? 'Unblock' : 'Block'}>
-            {blockedByMe ? 'Unblock' : '⛔'}
+            {blockedByMe ? 'Unblock' : 'Block'}
           </button>
           <button className="meetup-btn" onClick={handleReport} title="Report">🚩</button>
           {!unmatched && !blockedByMe && !blockedByThem && conversationStatus === 'active' && (
@@ -526,23 +531,23 @@ export default function Chat() {
 
       {contactsRevealed && matchUser && currentUserData && matchContact && (
         <div className="contact-reveal-card">
-          <h3>🎉 Contact Details Unlocked!</h3>
+          <h3>Contact Details Unlocked</h3>
           <p>You have discussed 14+ questions together.</p>
           <div className="contact-grid">
             <div className="contact-person">
               <p className="contact-name">{matchUser.full_name}</p>
-              {matchContact.phone && <p>📱 {matchContact.phone}</p>}
-              {matchContact.whatsapp_number && <p>💬 {matchContact.whatsapp_number}</p>}
-              {matchContact.email && <p>📧 {matchContact.email}</p>}
-              {matchContact.social_instagram && <p>📷 @{matchContact.social_instagram}</p>}
-              {matchContact.social_x && <p>𝕏 @{matchContact.social_x}</p>}
-              {matchContact.social_tiktok && <p>🎵 @{matchContact.social_tiktok}</p>}
+              {matchContact.phone && <p>Phone · {matchContact.phone}</p>}
+              {matchContact.whatsapp_number && <p>WhatsApp · {matchContact.whatsapp_number}</p>}
+              {matchContact.email && <p>Email · {matchContact.email}</p>}
+              {matchContact.social_instagram && <p>Instagram · @{matchContact.social_instagram}</p>}
+              {matchContact.social_x && <p>X · @{matchContact.social_x}</p>}
+              {matchContact.social_tiktok && <p>TikTok · @{matchContact.social_tiktok}</p>}
             </div>
             <div className="contact-person">
               <p className="contact-name">You</p>
-              <p>📱 {currentUserData.display_phone || currentUserData.phone}</p>
-              <p>💬 {currentUserData.whatsapp_number}</p>
-              <p>📧 {currentUserData.email}</p>
+              <p>Phone · {currentUserData.display_phone || currentUserData.phone}</p>
+              <p>WhatsApp · {currentUserData.whatsapp_number}</p>
+              <p>Email · {currentUserData.email}</p>
             </div>
           </div>
         </div>
@@ -561,7 +566,7 @@ export default function Chat() {
       )}
       {!conversationArchived && conversationStatus === 'locked' && (
         <div className="chat-blocked-notice">
-          🔒 Conversation locked after Connect — continue using the revealed contact details.
+          Conversation locked after Connect — continue using the revealed contact details.
         </div>
       )}
       {!unlockInfo && conversationStatus === 'active' && matchUser && (

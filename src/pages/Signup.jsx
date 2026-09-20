@@ -78,7 +78,8 @@ export default function Signup() {
     <div style={styles.container}>
       <div style={styles.card}>
         <div style={styles.logoContainer}>
-          <span style={styles.logoHeart}>💝</span>
+          {/* Brand mark: serif-M monogram roundel — never an emoji heart. */}
+          <span style={styles.logoMark}>M</span>
           <h1 style={styles.title}>Create Account</h1>            <p style={styles.subtitle}>Join the student matching network</p>
         </div>
 
@@ -165,15 +166,15 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: '#0a0a0a',
+    background: 'var(--bg)',
     padding: '20px',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   },
   card: {
     width: '100%',
     maxWidth: '400px',
-    background: '#141414',
-    border: '1px solid #262626',
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
     borderRadius: '16px',
     padding: '32px 24px',
     boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
@@ -182,26 +183,36 @@ const styles = {
     textAlign: 'center',
     marginBottom: '28px',
   },
-  logoHeart: {
-    fontSize: '36px',
-    display: 'block',
-    marginBottom: '8px',
+  logoMark: {
+    width: '56px',
+    height: '56px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: '0 auto 8px auto',
+    background: 'var(--accent-soft)',
+    border: '1.5px solid var(--border-champagne)',
+    borderRadius: '50%',
+    fontFamily: 'var(--font-display)',
+    fontSize: '28px',
+    fontWeight: 600,
+    color: 'var(--champagne)',
   },
   title: {
-    color: '#ffffff',
+    color: 'var(--text-primary)',
     fontSize: '24px',
     fontWeight: '800',
     margin: '0 0 6px 0',
   },
   subtitle: {
-    color: '#888888',
+    color: 'var(--text-muted)',
     fontSize: '14px',
     margin: 0,
   },
   errorBox: {
-    background: 'rgba(232, 65, 107, 0.1)',
-    border: '1px solid #E8416B',
-    color: '#E8416B',
+    background: 'var(--danger-soft)',
+    border: '1px solid var(--danger)',
+    color: 'var(--danger)',
     padding: '12px',
     borderRadius: '8px',
     fontSize: '14px',
@@ -219,23 +230,23 @@ const styles = {
     gap: '6px',
   },
   label: {
-    color: '#cccccc',
+    color: 'var(--text-secondary)',
     fontSize: '13px',
     fontWeight: '500',
   },
   input: {
-    background: '#1a1a1a',
-    border: '1px solid #333333',
+    background: 'var(--surface-raised)',
+    border: '1px solid var(--border-strong)',
     borderRadius: '10px',
     padding: '14px',
-    color: '#ffffff',
+    color: 'var(--text-primary)',
     fontSize: '15px',
     outline: 'none',
     transition: 'border-color 0.2s',
   },
   submitBtn: {
-    background: '#E8416B',
-    color: '#ffffff',
+    background: 'var(--accent)',
+    color: 'var(--text-on-accent)',
     border: 'none',
     borderRadius: '10px',
     padding: '14px',
@@ -249,13 +260,13 @@ const styles = {
     alignItems: 'flex-start',
     gap: '10px',
     fontSize: '13px',
-    color: '#888888',
+    color: 'var(--text-muted)',
     lineHeight: 1.5,
     marginTop: '4px',
   },
   checkbox: {
     marginTop: '2px',
-    accentColor: '#E8416B',
+    accentColor: 'var(--accent)',
     width: '16px',
     height: '16px',
     flexShrink: 0,
@@ -264,11 +275,11 @@ const styles = {
   footer: {
     textAlign: 'center',
     marginTop: '24px',
-    color: '#888888',
+    color: 'var(--text-muted)',
     fontSize: '14px',
   },
   link: {
-    color: '#E8416B',
+    color: 'var(--champagne)',
     textDecoration: 'none',
     fontWeight: '600',
   },

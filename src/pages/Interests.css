@@ -44,7 +44,7 @@
   font-weight: 500;
   cursor: pointer;
   background: var(--surface);
-  color: #555;
+  color: var(--text-secondary);
   transition: all 0.2s;
 }
 
@@ -56,7 +56,7 @@
 .tag-btn.selected {
   background: var(--accent);
   border-color: var(--accent);
-  color: white;
+  color: var(--text-on-accent);
 }
 
 .tag-counter {
@@ -76,7 +76,7 @@
   width: 100%;
   padding: 14px;
   background: var(--accent);
-  color: white;
+  color: var(--text-on-accent);
   border: none;
   border-radius: 10px;
   font-size: 16px;
