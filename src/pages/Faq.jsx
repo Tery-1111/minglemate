@@ -20,7 +20,7 @@ const FAQS = [
   },
   {
     q: 'How does MingleMate protect my privacy?',
-    a: 'Your contact details — phone, WhatsApp, email — are never shown to other users until you and your match unlock them together. They are also blurred in chat messages until then. Your questionnaire answers are used for matching and are not published on your profile.',
+    a: 'Your contact details — phone, WhatsApp, email — are never shown to other users until you and your match unlock them together. They are also blurred in chat messages until then. Your questionnaire answers are used for matching and are not published on your profile. Full details are in our Privacy Policy.',
   },
   {
     q: 'Can I choose who sees me?',

@@ -34,6 +34,9 @@ export default function Landing() {
           <Link to="/terms" style={{ color: '#b9b3c6', textDecoration: 'none' }}>
             Terms
           </Link>
+          <Link to="/privacy" style={{ color: '#b9b3c6', textDecoration: 'none' }}>
+            Privacy
+          </Link>
         </nav>
       </div>
     </div>

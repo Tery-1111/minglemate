@@ -67,6 +67,14 @@ export const ROUTE_SEO = {
     ogType: 'website',
     index: true,
   },
+  '/privacy': {
+    title: 'MingleMate Privacy Policy — Your Data Under Kenyan Law',
+    description:
+      'How MingleMate collects, uses, shares and protects your personal data under the Kenya Data Protection Act 2019: contact-details privacy, unlock snapshots, payments, retention and your rights.',
+    keywords: 'privacy policy, data protection Kenya, dating app privacy',
+    ogType: 'website',
+    index: true,
+  },
   // ---- Everything below is private / user-specific: noindex, minimal metadata ----
   '/signup': { title: 'Create your MingleMate account', robots: 'noindex, nofollow', index: false },
   '/login': { title: 'Log in — MingleMate', robots: 'noindex, nofollow', index: false },

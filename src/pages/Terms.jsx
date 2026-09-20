@@ -331,7 +331,10 @@ export default function Terms() {
           and transparency, purpose limitation, data minimisation, accuracy, storage limitation,
           security and accountability.
         </p>
-        <p>You should read the Privacy Policy before using MingleMate.</p>
+        <p>
+          You should read the{' '}
+          <Link to="/privacy">Privacy Policy</Link> before using MingleMate.
+        </p>
 
         <h2>15. Sensitive Personal Information</h2>
         <p>Certain information that users may voluntarily provide on a relationship platform may constitute sensitive personal data under Kenyan law.</p>
@@ -560,7 +563,11 @@ export default function Terms() {
         <p>They replace previous agreements or understandings concerning the same subject matter, except where expressly stated otherwise.</p>
 
         <h2>36. Contact</h2>
-        <p>Questions, complaints or legal notices concerning these Terms should be directed to:</p>
+        <p>
+          Questions, complaints or legal notices concerning these Terms should be directed to the
+          contacts below; privacy matters are handled as described in the{' '}
+          <Link to="/privacy">Privacy Policy</Link>.
+        </p>
         <div className="legal-contact">
           <p><strong>MingleMate</strong></p>
           <p><strong>Operator/Legal Entity:</strong> [INSERT LEGAL ENTITY NAME]</p>

@@ -6,6 +6,7 @@ import Landing from './pages/Landing'
 import HowItWorks from './pages/HowItWorks'
 import Faq from './pages/Faq'
 import Terms from './pages/Terms'
+import Privacy from './pages/Privacy'
 import Signup from './pages/Signup'
 import Login from './pages/Login'
 
@@ -71,6 +72,7 @@ function App() {
         <Route path='/matches-info' element={<HowItWorks />} />
         <Route path='/faq' element={<Faq />} />
         <Route path='/terms' element={<Terms />} />
+        <Route path='/privacy' element={<Privacy />} />
         <Route path='/signup' element={<Signup />} />
         <Route path='/login' element={<Login />} />
         <Route path='/profile-setup' element={<AuthGuard><Suspense fallback={<RouteFallback />}><ProfileSetup /></Suspense></AuthGuard>} />

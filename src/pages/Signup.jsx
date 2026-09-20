@@ -120,6 +120,9 @@ export default function Signup() {
               I am 18+ and agree to the{' '}
               <Link to="/terms" target="_blank" style={styles.link}>
                 Terms of Service
+              </Link>{' '}and{' '}
+              <Link to="/privacy" target="_blank" style={styles.link}>
+                Privacy Policy
               </Link>
             </span>
           </label>
