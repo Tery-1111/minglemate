@@ -1,6 +1,6 @@
 .fc-page {
   min-height: 100vh;
-  background: #0a0a0a;
+  background: var(--bg);
   color: #fff;
   padding: 24px 16px;
   display: flex;
@@ -44,10 +44,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #141414;
-  border: 1px solid #262626;
+  background: var(--surface);
+  border: 1px solid var(--border);
   font-size: 48px;
-  color: #444;
+  color: var(--text-muted);
 }
 
 .fc-name {
@@ -57,8 +57,8 @@
 }
 
 .fc-price {
-  background: #141414;
-  border: 1px solid #262626;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 14px;
   padding: 14px;
   margin-bottom: 16px;
@@ -68,17 +68,17 @@
   display: block;
   font-size: 24px;
   font-weight: 800;
-  color: #E8416B;
+  color: var(--accent);
 }
 
 .fc-label {
-  color: #888;
+  color: var(--text-muted);
   font-size: 12px;
 }
 
 .fc-facts {
   text-align: left;
-  color: #bbb;
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.6;
   padding-left: 18px;
@@ -87,7 +87,7 @@
 
 .fc-btn {
   width: 100%;
-  background: #E8416B;
+  background: var(--accent);
   color: #fff;
   border: none;
   border-radius: 12px;
@@ -99,5 +99,5 @@
 
 .fc-loading, .fc-none {
   text-align: center;
-  color: #666;
+  color: var(--text-muted);
 }

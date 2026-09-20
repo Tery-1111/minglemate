@@ -32,19 +32,19 @@
 
 .matches-empty p {
   font-size: 15px;
-  color: #888;
+  color: var(--text-muted);
   margin-bottom: 8px;
 }
 
 .matches-tip {
   font-size: 13px;
-  color: #E8416B;
+  color: var(--accent);
   margin-bottom: 20px;
 }
 
 .matches-s1-btn {
   padding: 12px 24px;
-  background: #E8416B;
+  background: var(--accent);
   color: white;
   border: none;
   border-radius: 10px;
@@ -66,16 +66,16 @@
 
 .matches-week {
   font-size: 13px;
-  color: #888;
+  color: var(--text-muted);
   margin-bottom: 24px;
 }
 
 .match-card {
-  background: #1a1a1a;
+  background: var(--surface-raised);
   border-radius: 16px;
   overflow: hidden;
   margin-bottom: 24px;
-  border: 1px solid #333;
+  border: 1px solid var(--border-strong);
 }
 
 .match-tier-badge {
@@ -102,7 +102,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #2a2a2a;
+  background: var(--surface-active);
   font-size: 64px;
 }
 
@@ -126,7 +126,7 @@
 }
 
 .photo-dot.active {
-  background: white;
+  background: var(--surface);
 }
 
 .match-info {
@@ -142,13 +142,13 @@
 
 .match-age {
   font-size: 14px;
-  color: #888;
+  color: var(--text-muted);
   margin-bottom: 12px;
 }
 
 .match-bio {
   font-size: 14px;
-  color: #ccc;
+  color: var(--text-secondary);
   line-height: 1.5;
   margin-bottom: 16px;
 }
@@ -162,17 +162,17 @@
 
 .match-tag {
   padding: 6px 12px;
-  background: #2a2a2a;
-  color: #ccc;
+  background: var(--surface-active);
+  color: var(--text-secondary);
   border-radius: 20px;
   font-size: 12px;
-  border: 1px solid #444;
+  border: 1px solid var(--text-muted);
 }
 
 .match-chat-btn {
   width: 100%;
   padding: 14px;
-  background: #E8416B;
+  background: var(--accent);
   color: white;
   border: none;
   border-radius: 10px;
@@ -191,12 +191,12 @@
   padding: 16px;
   background: #111;
   border-radius: 12px;
-  border: 1px solid #333;
+  border: 1px solid var(--border-strong);
 }
 
 .gift-label {
   font-size: 13px;
-  color: #888;
+  color: var(--text-muted);
   margin-bottom: 12px;
   text-align: center;
 }
@@ -210,7 +210,7 @@
 .gift-btn {
   width: 100%;
   padding: 12px;
-  background: #4CAF50;
+  background: var(--positive);
   color: white;
   border: none;
   border-radius: 10px;
@@ -228,7 +228,7 @@
 .prompt-btn {
   width: 100%;
   padding: 12px;
-  background: #4F2D7F;
+  background: var(--accent);
   color: white;
   border: none;
   border-radius: 10px;
@@ -248,7 +248,7 @@
   padding: 10px;
   background: #1a2a1a;
   border-radius: 10px;
-  color: #4CAF50;
+  color: var(--positive);
   font-size: 13px;
   font-weight: 600;
   text-align: center;

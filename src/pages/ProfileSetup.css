@@ -3,12 +3,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #4F2D7F 0%, #1a0a2e 100%);
+  background: var(--bg);
   padding: 20px;
 }
 
 .profile-card {
-  background: white;
+  background: var(--surface);
   border-radius: 20px;
   padding: 40px;
   width: 100%;
@@ -16,21 +16,22 @@
 }
 
 .profile-title {
+  font-family: var(--font-display);
   font-size: 28px;
-  font-weight: 800;
-  color: #4F2D7F;
+  font-weight: 600;
+  color: var(--text-primary);
   margin-bottom: 8px;
 }
 
 .profile-subtitle {
   font-size: 14px;
-  color: #888;
+  color: var(--text-muted);
   margin-bottom: 20px;
 }
 
 .campus-badge {
-  background: #F3EEFF;
-  color: #4F2D7F;
+  background: rgba(232, 65, 107, 0.08);
+  color: var(--accent);
   padding: 10px 16px;
   border-radius: 10px;
   font-size: 14px;
@@ -42,7 +43,7 @@
 .profile-input {
   width: 100%;
   padding: 14px;
-  border: 2px solid #eee;
+  border: 2px solid var(--border);
   border-radius: 10px;
   font-size: 16px;
   margin-bottom: 14px;
@@ -52,7 +53,7 @@
 }
 
 .profile-input:focus {
-  border-color: #4F2D7F;
+  border-color: var(--accent);
 }
 
 .profile-textarea {
@@ -77,24 +78,24 @@
 .gender-btn {
   flex: 1;
   padding: 14px;
-  border: 2px solid #eee;
+  border: 2px solid var(--border);
   border-radius: 10px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  background: white;
-  color: #888;
+  background: var(--surface);
+  color: var(--text-muted);
   transition: all 0.2s;
 }
 
 .gender-btn.active {
-  border-color: #4F2D7F;
-  background: #4F2D7F;
+  border-color: var(--accent);
+  background: var(--accent);
   color: white;
 }
 
 .profile-error {
-  color: #E8416B;
+  color: var(--accent);
   font-size: 14px;
   margin-bottom: 12px;
 }
@@ -102,7 +103,7 @@
 .profile-btn {
   width: 100%;
   padding: 14px;
-  background: #E8416B;
+  background: var(--accent);
   color: white;
   border: none;
   border-radius: 10px;
@@ -124,17 +125,17 @@
 .contact-section-label {
   font-size: 15px;
   font-weight: 700;
-  color: #4F2D7F;
+  color: var(--accent);
   margin-bottom: 6px;
   margin-top: 8px;
 }
 
 .contact-section-sub {
   font-size: 12px;
-  color: #888;
+  color: var(--text-muted);
   margin-bottom: 16px;
   line-height: 1.5;
   padding: 10px;
-  background: #F3EEFF;
+  background: rgba(232, 65, 107, 0.08);
   border-radius: 8px;
 }

@@ -3,7 +3,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #0a0a0a;
+  background: var(--bg);
   color: white;
   font-size: 18px;
 }
@@ -12,7 +12,7 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #0a0a0a;
+  background: var(--bg);
   max-width: 480px;
   margin: 0 auto;
 }
@@ -35,7 +35,7 @@
 
 .s2-progress-text {
   font-size: 14px;
-  color: #888;
+  color: var(--text-muted);
   font-weight: 500;
 }
 
@@ -50,14 +50,14 @@
 
 .s2-progress-bar {
   height: 4px;
-  background: #333;
+  background: var(--border-strong);
   margin: 0 24px;
   border-radius: 2px;
 }
 
 .s2-progress-fill {
   height: 100%;
-  background: #E8416B;
+  background: var(--accent);
   border-radius: 2px;
   transition: width 0.3s ease;
 }
@@ -80,8 +80,8 @@
 .s2-textarea {
   width: 100%;
   padding: 16px;
-  background: #1a1a1a;
-  border: 2px solid #333;
+  background: var(--surface-raised);
+  border: 2px solid var(--border-strong);
   border-radius: 12px;
   color: white;
   font-size: 15px;
@@ -93,12 +93,12 @@
 }
 
 .s2-textarea:focus {
-  border-color: #4F2D7F;
+  border-color: var(--accent);
 }
 
 .s2-char-count {
   font-size: 12px;
-  color: #888;
+  color: var(--text-muted);
   text-align: right;
   margin-bottom: 24px;
 }
@@ -106,7 +106,7 @@
 .s2-btn {
   width: 100%;
   padding: 16px;
-  background: #E8416B;
+  background: var(--accent);
   color: white;
   border: none;
   border-radius: 12px;
@@ -126,12 +126,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #4F2D7F 0%, #1a0a2e 100%);
+  background: var(--bg);
   padding: 20px;
 }
 
 .s2-locked-card {
-  background: white;
+  background: var(--surface);
   border-radius: 20px;
   padding: 40px;
   text-align: center;
@@ -147,13 +147,13 @@
 .s2-locked-card h2 {
   font-size: 24px;
   font-weight: 800;
-  color: #4F2D7F;
+  color: var(--accent);
   margin-bottom: 12px;
 }
 
 .s2-locked-card p {
   font-size: 15px;
-  color: #888;
+  color: var(--text-muted);
   margin-bottom: 24px;
   line-height: 1.5;
 }
@@ -161,7 +161,7 @@
 .s2-unlock-btn {
   width: 100%;
   padding: 14px;
-  background: #E8416B;
+  background: var(--accent);
   color: white;
   border: none;
   border-radius: 10px;
@@ -175,8 +175,8 @@
   width: 100%;
   padding: 14px;
   background: transparent;
-  color: #4F2D7F;
-  border: 2px solid #4F2D7F;
+  color: var(--accent);
+  border: 2px solid var(--accent);
   border-radius: 10px;
   font-size: 16px;
   font-weight: 700;
