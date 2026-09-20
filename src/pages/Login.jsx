@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import Turnstile from '../components/Turnstile'
 import './Login.css'
 
 export default function Login() {
@@ -10,6 +11,7 @@ export default function Login() {
   const [otp, setOtp] = useState(['', '', '', '', '', '', '', ''])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [captchaToken, setCaptchaToken] = useState(null)
 
   async function handleEmailSubmit() {
     setLoading(true)
@@ -17,7 +19,11 @@ export default function Login() {
 
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email,
-      options: { shouldCreateUser: false }
+      options: {
+        shouldCreateUser: false,
+        // Turnstile token for the OTP request (Supabase CAPTCHA).
+        captchaToken,
+      }
     })
 
     if (otpError) {
@@ -86,6 +92,11 @@ export default function Login() {
             >
               {loading ? 'Sending...' : 'Continue'}
             </button>
+
+            {/* Cloudflare Turnstile — token passed to signInWithOtp via
+                options.captchaToken (Supabase CAPTCHA protection). */}
+            <Turnstile onToken={setCaptchaToken} />
+
             <p className="login-signup">
               No account?{' '}
               <span onClick={() => navigate('/signup')}>Sign Up</span>

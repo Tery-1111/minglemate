@@ -81,6 +81,7 @@ export default function Chat() {
   const [unmatched, setUnmatched] = useState(false)
   const [unlockInfo, setUnlockInfo] = useState(null)
   const [meetupConfirmed, setMeetupConfirmed] = useState(false)
+  const [sendError, setSendError] = useState('')
   const [s2Progress, setS2Progress] = useState(null)
   const [bothUnlocked, setBothUnlocked] = useState(false)
   const [contactsRevealed, setContactsRevealed] = useState(false)
@@ -359,7 +360,7 @@ export default function Chat() {
     const weekId = getWeekId()
     const hasContact = containsContact(newMessage)
 
-    const { data } = await supabase
+    const { data, error: sendError } = await supabase
       .from('messages')
       .insert({
         sender_id: currentUser,
@@ -371,6 +372,18 @@ export default function Chat() {
       })
       .select()
       .single()
+
+    // Database-side rate limit (messages_rate_limit trigger) — the
+    // limit is enforced for every insert path, not just this UI.
+    if (sendError) {
+      setSendError(
+        sendError.message === 'RATE_LIMITED'
+          ? 'You are sending messages too quickly. Please take a short break.'
+          : 'Message could not be sent. Please try again.'
+      )
+      setSending(false)
+      return
+    }
 
     if (data) {
       setMessages(prev => {
@@ -589,6 +602,9 @@ export default function Chat() {
         </div>
       ) : (
       <div className="chat-input-area">
+        {sendError && (
+          <div className="chat-error" role="alert">{sendError}</div>
+        )}
         <textarea
           className="chat-input"
           placeholder="Type your answer..."

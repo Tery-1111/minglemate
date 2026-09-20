@@ -53,6 +53,11 @@ export default function Admin() {
   const [matchPage, setMatchPage] = useState(0)
   const [matchList, setMatchList] = useState({ total: 0, matches: [] })
 
+  // Reports tab (admin_reports_list — same is_admin() RPC enforcement
+  // as every other admin query; no new admin logic).
+  const [reports, setReports] = useState([])
+  const [reportsLoading, setReportsLoading] = useState(false)
+
   // Verify admin role server-side on mount. No client password:
   // membership lives in admin_users and is checked by RPCs.
   useEffect(() => {
@@ -104,6 +109,18 @@ export default function Admin() {
     await loadData()
     if (activeTab === 'users') await loadUsers(userFilters)
     if (activeTab === 'matches') await loadMatches(matchFilter, matchPage)
+    if (activeTab === 'reports') await loadReports()
+  }
+
+  async function loadReports() {
+    setReportsLoading(true)
+    const { data, error: rpcError } = await supabase.rpc('admin_reports_list', {
+      p_limit: 100,
+      p_offset: 0
+    })
+    if (rpcError) setError(rpcError.message || 'Could not load reports.')
+    setReports(data || [])
+    setReportsLoading(false)
   }
 
   async function loadUsers(f) {
@@ -278,6 +295,7 @@ export default function Admin() {
         <button className={`admin-tab ${activeTab === 'matches' ? 'active' : ''}`} onClick={() => setActiveTab('matches')}>Matches</button>
         <button className={`admin-tab ${activeTab === 'stats' ? 'active' : ''}`} onClick={() => setActiveTab('stats')}>Stats</button>
         <button className={`admin-tab ${activeTab === 'payments' ? 'active' : ''}`} onClick={() => setActiveTab('payments')}>Payments</button>
+        <button className={`admin-tab ${activeTab === 'reports' ? 'active' : ''}`} onClick={async () => { setActiveTab('reports'); await loadReports() }}>Reports</button>
       </div>
 
       {error && <p className="admin-error">{error}</p>}
@@ -583,6 +601,28 @@ export default function Admin() {
               </p>
               <p className="txn-amount">KES {txn.amount} · <span className={`admin-chip ${txn.status === 'completed' || txn.status === 'success' ? 'chip-ok' : 'chip-warn'}`}>{txn.status}</span></p>
               <p className="txn-date">{new Date(txn.created_at).toLocaleString()}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {activeTab === 'reports' && (
+        <div className="admin-section">
+          <h2>User Reports</h2>
+          {reportsLoading && <p className="admin-loading">Loading reports…</p>}
+          {!reportsLoading && reports.length === 0 && <p className="admin-empty">No reports filed</p>}
+          {!reportsLoading && reports.map(r => (
+            <div key={r.id} className="txn-card">
+              <p className="txn-id">Report · {new Date(r.created_at).toLocaleString()}</p>
+              <p className="admin-dim">
+                {r.reporter_name || r.reporter_id} reported {r.reported_name || r.reported_id}
+                {r.reporter_status && (
+                  <span className={`admin-chip ${r.reporter_status === 'active' ? 'chip-ok' : 'chip-warn'}`} style={{ marginLeft: 8 }}>
+                    {r.reporter_status}
+                  </span>
+                )}
+              </p>
+              <p className="admin-bio">{r.reason || '—'}</p>
             </div>
           ))}
         </div>

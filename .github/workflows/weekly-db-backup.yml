@@ -1,0 +1,60 @@
+# ============================================================
+# WEEKLY PRODUCTION DATABASE BACKUP — DISABLED BY DESIGN
+#
+# This workflow is MANUAL-TRIGGER ONLY. To enable the weekly
+# schedule, uncomment the `schedule:` block below AFTER you have:
+#   1. Added the SUPABASE_DB_POOLER_URL Actions secret
+#      (Supabase Dashboard → Production project (mhdjnhiqahsllbczbzpk)
+#      → Connect → Session pooler connection string, port 5432).
+#      Direct DB access is blocked (IPv4 add-on off) — the session
+#      pooler is the supported path.
+#   2. Confirmed the repository is PRIVATE. Dumps contain personal
+#      data (profiles, questionnaire answers, messages, payment
+#      metadata). DO NOT enable this on a public repo.
+#   3. Decided where artifacts go: Actions artifacts are retained
+#      for 7 days (set below). For real backups, add an S3/R2
+#      upload step instead — Actions artifacts are a stopgap.
+#
+# The workflow never runs on push/PR. No connection string is
+# stored in this file — only the secret reference.
+# ============================================================
+
+name: weekly-db-backup
+
+on:
+  # Weekly at 03:10 UTC, Wednesdays — UNCOMMENT WHEN SECRETS ARE SET:
+  # schedule:
+  #   - cron: '10 3 * * 3'
+  workflow_dispatch: {}
+
+jobs:
+  pg-dump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install postgres client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client
+
+      - name: Dump production database
+        env:
+          SUPABASE_DB_POOLER_URL: ${{ secrets.SUPABASE_DB_POOLER_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_POOLER_URL" ]; then
+            echo "::error::SUPABASE_DB_POOLER_URL secret is not set — add it under Settings → Secrets → Actions."
+            exit 1
+          fi
+          mkdir -p backups
+          DUMP_FILE="backups/minglemate-prod-$(date -u +%Y%m%dT%H%M%SZ).sql.gz"
+          # Custom format + gzip keeps the artifact small; restore with:
+          #   gunzip -c file.sql.gz | psql "$TARGET_DB_URL"
+          pg_dump "$SUPABASE_DB_POOLER_URL" --no-owner --no-privileges | gzip > "$DUMP_FILE"
+          echo "DUMP_FILE=$DUMP_FILE" >> "$GITHUB_ENV"
+
+      - name: Upload dump artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: minglemate-prod-db-dump
+          path: backups/*.sql.gz
+          retention-days: 7
+          if-no-files-found: error

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { track, identifyUser } from '../lib/analytics';
+import Turnstile from '../components/Turnstile';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -9,6 +10,7 @@ export default function Signup() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [captchaToken, setCaptchaToken] = useState(null);
 
   const handleSignup = async (e) => {
     e.preventDefault();
@@ -22,9 +24,12 @@ export default function Signup() {
 
     try {
       // 1. Create the credentials account in auth.users
+      // 1. Create the credentials account in auth.users. The Turnstile
+      // token rides along per Supabase's CAPTCHA protection setting.
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
+        options: { captchaToken },
       });
 
       if (authError) throw authError;
@@ -125,9 +130,7 @@ export default function Signup() {
                 Privacy Policy
               </Link>
             </span>
-          </label>
-
-          <button
+          </label>          <button
             type="submit"
             disabled={loading}
             style={{
@@ -138,6 +141,10 @@ export default function Signup() {
           >
             {loading ? 'Creating Profile...' : 'Sign Up'}
           </button>
+
+          {/* Cloudflare Turnstile — token passed to signUp via
+              options.captchaToken (Supabase CAPTCHA protection). */}
+          <Turnstile onToken={setCaptchaToken} />
         </form>
 
         <div style={styles.footer}>
