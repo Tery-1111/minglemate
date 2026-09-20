@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { section1Questions as CAMPUS_QUESTIONS } from '../data/section1Questions';
 
 export default function Section1() {
   const navigate = useNavigate();
+  // ?retake=1 (Profile → Retake) lets a completed user back in to
+  // edit answers; onboarding visitors still get the completed-bypass.
+  const [searchParams] = useSearchParams();
+  const isRetake = searchParams.get('retake') === '1';
   const [current, setCurrent] = useState(0); // Clean 0-indexed default assignment array scale
   const [answers, setAnswers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,8 +35,9 @@ export default function Section1() {
 
         if (profileError) throw profileError;
 
-        if (profile?.section1_complete) {
-          navigate('/dashboard');
+        if (profile?.section1_complete && !isRetake) {
+          // Already completed: continue to Discover per the app flow.
+          navigate('/discover');
           return;
         }
 
@@ -48,7 +53,10 @@ export default function Section1() {
           .maybeSingle();
 
         if (responseRow?.responses_array) {
-          setAnswers(responseRow.responses_array);
+          // Legacy rows from the old integer[] column may hold numeric
+          // indices; map them to null IN PLACE (filtering would shift
+          // answer positions). Fresh answers are always option text.
+          setAnswers(responseRow.responses_array.map(a => (typeof a === 'string' ? a : null)));
         } else {
           setAnswers(new Array(CAMPUS_QUESTIONS.length).fill(null));
         }
@@ -101,7 +109,9 @@ export default function Section1() {
 
       // 3. Routing navigation pipeline logic
       if (isSurveyFinished) {
-        navigate('/dashboard');
+        // Onboarding order: Algorithm Questionnaire → Guided-Question
+        // Questionnaire (Section 2) → Discover.
+        navigate('/section2');
       } else {
         setCurrent(nextStepIndex);
       }

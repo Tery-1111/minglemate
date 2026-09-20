@@ -96,7 +96,55 @@ serve(async (req) => {
       .eq('status', 'pending')
     if (consumeError) throw consumeError
 
-    // Unlock the user that OWNS the intent (C3 — not by phone).
+    // --- Dispatch by SERVER-set purpose. The intent row, not the
+    // client, decides what the money buys.
+    if (intent.purpose === 'force_connect') {
+      // Qrashe match + recipient notification (idempotent RPC).
+      await supabase.rpc('complete_force_connect', { intent_id: intent.id })
+      // Recipient MUST be notified even mid-session: direct push via
+      // their persisted OneSignal player id (same mechanism as
+      // send-notification, called server-side here).
+      try {
+        const { data: target } = await supabase
+          .from('users')
+          .select('id, onesignal_player_id')
+          .eq('id', intent.recipient_user_id)
+          .maybeSingle()
+        if (target?.onesignal_player_id) {
+          const { data: buyer } = await supabase
+            .from('users')
+            .select('full_name')
+            .eq('id', intent.user_id)
+            .maybeSingle()
+          await fetch('https://onesignal.com/api/v1/notifications', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Basic ${Deno.env.get('ONESIGNAL_API_KEY')}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              app_id: Deno.env.get('ONESIGNAL_APP_ID'),
+              include_player_ids: [target.onesignal_player_id],
+              headings: { en: '⚡ Force Connect' },
+              contents: { en: `${buyer?.full_name || 'Someone'} connected with you on MingleMate.` }
+            })
+          })
+        }
+      } catch (pushErr) {
+        console.error('Force Connect push failed:', pushErr)
+      }
+      return new Response('ok', { status: 200 })
+    }
+
+    if (intent.purpose === 'connect_tier1' || intent.purpose === 'connect_tier2' || intent.purpose === 'connect_qrashe') {
+      // Paid contact unlock snapshot + conversation lock + system
+      // message (idempotent RPC).
+      await supabase.rpc('complete_connect_unlock', { intent_id: intent.id })
+      return new Response('ok', { status: 200 })
+    }
+
+    // section2 (default): unlock the buyer that OWNS the intent
+    // (C3 — not by phone) + record the purchase.
     await supabase
       .from('users')
       .update({ section2_unlocked: true })

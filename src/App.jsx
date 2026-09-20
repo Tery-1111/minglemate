@@ -24,10 +24,14 @@ const Profile = lazy(() => import('./pages/Profile'))
 const Chat = lazy(() => import('./pages/Chat'))
 const Matches = lazy(() => import('./pages/Matches'))
 const Admin = lazy(() => import('./pages/Admin'))
-const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Photos = lazy(() => import('./pages/Photos'))
 const Settings = lazy(() => import('./pages/Settings'))
 const Blocked = lazy(() => import('./pages/Blocked'))
+const Discover = lazy(() => import('./pages/Discover'))
+const Messages = lazy(() => import('./pages/Messages'))
+const MatchCelebration = lazy(() => import('./pages/MatchCelebration'))
+const MatchDetail = lazy(() => import('./pages/MatchDetail'))
+const ForceConnect = lazy(() => import('./pages/ForceConnect'))
 
 function RouteFallback() {
   return (
@@ -71,6 +75,11 @@ function App() {
         <Route path='/photo-upload' element={<AuthGuard><Suspense fallback={<RouteFallback />}><PhotoUpload /></Suspense></AuthGuard>} />
         <Route path='/interests' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Interests /></Suspense></AuthGuard>} />
         <Route path='/home' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Home /></Suspense></AuthGuard>} />
+        <Route path='/discover' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Discover /></Suspense></AuthGuard>} />
+        <Route path='/messages' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Messages /></Suspense></AuthGuard>} />
+        <Route path='/celebration' element={<AuthGuard><Suspense fallback={<RouteFallback />}><MatchCelebration /></Suspense></AuthGuard>} />
+        <Route path='/match/:userId' element={<AuthGuard><Suspense fallback={<RouteFallback />}><MatchDetail /></Suspense></AuthGuard>} />
+        <Route path='/force-connect/:userId' element={<AuthGuard><Suspense fallback={<RouteFallback />}><ForceConnect /></Suspense></AuthGuard>} />
         <Route path='/section1' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Section1 /></Suspense></AuthGuard>} />
         <Route path='/section2' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Section2 /></Suspense></AuthGuard>} />
         <Route path='/payment' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Payment /></Suspense></AuthGuard>} />
@@ -78,7 +87,6 @@ function App() {
         <Route path='/chat/:matchId' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Chat /></Suspense></AuthGuard>} />
         <Route path='/matches' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Matches /></Suspense></AuthGuard>} />
         <Route path='/admin' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Admin /></Suspense></AuthGuard>} />
-        <Route path='/dashboard' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Dashboard /></Suspense></AuthGuard>} />
         <Route path='/photos' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Photos /></Suspense></AuthGuard>} />
         <Route path='/settings' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Settings /></Suspense></AuthGuard>} />
         <Route path='/blocked' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Blocked /></Suspense></AuthGuard>} />

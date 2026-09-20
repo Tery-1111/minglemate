@@ -1,0 +1,248 @@
+/* MATCH DETAIL — opening a person, not a database record.
+   Full-body photo as hero, identity block in display serif, tier as a
+   quiet chip (the person dominates, not the tier), clear CTA hierarchy:
+   conversation = primary (free), Connect = secondary (paid, outline). */
+
+.md-page {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text-primary);
+  padding: var(--space-5) var(--space-4) calc(var(--nav-h) + 40px + env(safe-area-inset-bottom));
+  display: flex;
+  justify-content: center;
+}
+
+.md-card {
+  width: 100%;
+  max-width: 440px;
+  position: relative;
+}
+
+.md-back {
+  position: absolute;
+  top: -6px;
+  left: -8px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(6, 5, 7, 0.5);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  color: var(--text-primary);
+  font-size: 18px;
+  cursor: pointer;
+  z-index: 2;
+  transition: background var(--dur-fast) ease;
+}
+
+.md-back:hover { background: rgba(6, 5, 7, 0.75); }
+.md-back:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }
+
+/* Photo hero */
+.md-photo {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-4);
+  display: block;
+  background: var(--surface);
+}
+
+.md-photo-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 56px;
+  font-weight: 560;
+  color: var(--text-muted);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+}
+
+/* Identity: tier is a quiet chip above the serif name */
+.md-id { margin-bottom: var(--space-3); }
+
+.md-tier-chip {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.md-tier-qrashe {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.md-name {
+  font-size: var(--fs-title);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  margin: 0;
+}
+
+.md-bio {
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  margin: 0 0 var(--space-4);
+  white-space: pre-wrap;
+}
+
+.md-interests {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.md-tag {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: var(--fs-meta);
+  border-radius: var(--radius-pill);
+  padding: 4px 11px;
+}
+
+/* CTA block: free conversation is the loud action; paid Connect is the
+   deliberate, quieter one — the reverse of every pre-system screen. */
+.md-cta-block {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-5);
+  margin-bottom: var(--space-4);
+}
+
+.md-btn { margin-bottom: var(--space-3); }
+
+.md-connect-note {
+  color: var(--text-muted);
+  font-size: var(--fs-meta);
+  text-align: center;
+  margin: 0;
+}
+
+/* Connected state: a receipt, not a celebration banner */
+.md-unlocked {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.md-unlocked-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--positive);
+  margin: 0 0 var(--space-3);
+}
+
+.md-contacts { margin-bottom: var(--space-4); }
+
+.md-contact-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.md-contact-row:last-of-type { border-bottom: none; }
+
+.md-contact-kind {
+  color: var(--text-muted);
+  font-size: var(--fs-meta);
+  flex-shrink: 0;
+}
+
+.md-contact-val {
+  color: var(--text-primary);
+  font-size: var(--fs-secondary);
+  font-weight: 550;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.md-contacts-none {
+  color: var(--text-muted);
+  font-size: var(--fs-secondary);
+  margin: 0 0 var(--space-2);
+}
+
+/* Safety actions */
+.md-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.md-action {
+  flex: 1;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: var(--radius-md);
+  padding: 10px 0;
+  font-size: var(--fs-secondary);
+  font-weight: 550;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+
+.md-action:hover { border-color: var(--border-strong); color: var(--text-secondary); }
+.md-action:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }
+
+.md-action-warn {
+  color: var(--warning);
+  border-color: rgba(217, 154, 61, 0.35);
+}
+
+.md-action-warn:hover { border-color: var(--warning); color: var(--warning); }
+
+.md-action-msg {
+  color: var(--text-muted);
+  font-size: var(--fs-secondary);
+  text-align: center;
+  margin-top: var(--space-3);
+}
+
+/* Missing state */
+.md-missing {
+  text-align: center;
+  padding: var(--space-8) var(--space-4);
+}
+
+.md-missing h2 {
+  font-size: 20px;
+  margin: 0 0 var(--space-2);
+}
+
+.md-missing p {
+  color: var(--text-muted);
+  font-size: var(--fs-secondary);
+  margin: 0 0 var(--space-5);
+}
+
+.md-missing-btn { max-width: 240px; margin: 0 auto; }
+
+.md-loading {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 96px 0;
+}

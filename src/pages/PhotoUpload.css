@@ -3,12 +3,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #4F2D7F 0%, #1a0a2e 100%);
+  background: var(--bg);
   padding: 20px;
 }
 
 .photo-card {
-  background: white;
+  background: var(--surface);
   border-radius: 20px;
   padding: 40px;
   width: 100%;
@@ -16,15 +16,16 @@
 }
 
 .photo-title {
+  font-family: var(--font-display);
   font-size: 28px;
-  font-weight: 800;
-  color: #4F2D7F;
+  font-weight: 600;
+  color: var(--text-primary);
   margin-bottom: 8px;
 }
 
 .photo-subtitle {
   font-size: 14px;
-  color: #888;
+  color: var(--text-muted);
   margin-bottom: 24px;
 }
 
@@ -44,7 +45,7 @@
 .slot-label {
   font-size: 13px;
   font-weight: 600;
-  color: #4F2D7F;
+  color: var(--accent);
 }
 
 .upload-label {
@@ -61,7 +62,7 @@
 }
 
 .upload-label:hover {
-  border-color: #4F2D7F;
+  border-color: var(--accent);
 }
 
 .upload-icon {
@@ -94,7 +95,7 @@
   position: absolute;
   top: 6px;
   right: 6px;
-  background: #E8416B;
+  background: var(--accent);
   color: white;
   border: none;
   border-radius: 50%;
@@ -108,7 +109,7 @@
 }
 
 .photo-error {
-  color: #E8416B;
+  color: var(--accent);
   font-size: 14px;
   margin-bottom: 12px;
 }
@@ -116,7 +117,7 @@
 .photo-btn {
   width: 100%;
   padding: 14px;
-  background: #E8416B;
+  background: var(--accent);
   color: white;
   border: none;
   border-radius: 10px;

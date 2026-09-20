@@ -1,15 +1,34 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import './Payment.css'
 
+// CONNECT PAYMENT: one screen serving every paid action. The
+// SERVER decides the price — this copy is display-only.
+const PURPOSES = {
+  section2: { title: 'Unlock Section 2', sub: 'Get deeper matches with 20 reflective questions.', price: 'KSh 200', what: 'Section 2 unlocks immediately after payment.', back: '/section2', eyebrow: 'Section 2' },
+  force_connect: { title: 'Force Connect', sub: 'Creates your Qrashe match instantly after payment.', price: 'KSh 80', what: 'They are notified and a Qrashe match is created. They cannot decline.', back: '/discover', eyebrow: 'Force Connect' },
+  connect_tier1: { title: 'Connect — Tier 1', sub: 'See how to reach them, on their terms.', price: 'KSh 70', what: 'Their chosen contact details are revealed in your conversation.', back: '/matches', eyebrow: 'Connect · Tier 1' },
+  connect_tier2: { title: 'Connect — Tier 2', sub: 'See how to reach them, on their terms.', price: 'KSh 50', what: 'Their chosen contact details are revealed in your conversation.', back: '/matches', eyebrow: 'Connect · Tier 2' },
+  connect_qrashe: { title: 'Connect — Qrashe', sub: 'See how to reach them, on their terms.', price: 'KSh 50', what: 'Their chosen contact details are revealed in your conversation.', back: '/matches', eyebrow: 'Connect · Qrashe' },
+}
+
 export default function Payment() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState('')
+  const [phase, setPhase] = useState('idle') // idle | pushing | success | timeout
   const [error, setError] = useState('')
   const [userId, setUserId] = useState(null)
+  const [awaitingPin, setAwaitingPin] = useState(false)
+  const [recipient, setRecipient] = useState(null)
+
+  const purpose = searchParams.get('purpose') || 'section2'
+  const recipientId = searchParams.get('recipientId')
+  const gift = searchParams.get('gift') === 'true'
+  const meta = PURPOSES[purpose] || PURPOSES.section2
 
   useEffect(() => {
     getSession()
@@ -19,6 +38,36 @@ export default function Payment() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { navigate('/'); return }
     setUserId(session.user.id)
+    // PAYMENT RECOVERY: after a refresh mid-payment the intent is
+    // pending server-side with no client-readable record (RLS: no
+    // policies on payment_intents). We can't tell "fresh visit" from
+    // "mid-push" here, so we do NOT auto-trigger anything — the user
+    // re-initiates if needed (the edge function returns an
+    // already-pending guard). Meanwhile the awaitingPin watcher below
+    // routes them onward the moment the backend completes, so a
+    // refresh never strands them on a stale screen.
+    const alreadyPaid = await checkPaidState(true)
+    if (alreadyPaid) setAwaitingPin(false)
+
+    // TRUST: show who this payment is about (Connect / Force Connect).
+    // Photo is best-effort — RLS may hide it, the name is what matters.
+    if (recipientId && purpose !== 'section2') {
+      const { data: person } = await supabase
+        .from('users')
+        .select('full_name')
+        .eq('id', recipientId)
+        .maybeSingle()
+      if (person?.full_name) {
+        const { data: photo } = await supabase
+          .from('photos')
+          .select('photo_url')
+          .eq('user_id', recipientId)
+          .eq('photo_type', 'facial')
+          .limit(1)
+          .maybeSingle()
+        setRecipient({ name: person.full_name, photo: photo?.photo_url || null })
+      }
+    }
   }
 
   function formatPhone(raw) {
@@ -40,25 +89,34 @@ export default function Payment() {
 
     setLoading(true)
     setStatus('Sending payment request to your phone...')
+    setPhase('pushing')
 
     try {
-      // C2: only the phone is sent — amount and user identity are
-      // server-derived (price constant + JWT).
+      // C2: the client sends only phone + which product it is buying.
+      // Prices, identity, pairing and amounts are enforced server-side.
       const { data, error: fnError } = await supabase.functions.invoke('initiate-payment', {
-        body: { phone: formatted }
+        body: {
+          phone: formatted,
+          purpose,
+          recipientId: recipientId || undefined
+        }
       })
 
       if (fnError) throw fnError
 
       if (data?.ResponseCode === '0') {
-        setStatus('✅ Check your phone and enter your M-Pesa PIN to complete payment.')
+        setStatus('Check your phone and enter your M-Pesa PIN to complete payment.')
+        setAwaitingPin(true)
+        setPhase('pushing')
         pollForPayment()
       } else {
-        setError('Payment request failed. Please try again.')
+        setError(data?.errorMessage || data?.error || 'Payment request failed. Please try again.')
+        setPhase('idle')
         setLoading(false)
       }
     } catch (err) {
-      setError('Could not connect to payment service. Please try again.')
+      setError('Could not reach the payment service. Check your connection and try again.')
+      setPhase('idle')
       setLoading(false)
     }
   }
@@ -67,65 +125,265 @@ export default function Payment() {
     let attempts = 0
     const interval = setInterval(async () => {
       attempts++
-      const { data: user } = await supabase
-        .from('users')
-        .select('section2_unlocked')
-        .eq('id', userId)
-        .single()
 
-      if (user?.section2_unlocked) {
-        clearInterval(interval)
-        setStatus('🎉 Payment successful! Section 2 is now unlocked.')
-        setLoading(false)
-        setTimeout(() => navigate('/section2'), 2000)
+      if (purpose === 'section2') {
+        const { data: user } = await supabase
+          .from('users')
+          .select('section2_unlocked')
+          .eq('id', userId)
+          .single()
+        if (user?.section2_unlocked) {
+          clearInterval(interval)
+          setStatus('Payment successful — Section 2 is unlocked.')
+          setPhase('success')
+          setLoading(false)
+          setTimeout(() => navigate('/section2'), 2000)
+          return
+        }
+      } else {
+        // Connect / Force Connect: success is visible via the pairing/
+        // unlock tables the server writes after the verified payment.
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session && recipientId) {
+          if (purpose === 'force_connect') {
+            const { data: match } = await supabase
+              .from('matches')
+              .select('id')
+              .or(`and(user_a_id.eq.${session.user.id},user_b_id.eq.${recipientId}),and(user_a_id.eq.${recipientId},user_b_id.eq.${session.user.id})`)
+              .maybeSingle()
+            if (match) {
+              clearInterval(interval)
+              setStatus('Force Connect complete — your Qrashe match is ready.')
+              setPhase('success')
+              setLoading(false)
+              setTimeout(() => navigate('/matches'), 2000)
+              return
+            }
+          } else {
+            const { data: unlock } = await supabase
+              .from('connect_unlocks')
+              .select('id')
+              .eq('buyer_id', session.user.id)
+              .eq('seller_id', recipientId)
+              .maybeSingle()
+            if (unlock) {
+              clearInterval(interval)
+              setStatus('Connected — contact details are now available.')
+              setPhase('success')
+              setLoading(false)
+              setTimeout(() => navigate(`/match/${recipientId}`), 2000)
+              return
+            }
+          }
+        }
       }
 
       if (attempts >= 12) {
         clearInterval(interval)
-        setStatus('Payment is taking longer than expected. Check your M-Pesa messages.')
+        setStatus('Payment is taking longer than expected. Check your M-Pesa messages — we keep watching in case it completes.')
+        setPhase('timeout')
         setLoading(false)
       }
     }, 5000)
   }
 
+  // PAYMENT RECOVERY: refresh during an STK push leaves the intent
+  // pending server-side. There is no client-visible intent record
+  // (RLS: zero policies on payment_intents), so we can't auto-detect
+  // the pending push — but we CAN watch for its success and route
+  // the user onward instead of silently re-charging them.
+  useEffect(() => {
+    if (!awaitingPin) return
+    const watch = setInterval(() => checkPaidState(true), 5000)
+    return () => clearInterval(watch)
+  }, [awaitingPin, purpose, recipientId, userId])
+
+  async function checkPaidState(silent) {
+    if (!userId) return
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    if (purpose === 'section2') {
+      const { data: user } = await supabase
+        .from('users')
+        .select('section2_unlocked')
+        .eq('id', session.user.id)
+        .single()
+      if (user?.section2_unlocked) {
+        setAwaitingPin(false)
+        setStatus('Payment successful — Section 2 is unlocked.')
+        setPhase('success')
+        setLoading(false)
+        setTimeout(() => navigate('/section2'), 1500)
+        return true
+      }
+    } else if (recipientId) {
+      if (purpose === 'force_connect') {
+        const { data: match } = await supabase
+          .from('matches')
+          .select('id')
+          .or(`and(user_a_id.eq.${session.user.id},user_b_id.eq.${recipientId}),and(user_a_id.eq.${recipientId},user_b_id.eq.${session.user.id})`)
+          .maybeSingle()
+        if (match) {
+          setAwaitingPin(false)
+          setStatus('Force Connect complete — your Qrashe match is ready.')
+          setPhase('success')
+          setLoading(false)
+          setTimeout(() => navigate('/matches'), 1500)
+          return true
+        }
+      } else {
+        const { data: unlock } = await supabase
+          .from('connect_unlocks')
+          .select('id')
+          .eq('buyer_id', session.user.id)
+          .eq('seller_id', recipientId)
+          .maybeSingle()
+        if (unlock) {
+          setAwaitingPin(false)
+          setStatus('Connected — contact details are now available.')
+          setPhase('success')
+          setLoading(false)
+          setTimeout(() => navigate(`/match/${recipientId}`), 1500)
+          return true
+        }
+      }
+    }
+    return false
+  }
+
+  const isConnect = purpose !== 'section2'
+
+  // ---------- States: pushing / success / timeout ----------
+  if (phase === 'pushing' || phase === 'success' || phase === 'timeout') {
+    return (
+      <div className="payment-container">
+        <div className="payment-card">
+          <button className="payment-back" onClick={() => navigate(meta.back)}>← Back</button>
+
+          {phase === 'pushing' && (
+            <div className="pay-state" role="status">
+              <div className="pay-pulse" aria-hidden="true"><span /></div>
+              <h2 className="pay-state-title">Check your phone</h2>
+              <p className="pay-state-sub">
+                We sent an M-Pesa request for <strong>{meta.price}</strong>.
+                Enter your PIN to approve it.
+              </p>
+              {status && <p className="pay-state-note">{status}</p>}
+              <div className="pay-receipt">
+                {recipient && (
+                  <div className="pay-receipt-row">
+                    <span>For</span>
+                    <strong>{recipient.name}</strong>
+                  </div>
+                )}
+                <div className="pay-receipt-row">
+                  <span>Amount</span>
+                  <strong>{meta.price}</strong>
+                </div>
+                <div className="pay-receipt-row">
+                  <span>Paying with</span>
+                  <strong>M-Pesa{phone ? ` · ${formatPhone(phone)}` : ''}</strong>
+                </div>
+              </div>
+              <p className="pay-note">
+                Left this screen by accident? Come back — we detect the
+                payment automatically and won't charge you twice.
+              </p>
+            </div>
+          )}
+
+          {phase === 'success' && (
+            <div className="pay-state pay-state-success" role="status">
+              <div className="pay-check" aria-hidden="true">✓</div>
+              <h2 className="pay-state-title">Payment confirmed</h2>
+              <p className="pay-state-sub">{status}</p>
+              <p className="pay-state-note">Taking you there…</p>
+            </div>
+          )}
+
+          {phase === 'timeout' && (
+            <div className="pay-state" role="status">
+              <div className="pay-waiticon" aria-hidden="true">⏳</div>
+              <h2 className="pay-state-title">Still waiting</h2>
+              <p className="pay-state-sub">{status}</p>
+              <button className="pay-btn" onClick={() => { setPhase('idle'); setStatus(''); setLoading(false); setAwaitingPin(false) }}>
+                Try again
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // ---------- Default: purchase summary + form ----------
   return (
     <div className="payment-container">
       <div className="payment-card">
-        <button className="payment-back" onClick={() => navigate('/section2')}>← Back</button>
+        <button className="payment-back" onClick={() => navigate(meta.back)}>← Back</button>
 
-        <div className="payment-icon">🔓</div>
-        <h2 className="payment-title">Unlock Section 2</h2>
-        <p className="payment-subtitle">
-          Get deeper matches with 20 reflective questions.
-        </p>
+        <p className="pay-eyebrow">{meta.eyebrow}</p>
+        <h2 className="payment-title">{meta.title}</h2>
+        <p className="payment-subtitle">{meta.sub}</p>
 
-        <div className="payment-price">
-          <span className="price-amount">KES 99</span>
-          <span className="price-label">one-time payment</span>
+        {recipient && isConnect && (
+          <div className="pay-recipient">
+            {recipient.photo ? (
+              <img src={recipient.photo} alt="" className="pay-recipient-photo" />
+            ) : (
+              <span className="pay-recipient-photo pay-recipient-initial" aria-hidden="true">
+                {recipient.name.charAt(0)}
+              </span>
+            )}
+            <div>
+              <span className="pay-recipient-name">{recipient.name}</span>
+              <span className="pay-recipient-sub">This payment is for your connection with {recipient.name.split(' ')[0]}.</span>
+            </div>
+          </div>
+        )}
+
+        <div className="pay-receipt" aria-label="Purchase summary">
+          <div className="pay-receipt-row pay-receipt-total">
+            <span>You pay</span>
+            <strong className="pay-amount">{meta.price}</strong>
+          </div>
+          <div className="pay-receipt-row">
+            <span>You get</span>
+            <strong>{meta.what}</strong>
+          </div>
+          <div className="pay-receipt-row">
+            <span>Charged</span>
+            <strong>Once · via M-Pesa</strong>
+          </div>
         </div>
 
+        <label className="pay-label" htmlFor="pay-phone">M-Pesa phone number</label>
         <input
-          className="payment-input"
+          id="pay-phone"
+          className={`payment-input${error ? ' has-error' : ''}`}
           type="tel"
-          placeholder="M-Pesa number e.g. 0712345678"
+          inputMode="numeric"
+          autoComplete="tel"
+          placeholder="0712 345 678"
           value={phone}
-          onChange={e => setPhone(e.target.value)}
+          onChange={e => { setPhone(e.target.value); if (error) setError('') }}
           disabled={loading}
         />
 
-        {error && <p className="payment-error">{error}</p>}
-        {status && <p className="payment-status">{status}</p>}
+        {error && <p className="payment-error" role="alert">{error}</p>}
 
         <button
-          className="payment-btn"
+          className="pay-btn"
           onClick={handlePayment}
           disabled={loading || !phone}
         >
-          {loading ? 'Processing...' : 'Pay with M-Pesa'}
+          {loading ? 'Sending request…' : `Pay ${meta.price} with M-Pesa`}
         </button>
 
-        <p className="payment-note">
-          You will receive an M-Pesa prompt on your phone. Enter your PIN to complete.
+        <p className="pay-note">
+          You'll get an M-Pesa prompt — approve it with your PIN. The price is
+          set by MingleMate and can't be altered. Payment is verified before
+          anything is unlocked.
         </p>
       </div>
     </div>

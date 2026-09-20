@@ -2,14 +2,17 @@ import { saveOneSignalPlayerId } from '../supabaseClient'
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import BottomNav from '../components/BottomNav'
 import './Home.css'
 import Matches from './Matches'
 
+// MATCHES tab (primary nav). Shows the weekly Tier 1/2 cards (and
+// plays the Match Celebration once per week) or the questionnaire
+// CTA when Section 1 isn't complete yet.
 export default function Home() {
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
   const [userId, setUserId] = useState(null)
-  const [activeTab, setActiveTab] = useState('matches')
   const notificationsEnabledRef = useRef(true)
 
   useEffect(() => {
@@ -64,6 +67,28 @@ export default function Home() {
     setUser(data)
     notificationsEnabledRef.current = data?.notifications_enabled !== false
     saveOneSignalPlayerId(session.user.id)
+
+    // Match Celebration: once per week, after this week's matches exist.
+    if (data?.section1_complete) {
+      const weekId = getWeekId()
+      const { data: row } = await supabase
+        .from('match_history')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .eq('week_id', weekId)
+        .maybeSingle()
+      if (row && sessionStorage.getItem('celebrated_week') !== weekId) {
+        sessionStorage.setItem('celebrated_week', weekId)
+        navigate('/celebration')
+      }
+    }
+  }
+
+  function getWeekId() {
+    const now = new Date()
+    const start = new Date(now.getFullYear(), 0, 1)
+    const week = Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7)
+    return `${now.getFullYear()}-W${week}`
   }
 
   async function handleSignOut() {
@@ -76,92 +101,35 @@ export default function Home() {
       <div className="home-header">
         <h1 className="home-logo">MingleMate</h1>
         <div className="home-header-actions">
-          <button className="settings-btn" onClick={() => navigate('/settings')} title="Settings">⚙︎</button>
+          {/* Settings lives under Profile (Profile → Settings). */}
           <button className="signout-btn" onClick={handleSignOut}>Sign Out</button>
         </div>
       </div>
 
       <div className="home-content">
-        {activeTab === 'matches' && (
-          <div className="tab-content-full">
-            {!user?.section1_complete ? (
-              <div className="matches-placeholder">
-                <div className="matches-icon">💝</div>
-                <h2>Your matches drop</h2>
-                <p>Every Tuesday at 9 PM</p>
-                <div className="matches-badge">
-                  Welcome{user?.full_name ? `, ${user.full_name}` : ''}!
-                </div>
-                <button
-                  className="start-section1-btn"
-                  onClick={() => navigate('/section1')}
-                >
-                  Start Your Questions →
-                </button>
+        <div className="tab-content-full">
+          {!user?.section1_complete ? (
+            <div className="matches-placeholder">
+              <div className="matches-icon">💝</div>
+              <h2>Your matches drop</h2>
+              <p>Every Tuesday at 9 PM</p>
+              <div className="matches-badge">
+                Welcome{user?.full_name ? `, ${user.full_name}` : ''}!
               </div>
-            ) : (
-              <Matches />
-            )}
-          </div>
-        )}
-
-        {activeTab === 'conversations' && (
-          <div className="tab-content">
-            <div className="empty-state">
-              <div className="empty-icon">💬</div>
-              <h2>No conversations yet</h2>
-              <p>Start chatting with your matches</p>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'profile' && (
-          <div className="tab-content">
-            <div className="profile-view">
-              <div className="empty-icon">👤</div>
-              <h2>{user?.full_name || 'Your Profile'}</h2>
               <button
                 className="start-section1-btn"
-                onClick={() => navigate('/profile')}
-                style={{ marginTop: '16px' }}
+                onClick={() => navigate('/section1')}
               >
-                View Full Profile →
-              </button>
-              <button
-                className="start-section1-btn"
-                onClick={() => navigate('/section2')}
-                style={{ marginTop: '12px', background: '#4F2D7F' }}
-              >
-                Open Section 2 Questions
+                Start Your Questions →
               </button>
             </div>
-          </div>
-        )}
+          ) : (
+            <Matches />
+          )}
+        </div>
       </div>
 
-      <div className="bottom-nav">
-        <button
-          className={`nav-btn ${activeTab === 'matches' ? 'active' : ''}`}
-          onClick={() => setActiveTab('matches')}
-        >
-          <span className="nav-icon">💝</span>
-          <span className="nav-label">Matches</span>
-        </button>
-        <button
-          className={`nav-btn ${activeTab === 'conversations' ? 'active' : ''}`}
-          onClick={() => setActiveTab('conversations')}
-        >
-          <span className="nav-icon">💬</span>
-          <span className="nav-label">Chats</span>
-        </button>
-        <button
-          className={`nav-btn ${activeTab === 'profile' ? 'active' : ''}`}
-          onClick={() => setActiveTab('profile')}
-        >
-          <span className="nav-icon">👤</span>
-          <span className="nav-label">Profile</span>
-        </button>
-      </div>
+      <BottomNav />
     </div>
   )
 }

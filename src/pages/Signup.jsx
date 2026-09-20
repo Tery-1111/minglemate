@@ -74,8 +74,7 @@ export default function Signup() {
       <div style={styles.card}>
         <div style={styles.logoContainer}>
           <span style={styles.logoHeart}>💝</span>
-          <h1 style={styles.title}>Create Account</h1>
-          <p style={styles.subtitle}>Join your campus matching network</p>
+          <h1 style={styles.title}>Create Account</h1>            <p style={styles.subtitle}>Join the student matching network</p>
         </div>
 
         {error && <div style={styles.errorBox}>{error}</div>}
@@ -87,7 +86,7 @@ export default function Signup() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="username@student.egerton.ac.ke"
+              placeholder="you@student.university.ac.ke"
               required
               disabled={loading}
               style={styles.input}

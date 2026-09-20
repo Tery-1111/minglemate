@@ -2,7 +2,7 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #0a0a0a;
+  background: var(--bg);
   max-width: 480px;
   margin: 0 auto;
 }
@@ -12,7 +12,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  background: #4F2D7F;
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border);
 }
 
 .home-logo {
@@ -70,15 +71,15 @@
 
 .matches-placeholder p {
   font-size: 16px;
-  color: #E8416B;
+  color: var(--accent);
   margin-bottom: 24px;
 }
 
 .matches-badge {
-  background: #4F2D7F;
-  color: white;
+  background: var(--accent-soft);
+  color: var(--accent);
   padding: 12px 24px;
-  border-radius: 20px;
+  border-radius: var(--radius-pill);
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 16px;
@@ -88,7 +89,7 @@
 .start-section1-btn {
   margin-top: 16px;
   padding: 14px 32px;
-  background: #E8416B;
+  background: var(--accent);
   color: white;
   border: none;
   border-radius: 12px;
@@ -133,7 +134,7 @@
 
 .empty-state p {
   font-size: 15px;
-  color: #888;
+  color: var(--text-muted);
 }
 
 .profile-view {
@@ -151,50 +152,10 @@
 
 .profile-view p {
   font-size: 15px;
-  color: #888;
+  color: var(--text-muted);
 }
 
-.bottom-nav {
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  padding: 12px 0;
-  background: #1a1a1a;
-  border-top: 1px solid #333;
-  position: sticky;
-  bottom: 0;
-}
-
-.nav-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 8px 24px;
-  border-radius: 10px;
-  transition: all 0.2s;
-}
-
-.nav-icon {
-  font-size: 24px;
-}
-
-.nav-label {
-  font-size: 12px;
-  color: #888;
-  font-weight: 500;
-}
-
-.nav-btn.active .nav-label {
-  color: #E8416B;
-}
-
-.nav-btn.active .nav-icon {
-  transform: scale(1.1);
-}
+/* Bottom nav styles moved to the shared BottomNav component */
 .home-header-actions {
   display: flex;
   align-items: center;

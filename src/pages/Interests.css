@@ -3,12 +3,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #4F2D7F 0%, #1a0a2e 100%);
+  background: var(--bg);
   padding: 20px;
 }
 
 .interests-card {
-  background: white;
+  background: var(--surface);
   border-radius: 20px;
   padding: 40px;
   width: 100%;
@@ -16,15 +16,16 @@
 }
 
 .interests-title {
+  font-family: var(--font-display);
   font-size: 28px;
-  font-weight: 800;
-  color: #4F2D7F;
+  font-weight: 600;
+  color: var(--text-primary);
   margin-bottom: 8px;
 }
 
 .interests-subtitle {
   font-size: 14px;
-  color: #888;
+  color: var(--text-muted);
   margin-bottom: 24px;
 }
 
@@ -37,36 +38,36 @@
 
 .tag-btn {
   padding: 10px 16px;
-  border: 2px solid #eee;
+  border: 2px solid var(--border);
   border-radius: 20px;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  background: white;
+  background: var(--surface);
   color: #555;
   transition: all 0.2s;
 }
 
 .tag-btn:hover {
-  border-color: #4F2D7F;
-  color: #4F2D7F;
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .tag-btn.selected {
-  background: #4F2D7F;
-  border-color: #4F2D7F;
+  background: var(--accent);
+  border-color: var(--accent);
   color: white;
 }
 
 .tag-counter {
   font-size: 14px;
-  color: #888;
+  color: var(--text-muted);
   margin-bottom: 16px;
   text-align: center;
 }
 
 .interests-error {
-  color: #E8416B;
+  color: var(--accent);
   font-size: 14px;
   margin-bottom: 12px;
 }
@@ -74,7 +75,7 @@
 .interests-btn {
   width: 100%;
   padding: 14px;
-  background: #E8416B;
+  background: var(--accent);
   color: white;
   border: none;
   border-radius: 10px;

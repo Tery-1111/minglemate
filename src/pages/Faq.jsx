@@ -8,7 +8,7 @@ import './InfoPage.css'
 const FAQS = [
   {
     q: 'Who can join MingleMate?',
-    a: 'MingleMate is for university students in Kenya. You sign up with your campus email address, and you are only matched with students from your own campus.',
+    a: 'MingleMate is a platform for university students. You sign up with your email address — if your campus email domain is registered, you join that campus community; otherwise you join the general student pool.',
   },
   {
     q: 'How are my matches chosen?',
@@ -24,7 +24,7 @@ const FAQS = [
   },
   {
     q: 'Can I choose who sees me?',
-    a: 'You are only visible to students on your own campus, and only people the matching engine pairs you with can start a chat with you. There is no public directory of profiles.',
+    a: 'You are only visible to students in your campus community (or the general student pool if you signed up with a non-campus email), and only people the matching engine pairs you with can start a chat with you. There is no public directory of profiles.',
   },
   {
     q: 'What if I get a match I am not interested in?',
@@ -32,7 +32,7 @@ const FAQS = [
   },
   {
     q: 'Which universities are supported?',
-    a: 'New campuses are added over time. During signup you sign in with your campus email domain, and if your university is active you are in.',
+    a: 'More campuses are added over time. Sign-up uses your email domain — registered campus domains join their campus community, and everyone else joins the general student pool.',
   },
 ]
 

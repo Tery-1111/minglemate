@@ -1,0 +1,217 @@
+/* ============================================================
+   MingleMate design tokens — single source of truth.
+   Pages consume var(--*) only; no raw hexes in page CSS.
+   ============================================================ */
+
+:root {
+  /* ---- Color: surfaces (warm near-black, photography-first) ---- */
+  --bg: #0b0a0c;                 /* page background */
+  --surface: #151316;            /* cards, panels */
+  --surface-raised: #1d1a1f;     /* headers, composer, chips */
+  --surface-active: #26222b;     /* hover/active fills */
+
+  /* ---- Color: text ---- */
+  --text-primary: #f4f1f4;       /* headings, names, key numbers */
+  --text-secondary: #a8a2ad;     /* supporting copy */
+  --text-muted: #6f6a75;         /* metadata, timestamps, hints */
+  --text-on-accent: #ffffff;
+
+  /* ---- Color: brand ---- */
+  --accent: #e8416b;             /* rose — primary actions */
+  --accent-strong: #d23359;      /* pressed */
+  --accent-soft: rgba(232, 65, 107, 0.12);  /* selected fills, quiet highlights */
+
+  /* ---- Color: status (used sparingly, semantic only) ---- */
+  --positive: #56b47c;           /* payment success, confirmed states */
+  --warning: #d99a3d;            /* pending payment states */
+  --danger: #e8416b;             /* destructive + errors (same rose family) */
+
+  /* ---- Borders ---- */
+  --border: #2a262e;             /* default hairlines */
+  --border-strong: #3a353e;      /* emphasized dividers */
+
+  /* ---- Typography ----
+     Display: Fraunces (editorial serif — warm, human, unmistakably
+     not-SaaS) for wordmark, page titles, names, prices.
+     Body/UI: system stack (fast, native feel, zero render cost). */
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --fs-display: 44px;    /* landing wordmark */
+  --fs-title: 24px;      /* page titles */
+  --fs-name: 20px;       /* person names */
+  --fs-body: 15px;       /* primary copy */
+  --fs-secondary: 14px;  /* supporting copy */
+  --fs-meta: 12.5px;     /* metadata, captions */
+  --lh-tight: 1.15;
+  --lh-snug: 1.35;
+  --lh-body: 1.55;
+
+  /* ---- Space scale (4px base) ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 28px;
+  --space-8: 40px;
+
+  /* ---- Radius scale (4 values + pill) ---- */
+  --radius-sm: 8px;      /* chips, small controls */
+  --radius-md: 12px;     /* buttons, inputs */
+  --radius-lg: 18px;     /* cards, photos */
+  --radius-xl: 24px;     /* modals, sheets */
+  --radius-pill: 999px;
+
+  /* ---- Elevation (rare: modals, payment card only) ---- */
+  --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.55);
+  --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.35);
+
+  /* ---- Motion ---- */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 140ms;
+  --dur-base: 220ms;
+
+  /* ---- Layout ---- */
+  --content-w: 720px;    /* max width for feed-style screens */
+  --nav-h: 64px;         /* bottom nav height + safe area handled separately */
+}
+
+/* ---- Base type + resets (replaces the Vite-starter index.css) ---- */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { color-scheme: dark; }
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--text-secondary);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Display type helper — every page uses this for titles/names/prices */
+.display {
+  font-family: var(--font-display);
+  font-weight: 560;
+  letter-spacing: -0.01em;
+}
+
+h1, h2, h3 { color: var(--text-primary); }
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+button:disabled { cursor: not-allowed; }
+
+input, textarea, select { font-family: inherit; }
+
+/* ---- Shared primitives ---- */
+
+/* Primary action — flat rose, no glow */
+.btn-accent {
+  display: block;
+  width: 100%;
+  padding: 14px 20px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  font-weight: 650;
+  transition: background var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+}
+.btn-accent:hover { background: #ef5680; }
+.btn-accent:active { background: var(--accent-strong); transform: scale(0.985); }
+.btn-accent:disabled { opacity: 0.45; }
+.btn-accent:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+
+/* Secondary action — quiet outline */
+.btn-ghost {
+  display: block;
+  width: 100%;
+  padding: 13px 20px;
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  font-weight: 600;
+  transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease;
+}
+.btn-ghost:hover { border-color: #4a4450; background: var(--surface); }
+.btn-ghost:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+
+/* Standard page scaffold for main-app screens */
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text-primary);
+  padding: var(--space-5) var(--space-4) calc(var(--nav-h) + 32px + env(safe-area-inset-bottom));
+  max-width: var(--content-w);
+  margin: 0 auto;
+}
+
+/* Page header block */
+.page-title {
+  font-family: var(--font-display);
+  font-size: var(--fs-title);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  margin-bottom: var(--space-1);
+}
+.page-sub {
+  color: var(--text-muted);
+  font-size: var(--fs-secondary);
+}
+
+/* Section header: tiny caps label — hierarchy via typography */
+.section-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: var(--space-3);
+}
+
+/* ---- Loading state: single quiet pulse dot, no spinners ---- */
+@keyframes mm-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+.loading-dots::after {
+  content: '…';
+  animation: mm-pulse 1.2s ease-in-out infinite;
+}
+
+/* Skeleton shimmer for image cards */
+@keyframes mm-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+.skeleton {
+  background: linear-gradient(100deg, var(--surface) 40%, var(--surface-raised) 50%, var(--surface) 60%);
+  background-size: 200% 100%;
+  animation: mm-shimmer 1.4s linear infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* ---- Reduced motion: respect globally ---- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

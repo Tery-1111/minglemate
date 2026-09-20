@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import BottomNav from '../components/BottomNav'
 import {
   BIO_MAX,
   MAX_PROMPTS,
@@ -40,6 +41,19 @@ export default function Profile() {
   // Local draft of prompts while editing (id + question + answer)
   const [promptDraft, setPromptDraft] = useState([])
 
+  // Contact sharing controls (owner-only). Affect FUTURE paid
+  // connects only — already-paid unlocks keep their snapshot.
+  const [sharing, setSharing] = useState({
+    share_phone: true,
+    share_whatsapp: true,
+    share_email: false,
+    social_instagram: '',
+    social_x: '',
+    social_tiktok: '',
+  })
+  const [savingSharing, setSavingSharing] = useState(false)
+  const [sharingMsg, setSharingMsg] = useState('')
+
   useEffect(() => {
     loadProfile()
   }, [])
@@ -71,6 +85,14 @@ export default function Profile() {
       prompts,
     })
     setPromptDraft(prompts.map(p => ({ ...p })))
+    setSharing({
+      share_phone: userData?.share_phone !== false,
+      share_whatsapp: userData?.share_whatsapp !== false,
+      share_email: userData?.share_email === true,
+      social_instagram: userData?.social_instagram || '',
+      social_x: userData?.social_x || '',
+      social_tiktok: userData?.social_tiktok || '',
+    })
     setLoading(false)
   }
 
@@ -159,6 +181,25 @@ export default function Profile() {
     setSaving(false)
   }
 
+  async function handleSharingSave() {
+    setSavingSharing(true)
+    setSharingMsg('')
+    const { data: { session } } = await supabase.auth.getSession()
+    const { error } = await supabase
+      .from('users')
+      .update({
+        share_phone: sharing.share_phone,
+        share_whatsapp: sharing.share_whatsapp,
+        share_email: sharing.share_email,
+        social_instagram: sharing.social_instagram || null,
+        social_x: sharing.social_x || null,
+        social_tiktok: sharing.social_tiktok || null,
+      })
+      .eq('id', session.user.id)
+    setSharingMsg(error ? (error.message || 'Could not save.') : 'Saved — applies to future Connects.')
+    setSavingSharing(false)
+  }
+
   if (loading) {
     return (
       <div className="profile-loading">
@@ -200,10 +241,16 @@ export default function Profile() {
         {photos.length === 0 && (
           <div className="no-photos">
             <p>No photos yet</p>
-            <button onClick={() => navigate('/photo-upload')}>Upload Photos</button>
+            <button onClick={() => navigate('/photos')}>Upload Photos</button>
           </div>
         )}
       </div>
+
+      {!editing && (
+        <button className="profile-action-btn" onClick={() => navigate('/photos')}>
+          📸 Manage photos (facial + full-body)
+        </button>
+      )}
 
       <div className="profile-info">
         <h2 className="profile-name">{user?.full_name}</h2>
@@ -364,21 +411,101 @@ export default function Profile() {
           </div>
         </div>
 
+        {!editing && (
+          <div className="profile-sharing">
+            <h3>Contact sharing</h3>
+            <p className="profile-sharing-note">
+              Your phone number, WhatsApp number and social handles are not public. They are only
+              revealed to your matches through the Connect feature according to these choices.
+              Changes affect future paid connections only — buyers keep what they already unlocked.
+            </p>
+            <label className="sharing-toggle">
+              <input
+                type="checkbox"
+                checked={sharing.share_phone}
+                onChange={e => setSharing({ ...sharing, share_phone: e.target.checked })}
+              />
+              Share phone number
+            </label>
+            <label className="sharing-toggle">
+              <input
+                type="checkbox"
+                checked={sharing.share_whatsapp}
+                onChange={e => setSharing({ ...sharing, share_whatsapp: e.target.checked })}
+              />
+              Share WhatsApp number
+            </label>
+            <label className="sharing-toggle">
+              <input
+                type="checkbox"
+                checked={sharing.share_email}
+                onChange={e => setSharing({ ...sharing, share_email: e.target.checked })}
+              />
+              Share email
+            </label>
+            <input
+              className="profile-select"
+              type="text"
+              placeholder="Instagram username (optional)"
+              value={sharing.social_instagram}
+              onChange={e => setSharing({ ...sharing, social_instagram: e.target.value })}
+            />
+            <input
+              className="profile-select"
+              type="text"
+              placeholder="X / Twitter username (optional)"
+              value={sharing.social_x}
+              onChange={e => setSharing({ ...sharing, social_x: e.target.value })}
+            />
+            <input
+              className="profile-select"
+              type="text"
+              placeholder="TikTok username (optional)"
+              value={sharing.social_tiktok}
+              onChange={e => setSharing({ ...sharing, social_tiktok: e.target.value })}
+            />
+            <button
+              className="profile-action-btn"
+              onClick={handleSharingSave}
+              disabled={savingSharing}
+            >
+              {savingSharing ? 'Saving...' : 'Save sharing choices'}
+            </button>
+            {sharingMsg && <p className="sharing-msg">{sharingMsg}</p>}
+          </div>
+        )}
+
         <div className="profile-actions">
           <button
             className="profile-action-btn"
-            onClick={() => navigate('/section1')}
+            onClick={() => navigate('/interests?edit=1')}
           >
-            📝 Section 1 Questions
+            ✏️ Edit interests
+          </button>
+          <button
+            className="profile-action-btn"
+            onClick={() => navigate('/section1?retake=1')}
+          >
+            📝 Retake Algorithm Questionnaire
           </button>
           <button
             className="profile-action-btn"
             onClick={() => navigate('/section2')}
           >
-            💭 Section 2 Questions
+            💭 Guided Questions
+          </button>
+          <button
+            className="profile-action-btn"
+            onClick={() => navigate('/settings')}
+          >
+            ⚙️ Settings
           </button>
         </div>
       </div>
+
+      {/* Primary navigation — Profile is the 4th tab, same as the
+          other main screens (fixes the navigation dead end). */}
+      <BottomNav active="profile" />
     </div>
   )
 }

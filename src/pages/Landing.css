@@ -1,15 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap');
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: 'Arial', sans-serif;
-  background: #0a0a0a;
-}
+/* Landing — first impression: photography-dark canvas, editorial type,
+   one clear primary action. No gradients, no glow, no pulse. */
 
 .landing-container {
   position: relative;
@@ -17,21 +7,21 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #4F2D7F 0%, #1a0a2e 100%);
-  font-family: 'Poppins', 'Segoe UI', -apple-system, sans-serif;
+  background: var(--bg);
   overflow: hidden;
 }
 
-/* soft pink glow behind the content for depth */
+/* A single, very quiet rose field behind the wordmark — depth without
+   the radial-glow cliché. Reads as atmosphere, not decoration. */
 .landing-container::before {
   content: '';
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 640px;
-  height: 640px;
-  transform: translate(-50%, -55%);
-  background: radial-gradient(circle, rgba(232, 65, 107, 0.16) 0%, transparent 65%);
+  width: min(560px, 120vw);
+  height: min(560px, 120vw);
+  transform: translate(-50%, -58%);
+  background: radial-gradient(circle, var(--accent-soft) 0%, transparent 62%);
   pointer-events: none;
 }
 
@@ -42,97 +32,66 @@ body {
 }
 
 .landing-title {
-  font-size: clamp(48px, 11vw, 76px);
-  font-weight: 900;
-  color: #ffffff;
-  letter-spacing: -3px;
-  line-height: 1.1;
-  margin-bottom: 56px;
-  animation: riseIn 0.7s ease-out both;
+  font-family: var(--font-display);
+  font-size: clamp(44px, 10vw, 68px);
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  margin-bottom: var(--space-6);
+  animation: riseIn 0.6s var(--ease-out) both;
 }
 
 .landing-buttons {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: var(--space-3);
   align-items: center;
-  animation: riseIn 0.7s ease-out 0.15s both;
+  animation: riseIn 0.6s var(--ease-out) 0.12s both;
 }
 
 .btn-primary {
   width: min(300px, 82vw);
-  padding: 17px;
-  background: linear-gradient(135deg, #E8416B 0%, #d63357 100%);
-  color: white;
+  padding: 15px;
+  background: var(--accent);
+  color: var(--text-on-accent);
   border: none;
-  border-radius: 14px;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
+  border-radius: var(--radius-md);
+  font-size: 16px;
+  font-weight: 650;
   cursor: pointer;
-  box-shadow: 0 8px 24px rgba(232, 65, 107, 0.35);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  animation: softPulse 3s ease-in-out 0.9s infinite;
+  transition: background var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
 }
 
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 32px rgba(232, 65, 107, 0.5);
-}
-
-.btn-primary:active {
-  transform: translateY(0) scale(0.98);
-}
+.btn-primary:hover { background: #ef5680; }
+.btn-primary:active { background: var(--accent-strong); transform: scale(0.985); }
+.btn-primary:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }
 
 .btn-secondary {
   width: min(300px, 82vw);
-  padding: 17px;
+  padding: 14px;
   background: transparent;
-  color: white;
-  border: 2px solid rgba(255, 255, 255, 0.9);
-  border-radius: 14px;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  font-size: 16px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+  transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease;
 }
 
-.btn-secondary:hover {
-  background: white;
-  border-color: white;
-  color: #4F2D7F;
-  transform: translateY(-2px);
-}
-
-.btn-secondary:active {
-  transform: translateY(0) scale(0.98);
-}
+.btn-secondary:hover { border-color: #4a4450; background: var(--surface); }
+.btn-secondary:active { transform: scale(0.985); }
+.btn-secondary:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }
 
 @keyframes riseIn {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes softPulse {
-  0%, 100% {
-    box-shadow: 0 8px 24px rgba(232, 65, 107, 0.35);
-  }
-  50% {
-    box-shadow: 0 8px 30px rgba(232, 65, 107, 0.55);
-  }
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .landing-title,
-  .landing-buttons,
-  .btn-primary {
+  .landing-buttons {
     animation: none;
   }
 }

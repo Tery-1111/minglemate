@@ -1,0 +1,290 @@
+/* DISCOVER — photo-first, exploratory, people-focused.
+   Photography dominates: tall portrait cards, name on a gradient scrim
+   over the image, one selection state, one clear paid action. */
+
+.discover-page {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text-primary);
+  padding: var(--space-5) var(--space-4) calc(var(--nav-h) + 40px + env(safe-area-inset-bottom));
+}
+
+.discover-header {
+  max-width: var(--content-w);
+  margin: 0 auto var(--space-5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.discover-title {
+  font-family: var(--font-display);
+  font-size: var(--fs-title);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  margin: 0;
+}
+
+.discover-sub {
+  color: var(--text-muted);
+  font-size: var(--fs-secondary);
+  margin: 4px 0 0;
+}
+
+/* Weekly delivery cadence — quiet metadata, top-right */
+.discover-cadence {
+  color: var(--text-muted);
+  font-size: var(--fs-meta);
+  text-align: right;
+  line-height: var(--lh-snug);
+  flex-shrink: 0;
+}
+
+.discover-cadence strong {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------
+   Grid: 5 portrait cards. Wide screens 3+2, phones 2-up.
+   ------------------------------------------------------------ */
+.discover-grid {
+  max-width: var(--content-w);
+  margin: 0 auto;
+  display: grid;
+  /* 3 columns at content width → the 5 cards read as a balanced 3+2 */
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+
+.discover-card {
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+}
+
+.discover-card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+}
+
+.discover-card:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+
+/* Selected state — the one loud moment on the screen */
+.discover-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* The photo IS the card */
+.discover-photo {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  display: block;
+}
+
+.discover-photo-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 3 / 4;
+  font-size: 44px;
+  color: var(--text-muted);
+  background: var(--surface-raised);
+}
+
+/* Name scrim: legible over any photo, no extra chrome */
+.discover-scrim {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  padding: 40px 12px 10px;
+  background: linear-gradient(to top, rgba(6, 5, 7, 0.88) 0%, rgba(6, 5, 7, 0.45) 55%, transparent 100%);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  pointer-events: none;
+}
+
+.discover-name {
+  font-weight: 650;
+  font-size: 15px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.discover-age {
+  color: rgba(244, 241, 244, 0.72);
+  font-size: var(--fs-meta);
+  flex-shrink: 0;
+}
+
+/* Force Connect chip: appears on the selected card only */
+.discover-fc-chip {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  pointer-events: none;
+}
+
+/* Per-card hint so the paid path is discoverable before selection */
+.discover-fc-hint {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(6, 5, 7, 0.6);
+  color: rgba(244, 241, 244, 0.85);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 9px;
+  border-radius: var(--radius-pill);
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+}
+
+/* ------------------------------------------------------------
+   Action bar: ONE Force Connect CTA, enabled by selection
+   ------------------------------------------------------------ */
+.discover-actionbar {
+  max-width: var(--content-w);
+  margin: var(--space-5) auto 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+}
+
+.discover-actionbar-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.discover-actionbar-title {
+  color: var(--text-primary);
+  font-size: var(--fs-secondary);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.discover-actionbar-sub {
+  color: var(--text-muted);
+  font-size: var(--fs-meta);
+}
+
+.discover-fc-btn {
+  flex-shrink: 0;
+  padding: 11px 22px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--fs-secondary);
+  font-weight: 650;
+  transition: background var(--dur-fast) ease, opacity var(--dur-fast) ease;
+}
+
+.discover-fc-btn:hover:not(:disabled) { background: #ef5680; }
+.discover-fc-btn:active:not(:disabled) { background: var(--accent-strong); }
+.discover-fc-btn:disabled { opacity: 0.35; }
+.discover-fc-btn:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }
+
+/* ------------------------------------------------------------
+   Path explainer: one quiet line of context — not two cards
+   ------------------------------------------------------------ */
+.discover-pathnote {
+  max-width: var(--content-w);
+  margin: var(--space-4) auto 0;
+  color: var(--text-muted);
+  font-size: var(--fs-meta);
+  line-height: var(--lh-snug);
+  text-align: center;
+}
+
+.discover-pathnote strong {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------
+   States
+   ------------------------------------------------------------ */
+.discover-error {
+  max-width: var(--content-w);
+  margin: 0 auto var(--space-3);
+  color: var(--accent);
+  font-size: var(--fs-secondary);
+}
+
+.discover-loading {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 96px 0;
+}
+
+/* Empty state: editorial, not an afterthought */
+.discover-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: var(--space-8) var(--space-4);
+}
+
+.discover-empty-icon {
+  font-size: 40px;
+  margin-bottom: var(--space-3);
+  opacity: 0.7;
+}
+
+.discover-empty-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-2);
+}
+
+.discover-empty p {
+  color: var(--text-muted);
+  font-size: var(--fs-secondary);
+  margin: 0;
+}
+
+@media (max-width: 420px) {
+  .discover-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-3);
+  }
+
+  .discover-actionbar {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .discover-cadence {
+    display: none;
+  }
+}

@@ -110,7 +110,7 @@ export default function Settings() {
   return (
     <div className="settings-page">
       <div className="settings-header">
-        <button className="settings-back" onClick={() => navigate('/home')}>←</button>
+        <button className="settings-back" onClick={() => navigate('/profile')} title="Back to Profile">←</button>
         <h2 className="settings-heading">Settings</h2>
         <span className="settings-header-spacer" />
       </div>
