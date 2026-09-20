@@ -1,124 +1,299 @@
+/* PAYMENT — trust through clarity: a receipt, a named recipient,
+   labeled fields, and states that say exactly what is happening.
+   No visual experiments on a money screen. */
+
 .payment-container {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--bg);
-  padding: 20px;
+  padding: var(--space-5) var(--space-4);
 }
 
 .payment-card {
   background: var(--surface);
-  border-radius: 20px;
-  padding: 40px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
   width: 100%;
   max-width: 400px;
-  text-align: center;
+  text-align: left;
 }
 
 .payment-back {
   background: transparent;
   border: none;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: var(--fs-secondary);
   cursor: pointer;
   display: block;
-  margin-bottom: 20px;
-  text-align: left;
-  width: 100%;
+  margin-bottom: var(--space-5);
+  padding: 4px 0;
 }
 
-.payment-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
+.payment-back:hover { color: var(--text-secondary); }
+.payment-back:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+/* Eyebrow: product context above the title */
+.pay-eyebrow {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: var(--space-2);
 }
 
 .payment-title {
   font-family: var(--font-display);
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 
 .payment-subtitle {
-  font-size: 15px;
+  font-size: var(--fs-secondary);
   color: var(--text-muted);
-  margin-bottom: 24px;
-  line-height: 1.5;
+  margin-bottom: var(--space-5);
+  line-height: var(--lh-snug);
 }
 
-.payment-price {
+/* Recipient: WHO this payment is about */
+.pay-recipient {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  margin-bottom: 24px;
-  padding: 16px;
-  background: rgba(232, 65, 107, 0.08);
-  border-radius: 12px;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
 }
 
-.price-amount {
-  font-size: 36px;
-  font-weight: 900;
-  color: var(--accent);
+.pay-recipient-photo {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-pill);
+  object-fit: cover;
+  flex-shrink: 0;
 }
 
-.price-label {
-  font-size: 13px;
+.pay-recipient-initial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-active);
+  color: var(--text-secondary);
+  font-weight: 650;
+  font-size: 16px;
+}
+
+.pay-recipient-name {
+  display: block;
+  color: var(--text-primary);
+  font-weight: 650;
+  font-size: var(--fs-secondary);
+}
+
+.pay-recipient-sub {
+  display: block;
   color: var(--text-muted);
+  font-size: var(--fs-meta);
+  margin-top: 1px;
+}
+
+/* Receipt: the summary IS the trust */
+.pay-receipt {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: var(--space-5);
+}
+
+.pay-receipt-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-secondary);
+}
+
+.pay-receipt-row:last-child { border-bottom: none; }
+
+.pay-receipt-row > span {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.pay-receipt-row > strong {
+  color: var(--text-secondary);
+  font-weight: 550;
+  text-align: right;
+}
+
+.pay-receipt-total {
+  background: var(--surface-raised);
+}
+
+.pay-receipt-total > span {
+  color: var(--text-primary);
+  font-weight: 650;
+}
+
+.pay-amount {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Form */
+.pay-label {
+  display: block;
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
 }
 
 .payment-input {
   width: 100%;
-  padding: 14px;
-  border: 2px solid var(--border);
-  border-radius: 10px;
+  padding: 13px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
   font-size: 16px;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-3);
   outline: none;
-  text-align: center;
-  transition: border 0.2s;
+  transition: border-color var(--dur-fast) ease;
 }
+
+.payment-input::placeholder { color: var(--text-muted); }
 
 .payment-input:focus {
   border-color: var(--accent);
 }
 
+.payment-input.has-error {
+  border-color: var(--accent);
+}
+
 .payment-error {
   color: var(--accent);
-  font-size: 14px;
-  margin-bottom: 12px;
+  font-size: var(--fs-secondary);
+  margin-bottom: var(--space-3);
 }
 
-.payment-status {
-  color: #1a7a4a;
-  font-size: 14px;
-  margin-bottom: 12px;
-  font-weight: 600;
-}
-
-.payment-btn {
+/* Primary action: brand rose (M-Pesa green never belonged to MingleMate) */
+.pay-btn {
   width: 100%;
-  padding: 16px;
-  background: var(--positive);
-  color: white;
+  padding: 15px;
+  background: var(--accent);
+  color: var(--text-on-accent);
   border: none;
-  border-radius: 10px;
-  font-size: 16px;
-  font-weight: 700;
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  font-weight: 650;
   cursor: pointer;
-  transition: opacity 0.2s;
-  margin-bottom: 16px;
+  transition: background var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
 }
 
-.payment-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.pay-btn:hover:not(:disabled) { background: #ef5680; }
+.pay-btn:active:not(:disabled) { background: var(--accent-strong); transform: scale(0.985); }
+.pay-btn:disabled { opacity: 0.4; }
+.pay-btn:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }
+
+.pay-note {
+  font-size: var(--fs-meta);
+  color: var(--text-muted);
+  line-height: var(--lh-snug);
+  margin-top: var(--space-4);
 }
 
-.payment-note {
-  font-size: 12px;
-  color: #aaa;
-  line-height: 1.5;
+/* ------------------------------------------------------------
+   States: pushing / success / timeout
+   ------------------------------------------------------------ */
+.pay-state {
+  text-align: center;
+  padding: var(--space-4) 0;
+}
+
+.pay-state-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: var(--space-4) 0 var(--space-2);
+}
+
+.pay-state-sub {
+  color: var(--text-secondary);
+  font-size: var(--fs-secondary);
+  line-height: var(--lh-snug);
+  margin-bottom: var(--space-4);
+}
+
+.pay-state-sub strong { color: var(--text-primary); }
+
+.pay-state-note {
+  color: var(--text-muted);
+  font-size: var(--fs-meta);
+  margin-bottom: var(--space-4);
+}
+
+/* Waiting: a calm breathing dot — communicates "in progress" */
+.pay-pulse {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pay-pulse span {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  animation: pay-breathe 1.6s ease-in-out infinite;
+}
+
+@keyframes pay-breathe {
+  0%, 100% { opacity: 0.35; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+/* Success: solid positive mark — unambiguous, not celebratory confetti */
+.pay-check {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto;
+  border-radius: var(--radius-pill);
+  background: var(--positive);
+  color: #fff;
+  font-size: 26px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pay-waiticon {
+  font-size: 40px;
+  margin-bottom: var(--space-2);
+}
+
+@media (max-width: 420px) {
+  .payment-card {
+    padding: var(--space-5) var(--space-4);
+    border-radius: var(--radius-lg);
+  }
 }
