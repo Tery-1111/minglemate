@@ -5,15 +5,16 @@ import BottomNav from '../components/BottomNav'
 import './Discover.css'
 
 // DISCOVER: exactly 5 candidate cards (face + name + age only — no
-// tier badges). Two paths: wait for the weekly mutual match, or pay
-// KSh 80 to Force Connect with a selected person (creates a Qrashe
-// match; the recipient is notified and cannot decline).
+// tier badges, no contact info). Two paths: wait for the weekly mutual
+// match, or select someone and pay KSh 80 to Force Connect (creates a
+// Qrashe match; the recipient is notified and cannot decline).
 export default function Discover() {
   const navigate = useNavigate()
   const [candidates, setCandidates] = useState(null)
   const [photos, setPhotos] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [selectedId, setSelectedId] = useState(null)
 
   useEffect(() => {
     load()
@@ -51,10 +52,12 @@ export default function Discover() {
     setLoading(false)
   }
 
+  const selected = (candidates || []).find(c => c.id === selectedId) || null
+
   if (loading) {
     return (
       <div className="discover-page page-with-nav">
-        <div className="discover-loading">Loading profiles…</div>
+        <div className="discover-loading loading-dots">Loading profiles</div>
         <BottomNav />
       </div>
     )
@@ -63,52 +66,93 @@ export default function Discover() {
   return (
     <div className="discover-page page-with-nav">
       <header className="discover-header">
-        <h1 className="discover-title">Discover</h1>
-        <p className="discover-sub">People you may match with</p>
+        <div>
+          <h1 className="discover-title">Discover</h1>
+          <p className="discover-sub">People you may match with</p>
+        </div>
+        <p className="discover-cadence">
+          Weekly matches drop<br /><strong>Tuesday · 9 PM</strong>
+        </p>
       </header>
 
       {error && <p className="discover-error">{error}</p>}
 
       <div className="discover-grid">
-        {(candidates || []).map(c => (
-          <div key={c.id} className="discover-card">
-            {photos[c.id] ? (
-              <img src={photos[c.id]} alt={c.full_name} className="discover-photo" />
-            ) : (
-              <div className="discover-photo discover-photo-empty">👤</div>
-            )}
-            <div className="discover-card-info">
-              <span className="discover-name">{c.full_name}</span>
-              <span className="discover-age">{c.age}</span>
-            </div>
-            <button
-              className="discover-connect-btn"
-              onClick={() => navigate(`/force-connect/${c.id}`)}
+        {(candidates || []).map(c => {
+          const isSelected = c.id === selectedId
+          return (
+            <div
+              key={c.id}
+              role="button"
+              tabIndex={0}
+              aria-pressed={isSelected}
+              className={`discover-card${isSelected ? ' selected' : ''}`}
+              onClick={() => setSelectedId(isSelected ? null : c.id)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setSelectedId(isSelected ? null : c.id)
+                }
+              }}
             >
-              Force Connect · KSh 80
-            </button>
-          </div>
-        ))}
+              {photos[c.id] ? (
+                <img
+                  src={photos[c.id]}
+                  alt={c.full_name}
+                  className="discover-photo"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="discover-photo discover-photo-empty">👤</div>
+              )}
+              {isSelected ? (
+                <span className="discover-fc-chip">Force Connect · KSh 80</span>
+              ) : (
+                <span className="discover-fc-hint">Force Connect</span>
+              )}
+              <div className="discover-scrim">
+                <span className="discover-name">{c.full_name}</span>
+                <span className="discover-age">{c.age}</span>
+              </div>
+            </div>
+          )
+        })}
+
         {candidates && candidates.length === 0 && (
           <div className="discover-empty">
-            <p>No candidates right now.</p>
-            <p className="discover-empty-sub">
-              New classmates join every week — check back soon.
+            <div className="discover-empty-icon">🌙</div>
+            <h2 className="discover-empty-title">No candidates right now</h2>
+            <p>
+              New members join every week. Your next window opens with the
+              Tuesday match drop.
             </p>
           </div>
         )}
       </div>
 
-      <div className="discover-paths">
-        <div className="discover-path">
-          <h3>Wait for a mutual match</h3>
-          <p>Your weekly matches drop every Tuesday at 9 PM.</p>
+      {selected && (
+        <div className="discover-actionbar">
+          <div className="discover-actionbar-info">
+            <div className="discover-actionbar-title">
+              Connect with {selected.full_name} now
+            </div>
+            <div className="discover-actionbar-sub">
+              KSh 80 · they'll be notified and can't decline
+            </div>
+          </div>
+          <button
+            className="discover-fc-btn"
+            onClick={() => navigate(`/force-connect/${selected.id}`)}
+          >
+            Force Connect
+          </button>
         </div>
-        <div className="discover-path">
-          <h3>Want to connect now?</h3>
-          <p>Pick a profile above and use Force Connect — KSh 80.</p>
-        </div>
-      </div>
+      )}
+
+      <p className="discover-pathnote">
+        Or wait for a mutual match — <strong>Tuesdays, 9 PM</strong>. Matched
+        with someone? They appear under Matches, ready to chat.
+      </p>
 
       <BottomNav />
     </div>
