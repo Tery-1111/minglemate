@@ -3,9 +3,11 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import { initSentry, Sentry } from './lib/sentry'
+import { initAnalytics } from './lib/analytics'
 
-// Start error tracking before anything else runs.
+// Start error tracking and analytics before anything else runs.
 initSentry()
+initAnalytics()
 
 // Shown instead of a blank white screen if the app crashes.
 function CrashScreen() {
