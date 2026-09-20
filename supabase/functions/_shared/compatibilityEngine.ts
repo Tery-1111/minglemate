@@ -28,15 +28,18 @@ const dimensionQuestions: Record<Dimension, number[]> = {
 function answersAreSimilar(answerA: string | undefined, answerB: string | undefined): boolean {
   if (!answerA || !answerB) return false
 
-  const normalizedA = answerA.trim().toLowerCase()
-  const normalizedB = answerB.trim().toLowerCase()
-  if (normalizedA === normalizedB) return true
-
-  const wordsA = new Set(normalizedA.split(/\s+/).filter(Boolean))
-  const wordsB = new Set(normalizedB.split(/\s+/).filter(Boolean))
-  const sharedWords = [...wordsA].filter(word => wordsB.has(word))
-
-  return sharedWords.length > 0 && sharedWords.length / Math.min(wordsA.size, wordsB.size) >= 0.5
+  // Every stored answer is the exact option text the user chose from a
+  // question's fixed option list (Section1.jsx writes option strings,
+  // user_responses.responses_array holds them positionally). Two users
+  // are compatible on a question ONLY when they chose the same option.
+  // The previous word-overlap heuristic made distinct options score as
+  // matches (verified: "My kindness"≈"My courage", "Phone calls"≈
+  // "Video calls", "Very important"≈"Less important than experiences"
+  // — 16 of 300 distinct option pairs across 11 questions), inflating
+  // compatibility for dissimilar users. Legacy rows from the old
+  // integer[] era hold numeric indices as text; they never equal option
+  // text and correctly count as non-matches under exact comparison.
+  return answerA.trim().toLowerCase() === answerB.trim().toLowerCase()
 }
 
 function scoreDimension(userA: UserProfile, userB: UserProfile, questions: number[]): number {

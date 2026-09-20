@@ -156,8 +156,10 @@ export default function Section1() {
               onClick={() => handleSelectOption(idx)}
               style={{
                 ...styles.optionButton,
-                background: answers[current] === idx ? 'var(--accent-soft)' : 'var(--surface-raised)',
-                borderColor: answers[current] === idx ? 'var(--accent)' : 'var(--border-strong)',
+                // answers hold option TEXT (see handleSelectOption); compare
+                // text-to-text so a revisited question shows its saved choice.
+                background: answers[current] === option ? 'var(--accent-soft)' : 'var(--surface-raised)',
+                borderColor: answers[current] === option ? 'var(--accent)' : 'var(--border-strong)',
                 cursor: isSaving ? 'not-allowed' : 'pointer'
               }}
             >
