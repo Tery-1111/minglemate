@@ -1,0 +1,103 @@
+.celebration-page {
+  min-height: 100vh;
+  background: radial-gradient(circle at 50% 20%, #1c0f1a 0%, #0a0a0a 60%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+.celebration-card {
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+}
+
+.celebration-hearts {
+  font-size: 48px;
+  margin-bottom: 8px;
+}
+
+.celebration-title {
+  font-size: 30px;
+  font-weight: 800;
+  margin: 0 0 6px;
+  background: linear-gradient(45deg, #E8416B, #ff7e5f);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.celebration-sub {
+  color: #888;
+  margin: 0 0 24px;
+  font-size: 14px;
+}
+
+.celebration-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.celebration-person {
+  background: #141414;
+  border: 1px solid #262626;
+  border-radius: 16px;
+  padding: 14px 10px;
+}
+
+.celebration-photo {
+  width: 100%;
+  aspect-ratio: 1 / 1.1;
+  object-fit: cover;
+  border-radius: 12px;
+  margin-bottom: 10px;
+}
+
+.celebration-photo-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1e1e1e;
+  font-size: 36px;
+  color: #444;
+}
+
+.celebration-person-name {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.celebration-tier {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.celebration-none {
+  grid-column: 1 / -1;
+  color: #888;
+}
+
+.celebration-btn {
+  width: 100%;
+  background: #E8416B;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 380px) {
+  .celebration-cards {
+    grid-template-columns: 1fr;
+  }
+}

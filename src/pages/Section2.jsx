@@ -108,7 +108,8 @@ export default function Section2() {
         .from('users')
         .update({ section2_unlocked: true })
         .eq('id', userId)
-      navigate('/home')
+      // Onboarding complete → open Discover.
+      navigate('/discover')
     }
 
     setSaving(false)

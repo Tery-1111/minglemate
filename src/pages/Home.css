@@ -154,47 +154,7 @@
   color: #888;
 }
 
-.bottom-nav {
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  padding: 12px 0;
-  background: #1a1a1a;
-  border-top: 1px solid #333;
-  position: sticky;
-  bottom: 0;
-}
-
-.nav-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 8px 24px;
-  border-radius: 10px;
-  transition: all 0.2s;
-}
-
-.nav-icon {
-  font-size: 24px;
-}
-
-.nav-label {
-  font-size: 12px;
-  color: #888;
-  font-weight: 500;
-}
-
-.nav-btn.active .nav-label {
-  color: #E8416B;
-}
-
-.nav-btn.active .nav-icon {
-  transform: scale(1.1);
-}
+/* Bottom nav styles moved to the shared BottomNav component */
 .home-header-actions {
   display: flex;
   align-items: center;

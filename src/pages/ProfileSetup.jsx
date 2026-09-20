@@ -16,7 +16,10 @@ export default function ProfileSetup() {
     bio: '',
     phone: '',
     whatsapp_number: '',
-    display_phone: ''
+    display_phone: '',
+    social_instagram: '',
+    social_x: '',
+    social_tiktok: ''
   })
 
   useEffect(() => {
@@ -32,19 +35,17 @@ export default function ProfileSetup() {
     const email = session.user.email
     const domain = email.split('@')[1]
 
-    if (domain === 'gmail.com') {
-      const { data: campusData } = await supabase
-        .from('campuses')
-        .select('id, name')
-        .eq('email_domain', 'student.egerton.ac.ke')
-        .single()
-      setCampus(campusData)
-    } else {
+    // GENERAL STUDENT PLATFORM: institution is derived from the email
+    // domain — no hardcoded university. A domain that matches a
+    // registered campus scopes the user to that campus; any other
+    // domain (gmail, another institution, etc.) leaves campus_id
+    // unset and the platform treats them as an unaffiliated student.
+    if (domain) {
       const { data: campusData } = await supabase
         .from('campuses')
         .select('id, name')
         .eq('email_domain', domain)
-        .single()
+        .maybeSingle()
       setCampus(campusData)
     }
   }
@@ -90,6 +91,9 @@ export default function ProfileSetup() {
         phone: form.phone,
         whatsapp_number: form.whatsapp_number,
         display_phone: form.display_phone || form.phone,
+        social_instagram: form.social_instagram || null,
+        social_x: form.social_x || null,
+        social_tiktok: form.social_tiktok || null,
         section2_free_expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
       })
 
@@ -174,7 +178,8 @@ export default function ProfileSetup() {
 
         <p className="contact-section-label">📞 Contact Details</p>
         <p className="contact-section-sub">
-          These are hidden from everyone. They only reveal to your match after 14 Section 2 questions are discussed together.
+          Your phone number, WhatsApp number and social handles are not public. They are only
+          revealed to your matches through the Connect feature according to your sharing choices.
         </p>
 
         <input
@@ -192,6 +197,35 @@ export default function ProfileSetup() {
           name="whatsapp_number"
           placeholder="WhatsApp number e.g. 0712345678"
           value={form.whatsapp_number}
+          onChange={handleChange}
+        />
+
+        <p className="contact-section-label">🔗 Social handles (optional)</p>
+
+        <input
+          className="profile-input"
+          type="text"
+          name="social_instagram"
+          placeholder="Instagram username (optional)"
+          value={form.social_instagram}
+          onChange={handleChange}
+        />
+
+        <input
+          className="profile-input"
+          type="text"
+          name="social_x"
+          placeholder="X / Twitter username (optional)"
+          value={form.social_x}
+          onChange={handleChange}
+        />
+
+        <input
+          className="profile-input"
+          type="text"
+          name="social_tiktok"
+          placeholder="TikTok username (optional)"
+          value={form.social_tiktok}
           onChange={handleChange}
         />
 

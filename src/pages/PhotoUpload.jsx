@@ -9,23 +9,19 @@ export default function PhotoUpload() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [photos, setPhotos] = useState({
-    full_body_1: null,
-    full_body_2: null,
-    facial_1: null,
-    facial_2: null
+    facial: null,
+    full_body: null
   })
   const [previews, setPreviews] = useState({
-    full_body_1: null,
-    full_body_2: null,
-    facial_1: null,
-    facial_2: null
+    facial: null,
+    full_body: null
   })
 
+  // Exactly two photo slots per the product spec:
+  // Photo 1 = facial photo, Photo 2 = full-body photo.
   const slots = [
-    { key: 'full_body_1', label: 'Full Body Photo 1', type: 'full_body' },
-    { key: 'full_body_2', label: 'Full Body Photo 2', type: 'full_body' },
-    { key: 'facial_1',   label: 'Facial Close-up 1', type: 'facial' },
-    { key: 'facial_2',   label: 'Facial Close-up 2', type: 'facial' },
+    { key: 'facial', label: 'Photo 1 — Facial photo', type: 'facial', order: 1 },
+    { key: 'full_body', label: 'Photo 2 — Full-body photo', type: 'full_body', order: 2 },
   ]
 
   // PERF: shared resize helper — caps longest edge at 1200px and
@@ -51,7 +47,7 @@ export default function PhotoUpload() {
 
   async function handleSubmit() {
     if (!allUploaded) {
-      setError('Please upload all 4 photos.')
+      setError('Please upload both photos — a facial photo and a full-body photo.')
       return
     }
 
@@ -87,8 +83,8 @@ export default function PhotoUpload() {
         user_id: userId,
         photo_url: urlData.publicUrl,
         photo_type: slot.type,
-        display_order: parseInt(slot.key.split('_').pop())
-      })
+        display_order: slot.order
+      }, { onConflict: 'user_id,photo_type' })
     }
 
     setLoading(false)
@@ -100,7 +96,7 @@ export default function PhotoUpload() {
       <div className="photo-card">
         <h2 className="photo-title">Upload Your Photos</h2>
         <p className="photo-subtitle">
-          All 4 photos are required. Be clear and visible.
+          Both photos are required: a facial photo and a full-body photo.
         </p>
 
         <div className="photo-grid">
@@ -148,7 +144,7 @@ export default function PhotoUpload() {
         </button>
 
         <p className="photo-count">
-          {Object.values(photos).filter(Boolean).length} of 4 photos uploaded
+          {Object.values(photos).filter(Boolean).length} of 2 photos uploaded
         </p>
       </div>
     </div>

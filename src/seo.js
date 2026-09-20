@@ -36,10 +36,10 @@ function upsertLink(rel, href) {
  */
 export const ROUTE_SEO = {
   '/': {
-    title: 'MingleMate — Compatibility-Based Dating for Kenyan Campus Students',
+    title: 'MingleMate — Compatibility-Based Dating for Students',
     description:
-      'MingleMate matches Kenyan university students by real relationship compatibility. Answer 50 guided questions, get two curated matches a week, and chat safely on campus.',
-    keywords: 'compatibility dating, relationship compatibility, dating app Kenya, campus dating, relationship matching',
+      'MingleMate matches university students by real relationship compatibility. Answer 50 guided questions, get two curated matches a week, and chat safely on campus.',
+    keywords: 'compatibility dating, relationship compatibility, campus dating, relationship matching',
     ogType: 'website',
     index: true,
   },
@@ -55,7 +55,7 @@ export const ROUTE_SEO = {
     title: 'MingleMate FAQ — Safety, Privacy & How Matching Works',
     description:
       'Answers to common questions about MingleMate: who can join, how matches are chosen, what it costs, and how your data and contact details stay private.',
-    keywords: 'dating app safety, dating app privacy, campus dating Kenya',
+    keywords: 'dating app safety, dating app privacy, campus dating',
     ogType: 'website',
     index: true,
   },
@@ -65,14 +65,17 @@ export const ROUTE_SEO = {
   '/profile-setup': { title: 'Profile setup — MingleMate', robots: 'noindex, nofollow', index: false },
   '/photo-upload': { title: 'Photo upload — MingleMate', robots: 'noindex, nofollow', index: false },
   '/interests': { title: 'Your interests — MingleMate', robots: 'noindex, nofollow', index: false },
-  '/onboarding': { title: 'Onboarding — MingleMate', robots: 'noindex, nofollow', index: false },
-  '/home': { title: 'Home — MingleMate', robots: 'noindex, nofollow', index: false },
+  '/home': { title: 'Matches — MingleMate', robots: 'noindex, nofollow', index: false },
+  '/discover': { title: 'Discover — MingleMate', robots: 'noindex, nofollow', index: false },
+  '/messages': { title: 'Messages — MingleMate', robots: 'noindex, nofollow', index: false },
+  '/celebration': { title: "It's a Match — MingleMate", robots: 'noindex, nofollow', index: false },
+  '/match': { title: 'Open match — MingleMate', robots: 'noindex, nofollow', index: false },
+  '/force-connect': { title: 'Force Connect — MingleMate', robots: 'noindex, nofollow', index: false },
   '/section1': { title: 'Compatibility questionnaire — MingleMate', robots: 'noindex, nofollow', index: false },
   '/section2': { title: 'Deeper questions — MingleMate', robots: 'noindex, nofollow', index: false },
   '/payment': { title: 'Unlock Section 2 — MingleMate', robots: 'noindex, nofollow', index: false },
   '/profile': { title: 'Your profile — MingleMate', robots: 'noindex, nofollow', index: false },
   '/matches': { title: 'Your matches — MingleMate', robots: 'noindex, nofollow', index: false },
-  '/dashboard': { title: 'Dashboard — MingleMate', robots: 'noindex, nofollow', index: false },
   '/photos': { title: 'Your photos — MingleMate', robots: 'noindex, nofollow', index: false },
   '/settings': { title: 'Settings — MingleMate', robots: 'noindex, nofollow', index: false },
   '/blocked': { title: 'Blocked accounts — MingleMate', robots: 'noindex, nofollow', index: false },
@@ -156,7 +159,7 @@ export function applySiteJsonLd(isIndexable) {
         '@id': `${SITE_URL}/#website`,
         url: `${SITE_URL}/`,
         name: SITE_NAME,
-        description: 'Compatibility-based dating app for Kenyan university students.',
+        description: 'Compatibility-based dating app for university students.',
         inLanguage: 'en-KE',
       },
       {

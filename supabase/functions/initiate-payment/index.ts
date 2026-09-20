@@ -18,12 +18,18 @@ function corsFor(req: Request) {
   }
 }
 
-// Server-enforced product price — the client can NEVER set this. (C2)
-const SECTION2_PRICE_KES = 200
-// STK push throttle: max pushes per user per rolling window. (C4)
-const MAX_PUSHES_PER_WINDOW = 3
-const WINDOW_MINUTES = 60
+// Server-enforced product prices — the client can NEVER set these. (C2)
+const PRICES: Record<string, number> = {
+  section2: 200,
+  force_connect: 80,
+  connect_tier1: 70,
+  connect_tier2: 50,
+  connect_qrashe: 50
+}
 const KENYAN_PHONE = /^(?:\+?254|0)(?:7\d|1\d)\d{7}$/
+// STK push throttle: max pushes per user per rolling window. (C4)
+const MAX_PUSHES_PER_WINDOW = 5
+const WINDOW_MINUTES = 60
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -52,16 +58,99 @@ serve(async (req) => {
     }
     const userId = userData.user.id
 
-    // --- INPUT: only the phone is client-supplied. (C2)
-    const { phone: rawPhone } = await req.json()
+    // --- INPUT: phone + purpose + optional recipient. Prices are
+    //     server constants; recipient is looked up server-side. (C2)
+    const { phone: rawPhone, purpose: rawPurpose, recipientId: rawRecipient } = await req.json()
+    const purpose = String(rawPurpose || 'section2')
+    if (!PRICES[purpose]) {
+      return new Response(JSON.stringify({ error: 'Unknown payment purpose' }), {
+        headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
+      })
+    }
+
     const phone = String(rawPhone || '').replace(/[\s-]/g, '')
     if (!KENYAN_PHONE.test(phone)) {
       return new Response(JSON.stringify({ error: 'Enter a valid Kenyan phone number e.g. 0712345678' }), {
         headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
       })
     }
-    // Normalize to 2547XXXXXXXX / 2541XXXXXXXX for M-Pesa
     const msisdn = phone.startsWith('0') ? `254${phone.slice(1)}` : phone.replace(/^\+/, '')
+
+    // --- CONNECT PURPOSES: validate the recipient is a real profile.
+    let recipientId: string | null = null
+    if (purpose !== 'section2') {
+      if (!rawRecipient || typeof rawRecipient !== 'string') {
+        return new Response(JSON.stringify({ error: 'Missing recipient' }), {
+          headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
+        })
+      }
+      const { data: recipient } = await admin
+        .from('users')
+        .select('id')
+        .eq('id', rawRecipient)
+        .maybeSingle()
+      if (!recipient) {
+        return new Response(JSON.stringify({ error: 'Recipient not found' }), {
+          headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
+        })
+      }
+      recipientId = recipient.id
+
+      if (recipientId === userId) {
+        return new Response(JSON.stringify({ error: 'Cannot connect with yourself' }), {
+          headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
+        })
+      }
+
+      // Connect (paid contact unlock): requires an actual pair and no
+      // prior unlock. Force Connect must not already exist either.
+      if (purpose !== 'force_connect') {
+        const { data: paired } = await admin.rpc('users_are_paired', {
+          a: userId, b: recipientId
+        })
+        if (!paired) {
+          return new Response(JSON.stringify({ error: 'You are not matched with this user' }), {
+            headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
+          })
+        }
+        const { data: existing } = await admin
+          .from('connect_unlocks')
+          .select('id')
+          .eq('buyer_id', userId)
+          .eq('seller_id', recipientId)
+          .maybeSingle()
+        if (existing) {
+          return new Response(JSON.stringify({ error: 'Contact details already unlocked' }), {
+            headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
+          })
+        }
+      } else {
+        const { data: existingMatch } = await admin
+          .from('matches')
+          .select('id')
+          .or(`and(user_a_id.eq.${userId},user_b_id.eq.${recipientId}),and(user_a_id.eq.${recipientId},user_b_id.eq.${userId})`)
+          .maybeSingle()
+        if (existingMatch) {
+          return new Response(JSON.stringify({ error: 'You are already matched with this user' }), {
+            headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
+          })
+        }
+      }
+    }
+
+    // --- SECTION2 short-circuit: already unlocked, don't charge again.
+    if (purpose === 'section2') {
+      const { data: profile } = await admin
+        .from('users')
+        .select('section2_unlocked')
+        .eq('id', userId)
+        .single()
+      if (profile?.section2_unlocked) {
+        return new Response(JSON.stringify({ error: 'Section 2 is already unlocked.' }), {
+          headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
+        })
+      }
+    }
 
     // --- RATE LIMIT: rolling window counted from payment_intents. (C4)
     const since = new Date(Date.now() - WINDOW_MINUTES * 60_000).toISOString()
@@ -76,27 +165,18 @@ serve(async (req) => {
       })
     }
 
-    // --- ALREADY UNLOCKED: short-circuit instead of charging again.
-    const { data: profile } = await admin
-      .from('users')
-      .select('section2_unlocked')
-      .eq('id', userId)
-      .single()
-    if (profile?.section2_unlocked) {
-      return new Response(JSON.stringify({ error: 'Section 2 is already unlocked.' }), {
-        headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
-      })
-    }
-
-    // --- PAYMENT INTENT: binds user + phone + SERVER-side price.
-    // The callback consumes this row; nothing unlocks without one.
+    // --- PAYMENT INTENT: binds user + phone + SERVER-side price +
+    //     purpose + recipient. The callback consumes this row;
+    //     nothing unlocks without one.
     const { data: intent, error: intentError } = await admin
       .from('payment_intents')
       .insert({
         user_id: userId,
         phone: msisdn,
-        amount: SECTION2_PRICE_KES,
-        status: 'pending'
+        amount: PRICES[purpose],
+        status: 'pending',
+        purpose,
+        recipient_user_id: recipientId
       })
       .select('id')
       .single()
@@ -120,6 +200,14 @@ serve(async (req) => {
     const timestamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14)
     const password = btoa(`${shortcode}${passkey}${timestamp}`)
 
+    const descriptions: Record<string, string> = {
+      section2: 'Section 2 Unlock',
+      force_connect: 'Force Connect',
+      connect_tier1: 'Connect Tier 1',
+      connect_tier2: 'Connect Tier 2',
+      connect_qrashe: 'Connect Qrashe'
+    }
+
     const stkRes = await fetch(
       'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest',
       {
@@ -133,13 +221,13 @@ serve(async (req) => {
           Password: password,
           Timestamp: timestamp,
           TransactionType: 'CustomerPayBillOnline',
-          Amount: SECTION2_PRICE_KES,
+          Amount: PRICES[purpose],
           PartyA: msisdn,
           PartyB: shortcode,
           PhoneNumber: msisdn,
           CallBackURL: `${callbackUrl}${callbackUrl?.includes('?') ? '&' : '?'}intent=${intent.id}`,
           AccountReference: 'MingleMate',
-          TransactionDesc: 'Section 2 Unlock'
+          TransactionDesc: descriptions[purpose]
         })
       }
     )
@@ -161,7 +249,7 @@ serve(async (req) => {
         .eq('id', intent.id)
     }
 
-    return new Response(JSON.stringify(stkData), {
+    return new Response(JSON.stringify({ ...stkData, amount: PRICES[purpose] }), {
       headers: { ...corsFor(req), 'Content-Type': 'application/json' },
       status: 200
     })

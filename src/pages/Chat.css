@@ -363,3 +363,24 @@
   padding: 8px 14px;
   cursor: pointer;
 }
+
+.chat-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.chat-connect-cta {
+  display: block;
+  width: calc(100% - 24px);
+  margin: 0 auto 8px;
+  background: #E8416B;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 11px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}

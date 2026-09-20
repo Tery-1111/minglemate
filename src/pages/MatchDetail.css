@@ -1,0 +1,161 @@
+.md-page {
+  min-height: 100vh;
+  background: #0a0a0a;
+  color: #fff;
+  padding: 24px 16px;
+  display: flex;
+  justify-content: center;
+}
+
+.md-card {
+  width: 100%;
+  max-width: 440px;
+  position: relative;
+}
+
+.md-back {
+  position: absolute;
+  top: 0;
+  left: -6px;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 22px;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.md-photo {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 18px;
+  margin-bottom: 16px;
+}
+
+.md-photo-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #141414;
+  border: 1px solid #262626;
+  font-size: 48px;
+  color: #444;
+}
+
+.md-name {
+  font-size: 22px;
+  font-weight: 800;
+  margin: 0 0 8px;
+}
+
+.md-bio {
+  color: #bbb;
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0 0 14px;
+  white-space: pre-wrap;
+}
+
+.md-interests {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.md-tag {
+  background: #1e1e1e;
+  border: 1px solid #333;
+  color: #ccc;
+  font-size: 12px;
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+.md-btn {
+  display: block;
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+
+.md-btn-primary {
+  background: #4F2D7F;
+  color: #fff;
+}
+
+.md-btn-connect {
+  background: #E8416B;
+  color: #fff;
+}
+
+.md-connect-note {
+  color: #666;
+  font-size: 12px;
+  text-align: center;
+  margin: 0 0 8px;
+}
+
+.md-unlocked {
+  background: #141414;
+  border: 1px solid #2f4f2f;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.md-unlocked h3 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.md-contacts p {
+  margin: 4px 0;
+  font-size: 14px;
+  color: #ddd;
+}
+
+.md-contacts-none {
+  color: #888 !important;
+  font-size: 13px !important;
+}
+
+.md-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.md-action {
+  flex: 1;
+  background: none;
+  border: 1px solid #333;
+  color: #888;
+  border-radius: 10px;
+  padding: 10px 0;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.md-action-warn {
+  color: #e8a04b;
+  border-color: #553a1e;
+}
+
+.md-action-msg {
+  color: #888;
+  font-size: 13px;
+  text-align: center;
+  margin-top: 10px;
+}
+
+.md-loading, .md-none {
+  text-align: center;
+  color: #666;
+}

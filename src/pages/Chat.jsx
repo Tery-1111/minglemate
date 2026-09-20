@@ -78,6 +78,8 @@ export default function Chat() {
   const [currentUser, setCurrentUser] = useState(null)
   const [currentUserData, setCurrentUserData] = useState(null)
   const [matchUser, setMatchUser] = useState(null)
+  const [unmatched, setUnmatched] = useState(false)
+  const [unlockInfo, setUnlockInfo] = useState(null)
   const [meetupConfirmed, setMeetupConfirmed] = useState(false)
   const [s2Progress, setS2Progress] = useState(null)
   const [bothUnlocked, setBothUnlocked] = useState(false)
@@ -87,6 +89,10 @@ export default function Chat() {
   const [isBlocked, setIsBlocked] = useState(false)
   const [blockedByMe, setBlockedByMe] = useState(false)
   const [blockedByThem, setBlockedByThem] = useState(false)
+  // Conversation lifecycle: active → locked (paid connect) → archived
+  // (7 days after lock; messages hidden by RLS but rows remain).
+  const [conversationStatus, setConversationStatus] = useState('active')
+  const [conversationArchived, setConversationArchived] = useState(false)
   const messagesEndRef = useRef(null)
   const currentUserRef = useRef(null)
 
@@ -123,7 +129,7 @@ export default function Chat() {
     // Match row via hardened view: no sensitive columns exist here
     const { data: matchData } = await supabase
       .from('profiles_public')
-      .select('id, full_name, interests, section2_unlocked, section2_free_expires_at, display_phone')
+      .select('id, full_name, interests, section2_unlocked, section2_free_expires_at')
       .eq('id', matchId)
       .single()
     setMatchUser(matchData)
@@ -137,6 +143,34 @@ export default function Chat() {
     setBlockedByMe(blockRows?.some(b => b.blocker_id === session.user.id) || false)
     setBlockedByThem(blockRows?.some(b => b.blocker_id === matchId) || false)
 
+    // Lifecycle row for this pair (stored ordered: a=least, b=greatest).
+    // Check the canonical orientation first — querying both arms of an
+    // ordered unique pair is unnecessary and error-prone.
+    const [pa, pb] = [session.user.id, matchId].sort()
+    const { data: convo } = await supabase
+      .from('conversations')
+      .select('status, locked_at')
+      .eq('user_a_id', pa)
+      .eq('user_b_id', pb)
+      .maybeSingle()
+    const status = convo?.status || 'active'
+    setConversationStatus(status)
+    setUnmatched(status === 'unmatched')
+    setConversationArchived(
+      status === 'locked' && convo?.locked_at &&
+      new Date(convo.locked_at) < new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    )
+
+    // Paid-unlock state drives the in-chat Connect CTA (Path A):
+    // before Connect, offer "Connect with [Name]" below the conversation.
+    const { data: unlockRow } = await supabase
+      .from('connect_unlocks')
+      .select('id, tier')
+      .eq('buyer_id', session.user.id)
+      .eq('seller_id', matchId)
+      .maybeSingle()
+    setUnlockInfo(unlockRow || null)
+
     const now = new Date()
     const myAccess = meData?.section2_unlocked ||
       (meData?.section2_free_expires_at && new Date(meData.section2_free_expires_at) > now)
@@ -144,10 +178,11 @@ export default function Chat() {
       (matchData?.section2_free_expires_at && new Date(matchData.section2_free_expires_at) > now)
     setBothUnlocked(myAccess && matchAccess)
 
-    // Server-side paywall: RPC returns contact info ONLY when the
-    // real unlock + pairing conditions hold in the database.
+    // Server-side contact reveal: paid snapshot first, then the
+    // guided-conversation free path. The RPC enforces pairing +
+    // unlock in the database — the client can never fake this.
     const { data: contactRows } = await supabase
-      .rpc('get_match_contact', { match_user_id: matchId })
+      .rpc('get_unlocked_contacts', { other_user_id: matchId })
     setMatchContact(contactRows?.[0] || null)
 
     const msgs = await reloadMessages(session.user.id, matchId)
@@ -183,7 +218,7 @@ export default function Chat() {
     }
 
     setS2Progress(currentProgress)
-    setContactsRevealed(currentProgress?.contacts_unlocked || false)
+    setContactsRevealed(currentProgress?.contacts_unlocked || !!contactRows?.[0])
 
     const weekId = getWeekId()
     const { data: engagement } = await supabase
@@ -292,6 +327,28 @@ export default function Chat() {
         .from('user_blocks')
         .insert({ blocker_id: currentUser, blocked_id: matchId })
       if (!error) setBlockedByMe(true)
+    }
+  }
+
+  // Report: lightweight moderation entry (reports table, RLS-insert own).
+  async function handleReport() {
+    const reason = prompt('What is the problem with this conversation?')
+    if (!reason) return
+    const { error } = await supabase
+      .from('reports')
+      .insert({ reporter_id: currentUser, reported_id: matchId, reason })
+    if (!error) alert('Report sent. Thank you.')
+  }
+
+  // Unmatch: pre-connect only (RPC enforces; raises after Connect).
+  async function handleUnmatch() {
+    if (!confirm('Unmatch? This ends the conversation.')) return
+    const { error } = await supabase
+      .rpc('unmatch_conversation', { other_user_id: matchId })
+    if (error) {
+      alert(error.message || 'Could not unmatch.')
+    } else {
+      setUnmatched(true)
     }
   }
 
@@ -423,22 +480,26 @@ export default function Chat() {
   return (
     <div className="chat-container">
       <div className="chat-header">
-        <button className="chat-back" onClick={() => navigate('/home')}>←</button>
+        <button className="chat-back" onClick={() => navigate('/messages')}>←</button>
         <div className="chat-match-info">
           <h3 className="chat-match-name">{matchUser?.full_name || 'Your Match'}</h3>
           <p className="chat-match-sub">
-            {s2Progress ? `${s2Progress.questions_discussed || 0}/20 questions` : 'Section 2 Chat'}
+            {s2Progress ? `${s2Progress.questions_discussed || 0}/20 questions` : 'Guided conversation'}
           </p>
         </div>
-        {!meetupConfirmed && !blockedByMe && !blockedByThem ? (
-          <button className="meetup-btn" onClick={handleMeetupConfirm}>🤝 Met Up</button>
-        ) : meetupConfirmed ? (
-          <span className="meetup-confirmed">✅ Met Up!</span>
-        ) : (
-          <button className="meetup-btn" onClick={handleBlock} title={blockedByMe ? 'Unblock' : 'Blocked'}>
+        <div className="chat-header-actions">
+          {!meetupConfirmed && !blockedByMe && !blockedByThem && conversationStatus === 'active' && (
+            <button className="meetup-btn" onClick={handleMeetupConfirm}>🤝 Met Up</button>
+          )}
+          {meetupConfirmed && <span className="meetup-confirmed">✅ Met Up!</span>}
+          <button className="meetup-btn" onClick={handleBlock} title={blockedByMe ? 'Unblock' : 'Block'}>
             {blockedByMe ? 'Unblock' : '⛔'}
           </button>
-        )}
+          <button className="meetup-btn" onClick={handleReport} title="Report">🚩</button>
+          {!unmatched && !blockedByMe && !blockedByThem && conversationStatus === 'active' && (
+            <button className="meetup-btn" onClick={handleUnmatch} title="Unmatch">Unmatch</button>
+          )}
+        </div>
       </div>
 
       {s2Progress && (
@@ -457,9 +518,12 @@ export default function Chat() {
           <div className="contact-grid">
             <div className="contact-person">
               <p className="contact-name">{matchUser.full_name}</p>
-              <p>📱 {matchContact.display_phone || matchContact.phone}</p>
-              <p>💬 {matchContact.whatsapp_number}</p>
-              <p>📧 {matchContact.email}</p>
+              {matchContact.phone && <p>📱 {matchContact.phone}</p>}
+              {matchContact.whatsapp_number && <p>💬 {matchContact.whatsapp_number}</p>}
+              {matchContact.email && <p>📧 {matchContact.email}</p>}
+              {matchContact.social_instagram && <p>📷 @{matchContact.social_instagram}</p>}
+              {matchContact.social_x && <p>𝕏 @{matchContact.social_x}</p>}
+              {matchContact.social_tiktok && <p>🎵 @{matchContact.social_tiktok}</p>}
             </div>
             <div className="contact-person">
               <p className="contact-name">You</p>
@@ -475,6 +539,25 @@ export default function Chat() {
         <div className="chat-blocked-notice">
           Conversation unavailable.
         </div>
+      )}
+
+      {conversationArchived && (
+        <div className="chat-blocked-notice">
+          This conversation is archived. History is read-only and no new messages can be sent.
+        </div>
+      )}
+      {!conversationArchived && conversationStatus === 'locked' && (
+        <div className="chat-blocked-notice">
+          🔒 Conversation locked after Connect — continue using the revealed contact details.
+        </div>
+      )}
+      {!unlockInfo && conversationStatus === 'active' && matchUser && (
+        <button
+          className="chat-connect-cta"
+          onClick={() => navigate(`/match/${matchId}`)}
+        >
+          Connect with {matchUser.full_name.split(' ')[0]} →
+        </button>
       )}
 
       <div className="chat-messages">
@@ -495,6 +578,14 @@ export default function Chat() {
       ) : blockedByThem ? (
         <div className="chat-input-area chat-input-blocked">
           <span>Messaging is unavailable.</span>
+        </div>
+      ) : conversationStatus !== 'active' ? (
+        <div className="chat-input-area chat-input-blocked">
+          <span>
+            {conversationStatus === 'locked'
+              ? 'Conversation locked — use the revealed contact details.'
+              : 'This match has ended.'}
+          </span>
         </div>
       ) : (
       <div className="chat-input-area">

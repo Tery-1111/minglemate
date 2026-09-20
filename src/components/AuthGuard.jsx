@@ -25,6 +25,13 @@ export default function AuthGuard({ children }) {
 
       if (!alive) return
       if (error) {
+        // getUser() throws AuthSessionMissingError when no session is
+        // stored at all — that is simply "logged out", not a failure.
+        // Route to login instead of showing a scary error screen.
+        if (/session missing/i.test(error.message || '') || error.code === 'session_missing') {
+          setState({ status: 'anon', error: null })
+          return
+        }
         setState({ status: 'error', error: authErrorMessage(error) })
         return
       }

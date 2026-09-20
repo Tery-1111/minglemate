@@ -1,0 +1,229 @@
+import { useState, useEffect } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { supabase } from '../supabaseClient'
+import './MatchDetail.css'
+
+// OPEN MATCH: same experience for Tier 1 / Tier 2 / Qrashe.
+// Full-body photo first, then bio, conversation access, connect
+// actions. Connect is available WITHOUT completing the guided
+// questions (Path B); the guided conversation remains Path A.
+export default function MatchDetail() {
+  const navigate = useNavigate()
+  const { userId: matchId } = useParams()
+  const [profile, setProfile] = useState(null)
+  const [bodyPhoto, setBodyPhoto] = useState(null)
+  const [facePhoto, setFacePhoto] = useState(null)
+  const [tier, setTier] = useState(null)          // 'tier1' | 'tier2' | 'qrashe'
+  const [unlock, setUnlock] = useState(null)      // my paid unlock row, if any
+  const [contacts, setContacts] = useState(null)  // revealed contacts
+  const [loading, setLoading] = useState(true)
+  const [myId, setMyId] = useState(null)
+  const [actionMsg, setActionMsg] = useState('')
+
+  useEffect(() => {
+    load()
+  }, [matchId])
+
+  async function load() {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { navigate('/'); return }
+    const uid = session.user.id
+    setMyId(uid)
+
+    // Profile (public columns only) + photos (face for header, body primary)
+    const { data: u } = await supabase
+      .from('profiles_public')
+      .select('id, full_name, age, bio, interests')
+      .eq('id', matchId)
+      .single()
+    setProfile(u || null)
+
+    const { data: photos } = await supabase
+      .from('photos')
+      .select('photo_url, photo_type')
+      .eq('user_id', matchId)
+      .order('display_order')
+    setBodyPhoto((photos || []).find(p => p.photo_type === 'full_body')?.photo_url || null)
+    setFacePhoto((photos || []).find(p => p.photo_type === 'facial')?.photo_url || null)
+
+    // Tier: Qrashe pair (matches) or weekly tier (match_history, both directions)
+    const { data: qrashe } = await supabase
+      .from('matches')
+      .select('id')
+      .or(`and(user_a_id.eq.${uid},user_b_id.eq.${matchId}),and(user_a_id.eq.${matchId},user_b_id.eq.${uid})`)
+      .eq('status', 'active')
+      .maybeSingle()
+
+    let t = null
+    if (qrashe) {
+      t = 'qrashe'
+    } else {
+      function getWeekId() {
+        const now = new Date()
+        const start = new Date(now.getFullYear(), 0, 1)
+        const week = Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7)
+        return `${now.getFullYear()}-W${week}`
+      }
+      const weekId = getWeekId()
+      const { data: mine } = await supabase
+        .from('match_history')
+        .select('tier1_match_id, tier2_match_id')
+        .eq('user_id', uid)
+        .eq('week_id', weekId)
+        .maybeSingle()
+      if (mine?.tier1_match_id === matchId) t = 'tier1'
+      else if (mine?.tier2_match_id === matchId) t = 'tier2'
+      else {
+        const { data: theirs } = await supabase
+          .from('match_history')
+          .select('user_id, tier1_match_id, tier2_match_id')
+          .eq('user_id', matchId)
+          .eq('week_id', weekId)
+          .maybeSingle()
+        if (theirs?.tier1_match_id === uid) t = 'tier1'
+        else if (theirs?.tier2_match_id === uid) t = 'tier2'
+      }
+    }
+    setTier(t)
+
+    // Paid unlock state: hides Connect and enables the contact card.
+    const { data: unlockRow } = await supabase
+      .from('connect_unlocks')
+      .select('id')
+      .eq('buyer_id', uid)
+      .eq('seller_id', matchId)
+      .maybeSingle()
+    setUnlock(unlockRow)
+
+    if (unlockRow) {
+      const { data: c } = await supabase.rpc('get_unlocked_contacts', { other_user_id: matchId })
+      setContacts(c?.[0] || null)
+    }
+
+    setLoading(false)
+  }
+
+  function connectPurpose() {
+    if (tier === 'tier1') return { purpose: 'connect_tier1', price: 'KSh 70' }
+    if (tier === 'tier2') return { purpose: 'connect_tier2', price: 'KSh 50' }
+    return { purpose: 'connect_qrashe', price: 'KSh 50' }
+  }
+
+  function goConnect() {
+    const { purpose } = connectPurpose()
+    navigate(`/payment?purpose=${purpose}&recipientId=${matchId}`)
+  }
+
+  async function handleUnmatch() {
+    if (!confirm('Unmatch? This ends the conversation. This cannot be done after Connect.')) return
+    const { error } = await supabase.rpc('unmatch_conversation', { other_user_id: matchId })
+    setActionMsg(error ? (error.message || 'Could not unmatch.') : 'Unmatched.')
+    if (!error) setTimeout(() => navigate('/matches'), 800)
+  }
+
+  async function handleBlock() {
+    if (!confirm('Block this person? You will not be able to message each other.')) return
+    const { error } = await supabase
+      .from('user_blocks')
+      .insert({ blocker_id: myId, blocked_id: matchId })
+    setActionMsg(error ? (error.message || 'Could not block.') : 'Blocked.')
+    if (!error) setTimeout(() => navigate('/matches'), 800)
+  }
+
+  async function handleReport() {
+    const reason = prompt('What is the problem with this profile?')
+    if (!reason) return
+    const { error } = await supabase
+      .from('reports')
+      .insert({ reporter_id: myId, reported_id: matchId, reason })
+    setActionMsg(error ? (error.message || 'Could not report.') : 'Report sent. Thank you.')
+  }
+
+  if (loading) {
+    return <div className="md-page"><p className="md-loading">Loading…</p></div>
+  }
+
+  if (!profile) {
+    return (
+      <div className="md-page">
+        <div className="md-card"><p className="md-none">Profile not found.</p></div>
+      </div>
+    )
+  }
+
+  const { price } = connectPurpose()
+
+  return (
+    <div className="md-page">
+      <div className="md-card">
+        <button className="md-back" onClick={() => navigate(-1)}>←</button>
+
+        {bodyPhoto ? (
+          <img src={bodyPhoto} alt={profile.full_name} className="md-photo" />
+        ) : facePhoto ? (
+          <img src={facePhoto} alt={profile.full_name} className="md-photo" />
+        ) : (
+          <div className="md-photo md-photo-empty">👤</div>
+        )}
+
+        <h1 className="md-name">{profile.full_name}, {profile.age}</h1>
+        {profile.bio && <p className="md-bio">{profile.bio}</p>}
+
+        {profile.interests && profile.interests.length > 0 && (
+          <div className="md-interests">
+            {profile.interests.slice(0, 6).map(tag => (
+              <span key={tag} className="md-tag">{tag}</span>
+            ))}
+          </div>
+        )}
+
+        {!unlock && (
+          <>
+            <button className="md-btn md-btn-primary" onClick={() => navigate(`/chat/${matchId}`)}>
+              Start Conversation →
+            </button>
+            <button className="md-btn md-btn-connect" onClick={goConnect}>
+              Connect with {profile.full_name.split(' ')[0]} · {price}
+            </button>
+            <p className="md-connect-note">
+              Connect unlocks their contact details according to their sharing choices.
+            </p>
+          </>
+        )}
+
+        {unlock && (
+          <div className="md-unlocked">
+            <h3>🎉 Connected</h3>
+            {contacts && (
+              <div className="md-contacts">
+                {contacts.phone && <p>📱 {contacts.phone}</p>}
+                {contacts.whatsapp_number && <p>💬 {contacts.whatsapp_number}</p>}
+                {contacts.email && <p>📧 {contacts.email}</p>}
+                {contacts.social_instagram && <p>📷 @{contacts.social_instagram}</p>}
+                {contacts.social_x && <p>𝕏 @{contacts.social_x}</p>}
+                {contacts.social_tiktok && <p>🎵 @{contacts.social_tiktok}</p>}
+                {!contacts.phone && !contacts.whatsapp_number && !contacts.email &&
+                  !contacts.social_instagram && !contacts.social_x && !contacts.social_tiktok && (
+                    <p className="md-contacts-none">They haven't enabled any contact sharing yet.</p>
+                  )}
+              </div>
+            )}
+            <button className="md-btn md-btn-primary" onClick={() => navigate(`/chat/${matchId}`)}>
+              Open Conversation (read-only after Connect)
+            </button>
+          </div>
+        )}
+
+        <div className="md-actions">
+          {!unlock && (
+            <button className="md-action md-action-warn" onClick={handleUnmatch}>Unmatch</button>
+          )}
+          <button className="md-action" onClick={handleBlock}>Block</button>
+          <button className="md-action" onClick={handleReport}>Report</button>
+        </div>
+
+        {actionMsg && <p className="md-action-msg">{actionMsg}</p>}
+      </div>
+    </div>
+  )
+}

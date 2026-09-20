@@ -253,3 +253,10 @@
   font-weight: 600;
   text-align: center;
 }
+.matches-section-title {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  margin: 22px 0 10px;
+}

@@ -34,47 +34,45 @@ export default function Matches() {
       .eq('week_id', weekId)
       .maybeSingle()
 
-    if (!matchHistory) {
-      setLoading(false)
-      return
+    // Qrashe matches (Force Connect pairs, both sides)
+    const { data: qrasheRows } = await supabase
+      .from('matches')
+      .select('user_a_id, user_b_id')
+      .or(`user_a_id.eq.${session.user.id},user_b_id.eq.${session.user.id}`)
+      .eq('status', 'active')
+
+    const qrasheIds = (qrasheRows || []).map(m =>
+      m.user_a_id === session.user.id ? m.user_b_id : m.user_a_id
+    )
+
+    async function hydrate(id) {
+      const { data: u } = await supabase
+        .from('profiles_public')
+        .select('id, full_name, age, bio, interests, gender, section2_unlocked')
+        .eq('id', id)
+        .single()
+      if (!u) return null
+      const { data: photos } = await supabase
+        .from('photos')
+        .select('photo_url, photo_type')
+        .eq('user_id', id)
+        .order('display_order')
+      return { ...u, photos: photos || [] }
     }
 
     let tier1 = null
     let tier2 = null
 
-    if (matchHistory.tier1_match_id) {
-      const { data: t1User } = await supabase
-        .from('profiles_public')
-        .select('id, full_name, age, bio, interests, gender, section2_unlocked')
-        .eq('id', matchHistory.tier1_match_id)
-        .single()
+    if (matchHistory?.tier1_match_id) tier1 = await hydrate(matchHistory.tier1_match_id)
+    if (matchHistory?.tier2_match_id) tier2 = await hydrate(matchHistory.tier2_match_id)
 
-      const { data: t1Photos } = await supabase
-        .from('photos')
-        .select('photo_url, photo_type')
-        .eq('user_id', matchHistory.tier1_match_id)
-        .order('display_order')
-
-      tier1 = { ...t1User, photos: t1Photos || [] }
+    const qrashe = []
+    for (const id of qrasheIds) {
+      const q = await hydrate(id)
+      if (q) qrashe.push(q)
     }
 
-    if (matchHistory.tier2_match_id) {
-      const { data: t2User } = await supabase
-        .from('profiles_public')
-        .select('id, full_name, age, bio, interests, gender, section2_unlocked')
-        .eq('id', matchHistory.tier2_match_id)
-        .single()
-
-      const { data: t2Photos } = await supabase
-        .from('photos')
-        .select('photo_url, photo_type')
-        .eq('user_id', matchHistory.tier2_match_id)
-        .order('display_order')
-
-      tier2 = { ...t2User, photos: t2Photos || [] }
-    }
-
-    setMatches({ tier1, tier2, deliveredAt: matchHistory.delivered_at })
+    setMatches({ tier1, tier2, qrashe, deliveredAt: matchHistory?.delivered_at })
     setLoading(false)
   }
 
@@ -86,105 +84,81 @@ export default function Matches() {
     )
   }
 
-  if (!matches) {
+  const hasAny = matches && (matches.tier1 || matches.tier2 || (matches.qrashe && matches.qrashe.length > 0))
+
+  if (!hasAny) {
     return (
       <div className="matches-empty">
         <div className="matches-empty-icon">💝</div>
         <h2>No matches yet</h2>
         <p>Your matches drop every Tuesday at 9 PM</p>
         <p className="matches-tip">Complete Section 1 to enter the match pool</p>
-        <button className="matches-s1-btn" onClick={() => navigate('/section1')}>
-          Go to Section 1 →
+        <button className="matches-s1-btn" onClick={() => navigate('/discover')}>
+          Explore Discover →
         </button>
       </div>
     )
   }
 
+  // ONE screen, three sections: Tier 1 / Tier 2 / Qrashe. No tabs.
   return (
     <div className="matches-container">
-      <h2 className="matches-heading">Your Matches This Week</h2>
-      <p className="matches-week">
-        Week of {new Date(matches.deliveredAt).toLocaleDateString()}
-      </p>
-
       {matches.tier1 && (
-        <MatchCard
-          match={matches.tier1}
-          tier="Tier 1"
-          tierLabel="Similarity Match"
-          tierColor="#4F2D7F"
-          currentUserId={userId}
-          weekId={getWeekId()}
-          onChat={() => navigate(`/chat/${matches.tier1.id}`)}
-        />
+        <section>
+          <h2 className="matches-section-title" style={{ color: '#4F2D7F' }}>Tier 1 Matches</h2>
+          <MatchCard
+            match={matches.tier1}
+            tier="Tier 1"
+            tierLabel="Similarity Match"
+            tierColor="#4F2D7F"
+            currentUserId={userId}
+            weekId={getWeekId()}
+            onOpen={() => navigate(`/match/${matches.tier1.id}`)}
+          />
+        </section>
       )}
 
       {matches.tier2 && (
-        <MatchCard
-          match={matches.tier2}
-          tier="Tier 2"
-          tierLabel="Complementary Match"
-          tierColor="#E8416B"
-          currentUserId={userId}
-          weekId={getWeekId()}
-          onChat={() => navigate(`/chat/${matches.tier2.id}`)}
-        />
+        <section>
+          <h2 className="matches-section-title" style={{ color: '#E8416B' }}>Tier 2 Matches</h2>
+          <MatchCard
+            match={matches.tier2}
+            tier="Tier 2"
+            tierLabel="Complementary Match"
+            tierColor="#E8416B"
+            currentUserId={userId}
+            weekId={getWeekId()}
+            onOpen={() => navigate(`/match/${matches.tier2.id}`)}
+          />
+        </section>
+      )}
+
+      {matches.qrashe && matches.qrashe.length > 0 && (
+        <section>
+          <h2 className="matches-section-title" style={{ color: '#b794f6' }}>Qrashe Matches</h2>
+          {matches.qrashe.map(q => (
+            <MatchCard
+              key={q.id}
+              match={q}
+              tier="Qrashe"
+              tierLabel="Force Connect"
+              tierColor="#6b46c1"
+              currentUserId={userId}
+              weekId={getWeekId()}
+              onOpen={() => navigate(`/match/${q.id}`)}
+            />
+          ))}
+        </section>
       )}
     </div>
   )
 }
 
-function MatchCard({ match, tier, tierLabel, tierColor, currentUserId, weekId, onChat }) {
-  const navigate = useNavigate()
-  const [currentPhoto, setCurrentPhoto] = useState(0)
-  const [promptSent, setPromptSent] = useState(false)
-  const [gifting, setGifting] = useState(false)
-  const [prompting, setPrompting] = useState(false)
-
-  useEffect(() => {
-    checkPromptSent()
-  }, [])
-
-  async function checkPromptSent() {
-    const { data } = await supabase
-      .from('payment_prompts')
-      .select('id')
-      .eq('sender_user_id', currentUserId)
-      .eq('recipient_user_id', match.id)
-      .eq('match_week_id', weekId)
-      .maybeSingle()
-    setPromptSent(!!data)
-  }
-
-  async function handleGift() {
-    setGifting(true)
-    const { error } = await supabase
-      .from('gift_transactions')
-      .insert({
-        gifter_user_id: currentUserId,
-        recipient_user_id: match.id,
-        match_week_id: weekId,
-        status: 'pending'
-      })
-    if (!error) {
-      navigate('/payment?gift=true&recipientId=' + match.id)
-    }
-    setGifting(false)
-  }
-
-  async function handlePrompt() {
-    setPrompting(true)
-    await supabase
-      .from('payment_prompts')
-      .insert({
-        sender_user_id: currentUserId,
-        recipient_user_id: match.id,
-        match_week_id: weekId
-      })
-    setPromptSent(true)
-    setPrompting(false)
-    alert('Payment prompt sent to your match!')
-  }
+function MatchCard({ match, tier, tierLabel, tierColor, onOpen }) {
+  // Reconciliation pass: the old gift/prompt actions (gift_transactions /
+  // payment_prompts) were a parallel payment path superseded by the
+  // purpose-based Connect system. Removed from the card; the tables
+  // remain in the DB for historical rows.
 
   return (
     <div className="match-card">
@@ -194,22 +168,13 @@ function MatchCard({ match, tier, tierLabel, tierColor, currentUserId, weekId, o
 
       {match.photos && match.photos.length > 0 ? (
         <div className="match-photos">
+          {/* Cards show the FACIAL photo; full-body is shown on the
+              opened match screen. */}
           <img
-            src={match.photos[currentPhoto]?.photo_url}
+            src={(match.photos.find(p => p.photo_type === 'facial') || match.photos[0]).photo_url}
             alt={match.full_name}
             className="match-photo"
           />
-          {match.photos.length > 1 && (
-            <div className="photo-dots">
-              {match.photos.map((_, i) => (
-                <button
-                  key={i}
-                  className={`photo-dot ${i === currentPhoto ? 'active' : ''}`}
-                  onClick={() => setCurrentPhoto(i)}
-                />
-              ))}
-            </div>
-          )}
         </div>
       ) : (
         <div className="match-no-photo">
@@ -220,47 +185,10 @@ function MatchCard({ match, tier, tierLabel, tierColor, currentUserId, weekId, o
       <div className="match-info">
         <h3 className="match-name">{match.full_name}</h3>
         <p className="match-age">{match.age} years old</p>
-        <p className="match-bio">{match.bio}</p>
 
-        {match.interests && match.interests.length > 0 && (
-          <div className="match-interests">
-            {match.interests.slice(0, 4).map((tag, i) => (
-              <span key={i} className="match-tag">{tag}</span>
-            ))}
-          </div>
-        )}
-
-        <button className="match-chat-btn" onClick={onChat}>
-          Start Conversation →
+        <button className="match-chat-btn" onClick={onOpen}>
+          Open Match →
         </button>
-
-        {!match.section2_unlocked && (
-          <div className="match-gift-section">
-            <p className="gift-label">💭 Section 2 not unlocked</p>
-            <div className="gift-buttons">
-              <button
-                className="gift-btn"
-                onClick={handleGift}
-                disabled={gifting}
-              >
-                {gifting ? 'Processing...' : '🎁 Gift Section 2'}
-              </button>
-              <button
-                className="prompt-btn"
-                onClick={handlePrompt}
-                disabled={promptSent || prompting}
-              >
-                {promptSent ? '✅ Prompt Sent' : prompting ? 'Sending...' : '💬 Ask Them to Unlock'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {match.section2_unlocked && (
-          <div className="match-s2-unlocked">
-            ✅ Section 2 unlocked — deeper matching active
-          </div>
-        )}
       </div>
     </div>
   )
