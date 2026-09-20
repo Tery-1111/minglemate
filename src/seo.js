@@ -59,6 +59,14 @@ export const ROUTE_SEO = {
     ogType: 'website',
     index: true,
   },
+  '/terms': {
+    title: 'MingleMate Terms of Service — User Agreement',
+    description:
+      'The MingleMate user agreement: eligibility, account rules, matching disclaimers, prohibited conduct, content licensing, privacy, liability, and Kenyan governing law.',
+    keywords: 'terms of service, user agreement, dating app terms',
+    ogType: 'website',
+    index: true,
+  },
   // ---- Everything below is private / user-specific: noindex, minimal metadata ----
   '/signup': { title: 'Create your MingleMate account', robots: 'noindex, nofollow', index: false },
   '/login': { title: 'Log in — MingleMate', robots: 'noindex, nofollow', index: false },

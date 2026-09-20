@@ -106,6 +106,24 @@ export default function Signup() {
             />
           </div>
 
+          {/* Electronic acceptance per Terms clause 29: a recorded,
+              affirmative action. Native `required` blocks submission
+              until checked. */}
+          <label style={styles.termsRow}>
+            <input
+              type="checkbox"
+              required
+              disabled={loading}
+              style={styles.checkbox}
+            />
+            <span>
+              I am 18+ and agree to the{' '}
+              <Link to="/terms" target="_blank" style={styles.link}>
+                Terms of Service
+              </Link>
+            </span>
+          </label>
+
           <button
             type="submit"
             disabled={loading}
@@ -215,6 +233,23 @@ const styles = {
     fontWeight: '700',
     marginTop: '10px',
     transition: 'opacity 0.2s',
+  },
+  termsRow: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '10px',
+    fontSize: '13px',
+    color: '#888888',
+    lineHeight: 1.5,
+    marginTop: '4px',
+  },
+  checkbox: {
+    marginTop: '2px',
+    accentColor: '#E8416B',
+    width: '16px',
+    height: '16px',
+    flexShrink: 0,
+    cursor: 'pointer',
   },
   footer: {
     textAlign: 'center',

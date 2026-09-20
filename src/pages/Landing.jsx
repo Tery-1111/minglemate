@@ -31,6 +31,9 @@ export default function Landing() {
           <Link to="/faq" style={{ color: '#b9b3c6', textDecoration: 'none' }}>
             FAQ
           </Link>
+          <Link to="/terms" style={{ color: '#b9b3c6', textDecoration: 'none' }}>
+            Terms
+          </Link>
         </nav>
       </div>
     </div>
