@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import { track, identifyUser } from '../lib/analytics';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -12,6 +13,9 @@ export default function Signup() {
   const handleSignup = async (e) => {
     e.preventDefault();
     if (loading) return;
+
+    // Analytics: the person pressed Sign Up (no email or password is sent).
+    track('signup_started');
 
     setLoading(true);
     setError(null);
@@ -46,12 +50,18 @@ export default function Signup() {
           /row-level security/i.test(profileError.message || '');
 
         if (profileError && !isRlsSessionless) throw profileError;
-        
+
+        // Analytics: account created. Only the user ID is shared, never the email.
+        identifyUser(authData.user.id);
+        track('signup_completed');
+
         // 3. Navigation is safe: auth user exists, profile row exists
         // (created by trigger if the upsert above was skipped).
         navigate('/profile-setup');
       }
     } catch (err) {
+      // Analytics: signup failed (no error text is sent, it could hold personal data).
+      track('signup_failed');
       setError(err.message || 'An error occurred during account registration.');
       console.error('Signup pipeline error:', err);
     } finally {
