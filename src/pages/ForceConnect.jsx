@@ -3,9 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import './ForceConnect.css'
 
-// FORCE CONNECT: selection/confirmation for the KSh 80 payment that
-// creates a Qrashe match. The recipient is notified and cannot
-// decline — stated plainly on this screen.
+// FORCE CONNECT: confirmation for the KSh 80 payment that creates a
+// Qrashe match. Receipt pattern (matches the Payment screen that
+// follows): who, what you pay, what happens — stated plainly. The
+// recipient is notified and cannot decline.
 export default function ForceConnect() {
   const navigate = useNavigate()
   const { userId } = useParams()
@@ -42,41 +43,78 @@ export default function ForceConnect() {
   }
 
   if (loading) {
-    return <div className="fc-page"><p className="fc-loading">Loading…</p></div>
+    return (
+      <div className="fc-page">
+        <p className="fc-loading loading-dots">Loading</p>
+      </div>
+    )
   }
 
   if (!profile) {
     return (
       <div className="fc-page">
-        <div className="fc-card"><p className="fc-none">Profile not found.</p></div>
+        <div className="fc-card">
+          <button className="fc-back" onClick={() => navigate('/discover')}>← Back</button>
+          <div className="fc-missing">
+            <h1 className="fc-missing-title">Profile not found</h1>
+            <p className="fc-missing-sub">
+              This person may no longer be available. Head back to Discover
+              to see who's here this week.
+            </p>
+            <button className="fc-btn" onClick={() => navigate('/discover')}>
+              Back to Discover
+            </button>
+          </div>
+        </div>
       </div>
     )
   }
 
+  const firstName = profile.full_name.split(' ')[0]
+
   return (
     <div className="fc-page">
       <div className="fc-card">
-        <button className="fc-back" onClick={() => navigate('/discover')}>←</button>
-        <h1 className="fc-title">Force Connect</h1>
+        <button className="fc-back" onClick={() => navigate('/discover')}>← Back</button>
 
-        {face ? (
-          <img src={face} alt={profile.full_name} className="fc-photo" />
-        ) : (
-          <div className="fc-photo fc-photo-empty">👤</div>
-        )}
+        <p className="fc-eyebrow">Force Connect</p>
+        <h1 className="fc-title">Connect with {firstName} now</h1>
 
-        <p className="fc-name">{profile.full_name}, {profile.age}</p>
-
-        <div className="fc-price">
-          <span className="fc-amount">KSh 80</span>
-          <span className="fc-label">one-time · via M-Pesa</span>
+        <div className="fc-person">
+          {face ? (
+            <img src={face} alt={profile.full_name} className="fc-photo" loading="lazy" />
+          ) : (
+            <span className="fc-photo fc-photo-empty" aria-hidden="true">{firstName.charAt(0)}</span>
+          )}
+          <div className="fc-person-info">
+            <span className="fc-name">{profile.full_name}, {profile.age}</span>
+            <span className="fc-person-sub">Not matched with you yet — that's what this does.</span>
+          </div>
         </div>
 
-        <ul className="fc-facts">
-          <li>You'll be matched immediately after payment.</li>
-          <li>{profile.full_name.split(' ')[0]} will be notified — Force Connects can't be declined.</li>
-          <li>A conversation opens for both of you right away.</li>
-        </ul>
+        <div className="fc-receipt" aria-label="Purchase summary">
+          <div className="fc-receipt-row fc-receipt-total">
+            <span>You pay</span>
+            <strong className="fc-amount">KSh 80</strong>
+          </div>
+          <div className="fc-receipt-row">
+            <span>You get</span>
+            <strong>An instant Qrashe match with {firstName}</strong>
+          </div>
+          <div className="fc-receipt-row">
+            <span>Then</span>
+            <strong>A conversation opens for both of you</strong>
+          </div>
+          <div className="fc-receipt-row">
+            <span>Charged</span>
+            <strong>Once · via M-Pesa</strong>
+          </div>
+        </div>
+
+        <p className="fc-honest">
+          {firstName} will be notified and <strong>cannot decline</strong> a
+          Force Connect. Please use it thoughtfully.
+        </p>
 
         <button
           className="fc-btn"
@@ -84,6 +122,11 @@ export default function ForceConnect() {
         >
           Continue to Payment →
         </button>
+
+        <p className="fc-note">
+          The price is set by MingleMate and can't be altered. Payment is
+          verified before the match is created.
+        </p>
       </div>
     </div>
   )

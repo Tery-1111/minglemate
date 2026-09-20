@@ -1,8 +1,12 @@
+/* FORCE CONNECT — confirmation before the KSh 80 payment.
+   Receipt pattern shared with the Payment screen: who, what you pay,
+   what happens. Honest about the cannot-decline mechanic. */
+
 .fc-page {
   min-height: 100vh;
   background: var(--bg);
-  color: #fff;
-  padding: 24px 16px;
+  color: var(--text-primary);
+  padding: var(--space-5) var(--space-4);
   display: flex;
   justify-content: center;
 }
@@ -11,93 +15,182 @@
   width: 100%;
   max-width: 400px;
   position: relative;
-  text-align: center;
+  align-self: center;
 }
 
 .fc-back {
-  position: absolute;
-  top: 0;
-  left: -6px;
-  background: none;
+  background: transparent;
   border: none;
-  color: #fff;
-  font-size: 22px;
+  color: var(--text-muted);
+  font-size: var(--fs-secondary);
   cursor: pointer;
+  display: block;
+  margin-bottom: var(--space-5);
+  padding: 4px 0;
+}
+
+.fc-back:hover { color: var(--text-secondary); }
+.fc-back:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+.fc-eyebrow {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: var(--space-2);
 }
 
 .fc-title {
-  font-size: 24px;
-  font-weight: 800;
-  margin: 0 0 18px;
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: var(--lh-tight);
+  margin-bottom: var(--space-5);
+}
+
+/* Person block — same shape as Payment's recipient block */
+.fc-person {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
 }
 
 .fc-photo {
-  width: 160px;
-  height: 160px;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-pill);
   object-fit: cover;
-  border-radius: 50%;
-  margin: 0 auto 12px;
-  display: block;
+  flex-shrink: 0;
 }
 
 .fc-photo-empty {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  font-size: 48px;
-  color: var(--text-muted);
+  background: var(--surface-active);
+  color: var(--text-secondary);
+  font-weight: 650;
+  font-size: 20px;
 }
+
+.fc-person-info { min-width: 0; }
 
 .fc-name {
-  font-size: 17px;
-  font-weight: 700;
-  margin: 0 0 16px;
+  display: block;
+  color: var(--text-primary);
+  font-weight: 650;
+  font-size: var(--fs-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.fc-price {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 14px;
-  margin-bottom: 16px;
+.fc-person-sub {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--fs-meta);
+  margin-top: 1px;
 }
+
+/* Receipt — mirrors Payment.css so the two screens read as one flow */
+.fc-receipt {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: var(--space-4);
+}
+
+.fc-receipt-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-secondary);
+}
+
+.fc-receipt-row:last-child { border-bottom: none; }
+
+.fc-receipt-row > span {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.fc-receipt-row > strong {
+  color: var(--text-secondary);
+  font-weight: 550;
+  text-align: right;
+}
+
+.fc-receipt-total { background: var(--surface-raised); }
+.fc-receipt-total > span { color: var(--text-primary); font-weight: 650; }
 
 .fc-amount {
-  display: block;
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--accent);
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
-.fc-label {
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-.fc-facts {
-  text-align: left;
+/* The honest mechanic — said once, plainly */
+.fc-honest {
   color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 1.6;
-  padding-left: 18px;
-  margin: 0 0 20px;
+  font-size: var(--fs-secondary);
+  line-height: var(--lh-snug);
+  margin-bottom: var(--space-5);
 }
+
+.fc-honest strong { color: var(--text-primary); }
 
 .fc-btn {
   width: 100%;
+  padding: 15px;
   background: var(--accent);
-  color: #fff;
+  color: var(--text-on-accent);
   border: none;
-  border-radius: 12px;
-  padding: 14px;
+  border-radius: var(--radius-md);
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 650;
   cursor: pointer;
+  transition: background var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
 }
 
-.fc-loading, .fc-none {
-  text-align: center;
+.fc-btn:hover:not(:disabled) { background: #ef5680; }
+.fc-btn:active:not(:disabled) { background: var(--accent-strong); transform: scale(0.985); }
+.fc-btn:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }
+
+.fc-note {
+  font-size: var(--fs-meta);
   color: var(--text-muted);
+  line-height: var(--lh-snug);
+  margin-top: var(--space-4);
+  text-align: center;
+}
+
+/* Missing-profile state */
+.fc-missing {
+  padding-top: var(--space-6);
+}
+
+.fc-missing-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.fc-missing-sub {
+  color: var(--text-muted);
+  font-size: var(--fs-secondary);
+  line-height: var(--lh-snug);
+  margin-bottom: var(--space-5);
 }
