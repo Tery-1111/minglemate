@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import BottomNav from '../components/BottomNav'
 import './Matches.css'
 
 export default function Matches() {
@@ -80,6 +81,7 @@ export default function Matches() {
     return (
       <div className="matches-page">
         <p className="matches-loading loading-dots">Loading your matches</p>
+        <BottomNav />
       </div>
     )
   }
@@ -98,6 +100,7 @@ export default function Matches() {
             Explore Discover
           </button>
         </div>
+        <BottomNav />
       </div>
     )
   }
@@ -150,6 +153,8 @@ export default function Matches() {
           ))}
         </section>
       )}
+
+      <BottomNav />
     </div>
   )
 }

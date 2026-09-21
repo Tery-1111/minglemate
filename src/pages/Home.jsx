@@ -129,7 +129,7 @@ export default function Home() {
         </div>
       </div>
 
-      <BottomNav />
+      {!user?.section1_complete && <BottomNav />}
     </div>
   )
 }
