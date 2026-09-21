@@ -208,6 +208,13 @@ serve(async (req) => {
       connect_qrashe: 'Connect Qrashe'
     }
 
+    // --- CALLBACK BINDING: a per-intent secret (server-generated
+    //     random, stored on the intent row) is appended to the
+    //     CallBackURL. The callback handler requires it to match
+    //     before trusting anything in the payload — forged or
+    //     replayed callbacks without it are rejected. (R1)
+    const callbackKey = crypto.randomUUID()
+
     const stkRes = await fetch(
       'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest',
       {
@@ -225,7 +232,7 @@ serve(async (req) => {
           PartyA: msisdn,
           PartyB: shortcode,
           PhoneNumber: msisdn,
-          CallBackURL: `${callbackUrl}${callbackUrl?.includes('?') ? '&' : '?'}intent=${intent.id}`,
+          CallBackURL: `${callbackUrl}${callbackUrl?.includes('?') ? '&' : '?'}intent=${intent.id}&ck=${callbackKey}`,
           AccountReference: 'MingleMate',
           TransactionDesc: descriptions[purpose]
         })
@@ -234,13 +241,14 @@ serve(async (req) => {
 
     const stkData = await stkRes.json()
 
-    // Record checkout id so the callback can match the intent even
-    // if the query param is stripped by a relay; mark failures so
-    // the rate-limit window isn't poisoned by dead intents.
+    // Record checkout id + callback key so the callback can match and
+    // verify the intent even if the query param is stripped by a
+    // relay; mark failures so the rate-limit window isn't poisoned
+    // by dead intents.
     if (stkData?.CheckoutRequestID) {
       await admin
         .from('payment_intents')
-        .update({ checkout_request_id: stkData.CheckoutRequestID })
+        .update({ checkout_request_id: stkData.CheckoutRequestID, callback_key: callbackKey })
         .eq('id', intent.id)
     } else {
       await admin

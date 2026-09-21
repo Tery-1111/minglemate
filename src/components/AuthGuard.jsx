@@ -75,15 +75,15 @@ export default function AuthGuard({ children }) {
       <div style={{
         minHeight: '100vh', display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center', gap: 12,
-        background: '#0a0a0a', padding: 24, fontFamily: 'inherit'
+        background: 'var(--bg)', padding: 24, fontFamily: 'inherit'
       }}>
-        <p style={{ color: '#E8416B', margin: 0, textAlign: 'center', maxWidth: 360 }}>
+        <p style={{ color: 'var(--danger)', margin: 0, textAlign: 'center', maxWidth: 360 }}>
           {state.error}
         </p>
         <button
           onClick={() => { setState({ status: 'loading', error: null }); location.pathname && window.location.reload() }}
           style={{
-            background: '#E8416B', color: '#fff', border: 'none',
+            background: 'var(--accent)', color: 'var(--text-on-accent)', border: 'none',
             padding: '10px 24px', borderRadius: 8, fontWeight: 700, cursor: 'pointer'
           }}
         >
@@ -92,7 +92,7 @@ export default function AuthGuard({ children }) {
         <button
           onClick={() => window.location.assign('/login')}
           style={{
-            background: 'transparent', color: '#888', border: '1px solid #333',
+            background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border-strong)',
             padding: '10px 24px', borderRadius: 8, fontWeight: 600, cursor: 'pointer'
           }}
         >

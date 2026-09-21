@@ -103,15 +103,13 @@ serve(async (req) => {
         ? [firstProfile, secondProfile]
         : [secondProfile, firstProfile]
       const result = calculateCompatibility(userA, userB)
-      if (result.dealbreakers.length > 0) continue
 
       matches.push({
         user_a_id: userA.id,
         user_b_id: userB.id,
         compatibility_score: Math.round(result.overall),
         compatibility_drivers: {
-          dimensions: result.dimensions,
-          dealbreakers: result.dealbreakers
+          dimensions: result.dimensions
         },
         status: 'pending',
         is_visible: true

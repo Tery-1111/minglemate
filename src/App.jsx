@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
-import { useEffect, lazy, Suspense } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
+import { supabase } from './supabaseClient'
 import { applySeo, applySiteJsonLd, applyWebAppJsonLd, ROUTE_SEO } from './seo'
+import MaintenanceBanner from './components/MaintenanceBanner'
 import AuthGuard from './components/AuthGuard'
 import Landing from './pages/Landing'
 import HowItWorks from './pages/HowItWorks'
@@ -63,10 +65,30 @@ function SeoManager() {
 }
 
 function App() {
+  // Maintenance banner: app_settings is public-read; when the message
+  // is non-empty, a dismissible banner shows app-wide. Empty (the
+  // default) renders nothing.
+  const [maintenanceMessage, setMaintenanceMessage] = useState('')
+
+  useEffect(() => {
+    let active = true
+    supabase
+      .from('app_settings')
+      .select('maintenance_message')
+      .eq('id', 1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (active && data?.maintenance_message) setMaintenanceMessage(data.maintenance_message)
+      })
+    return () => { active = false }
+  }, [])
 
   return (
     <BrowserRouter>
       <SeoManager />
+      {maintenanceMessage && (
+        <MaintenanceBanner message={maintenanceMessage} onDismiss={() => setMaintenanceMessage('')} />
+      )}
       <Routes>
         <Route path='/' element={<Landing />} />
         <Route path='/matches-info' element={<HowItWorks />} />

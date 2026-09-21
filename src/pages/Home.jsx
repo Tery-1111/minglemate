@@ -110,7 +110,7 @@ export default function Home() {
         <div className="tab-content-full">
           {!user?.section1_complete ? (
             <div className="matches-placeholder">
-              <div className="matches-icon">💝</div>
+              <div className="brand-roundel">M</div>
               <h2>Your matches drop</h2>
               <p>Every Tuesday at 9 PM</p>
               <div className="matches-badge">

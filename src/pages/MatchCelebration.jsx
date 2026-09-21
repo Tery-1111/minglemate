@@ -63,7 +63,9 @@ export default function MatchCelebration() {
   return (
     <div className="celebration-page">
       <div className="celebration-card">
-        <div className="celebration-hearts">💕</div>
+        <svg className="celebration-heart" viewBox="0 0 24 24" width="52" height="52" fill="var(--champagne)" aria-hidden="true">
+          <path d="M12 21c-5.6-3.8-9-7-9-10.8C3 7.3 5.2 5 8 5c1.6 0 3.1.8 4 2 .9-1.2 2.4-2 4-2 2.8 0 5 2.3 5 5.2 0 3.8-3.4 7-9 10.8z" />
+        </svg>
         <h1 className="celebration-title">It's a Match!</h1>
         <p className="celebration-sub">
           The algorithm found your weekly connections.
@@ -71,14 +73,19 @@ export default function MatchCelebration() {
 
         <div className="celebration-cards">
           {[
-            { label: 'Similarity Match', person: tier1, color: '#4F2D7F' },
-            { label: 'Complementary Match', person: tier2, color: '#E8416B' },
+            { label: 'Similarity Match', person: tier1, color: 'var(--accent)' },
+            { label: 'Complementary Match', person: tier2, color: 'var(--champagne)' },
           ].filter(c => c.person).map(c => (
             <div key={c.person.id} className="celebration-person">
               {c.person.face ? (
                 <img src={c.person.face} alt={c.person.full_name} className="celebration-photo" />
               ) : (
-                <div className="celebration-photo celebration-photo-empty">👤</div>
+                <div className="celebration-photo celebration-photo-empty" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                    <circle cx="12" cy="8" r="4" />
+                    <path d="M4.5 20.5c1.2-3.5 4-5.5 7.5-5.5s6.3 2 7.5 5.5" />
+                  </svg>
+                </div>
               )}
               <div className="celebration-person-name">{c.person.full_name}, {c.person.age}</div>
               <div className="celebration-tier" style={{ color: c.color }}>{c.label}</div>

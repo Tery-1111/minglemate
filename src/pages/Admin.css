@@ -16,9 +16,10 @@
 }
 
 .admin-login-card h2 {
+  font-family: var(--font-display);
   font-size: 28px;
-  font-weight: 800;
-  color: white;
+  font-weight: 600;
+  color: var(--text-primary);
   margin-bottom: 8px;
 }
 
@@ -46,15 +47,16 @@
 }
 
 .admin-header h1 {
+  font-family: var(--font-display);
   font-size: 20px;
-  font-weight: 800;
-  color: white;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .admin-back {
   background: transparent;
-  border: 1px solid rgba(255,255,255,0.4);
-  color: white;
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
   padding: 6px 14px;
   border-radius: 20px;
   font-size: 13px;
@@ -91,7 +93,7 @@
 .admin-section h2 {
   font-size: 18px;
   font-weight: 700;
-  color: white;
+  color: var(--text-primary);
   margin-bottom: 16px;
 }
 
@@ -108,7 +110,7 @@
   background: var(--surface-raised);
   border: 1px solid var(--border-strong);
   border-radius: 10px;
-  color: white;
+  color: var(--text-primary);
   font-size: 15px;
   outline: none;
   margin-bottom: 8px;
@@ -119,7 +121,7 @@
 }
 
 .admin-error {
-  color: var(--accent);
+  color: var(--danger);
   font-size: 14px;
   margin-bottom: 12px;
 }
@@ -128,7 +130,7 @@
   width: 100%;
   padding: 12px;
   background: var(--accent);
-  color: white;
+  color: var(--text-on-accent);
   border: none;
   border-radius: 10px;
   font-size: 15px;
@@ -153,7 +155,7 @@
 .campus-info h3 {
   font-size: 16px;
   font-weight: 700;
-  color: white;
+  color: var(--text-primary);
   margin-bottom: 4px;
 }
 
@@ -190,8 +192,8 @@
 }
 
 .toggle-btn.on {
-  background: #1a7a4a;
-  color: white;
+  background: var(--positive);
+  color: var(--bg);
 }
 
 .toggle-btn.off {
@@ -203,7 +205,7 @@
   width: 100%;
   padding: 10px;
   background: var(--accent);
-  color: white;
+  color: var(--text-on-accent);
   border: none;
   border-radius: 10px;
   font-size: 14px;
@@ -292,8 +294,8 @@
   border-radius: 10px; border: 1px solid var(--border-strong); color: var(--text-muted);
   margin-left: 6px; text-transform: uppercase; letter-spacing: 0.4px;
 }
-.chip-ok { border-color: #1d7a3e; color: #4ade80; }
-.chip-warn { border-color: #7a5b1d; color: #facc15; }
+.chip-ok { border-color: var(--positive); color: var(--positive); }
+.chip-warn { border-color: var(--warning); color: var(--warning); }
 
 .admin-pager { display: flex; align-items: center; gap: 12px; margin: 12px 0; }
 .admin-pager .admin-btn { padding: 6px 12px; }
@@ -306,7 +308,7 @@
 .admin-detail { margin-top: 20px; }
 .admin-detail h3 { margin: 14px 0 6px; font-size: 15px; color: var(--text-primary); }
 .admin-detail-grid p { margin: 3px 0; font-size: 13px; }
-.admin-bio { color: #aaa; border-left: 2px solid var(--border-strong); padding-left: 8px; }
+.admin-bio { color: var(--text-secondary); border-left: 2px solid var(--border-strong); padding-left: 8px; }
 
 .admin-photos { display: flex; gap: 12px; margin: 10px 0; }
 .admin-photos figure { margin: 0; }

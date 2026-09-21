@@ -30,7 +30,7 @@
 }
 
 .campus-badge {
-  background: rgba(232, 65, 107, 0.08);
+  background: var(--accent-soft);
   color: var(--accent);
   padding: 10px 16px;
   border-radius: 10px;
@@ -63,7 +63,7 @@
 
 .bio-counter {
   font-size: 12px;
-  color: #aaa;
+  color: var(--text-muted);
   margin-top: -10px;
   margin-bottom: 14px;
   text-align: right;
@@ -91,7 +91,7 @@
 .gender-btn.active {
   border-color: var(--accent);
   background: var(--accent);
-  color: white;
+  color: var(--text-on-accent);
 }
 
 .profile-error {
@@ -104,7 +104,7 @@
   width: 100%;
   padding: 14px;
   background: var(--accent);
-  color: white;
+  color: var(--text-on-accent);
   border: none;
   border-radius: 10px;
   font-size: 16px;
@@ -136,6 +136,6 @@
   margin-bottom: 16px;
   line-height: 1.5;
   padding: 10px;
-  background: rgba(232, 65, 107, 0.08);
+  background: var(--champagne-soft);
   border-radius: 8px;
 }

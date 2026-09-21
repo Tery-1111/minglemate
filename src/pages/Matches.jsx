@@ -90,7 +90,7 @@ export default function Matches() {
     return (
       <div className="matches-page">
         <div className="matches-empty">
-          <div className="matches-empty-icon">💝</div>
+          <div className="brand-roundel">M</div>
           <h2 className="matches-empty-title display">No matches yet</h2>
           <p>Your matches drop every <strong>Tuesday at 9 PM</strong></p>
           <p className="matches-tip">Complete Section 1 to enter the match pool</p>
@@ -175,7 +175,14 @@ function MatchCard({ match, tier, onOpen }) {
       {facial ? (
         <img src={facial.photo_url} alt="" className="match-photo" loading="lazy" />
       ) : (
-        <div className="match-photo match-photo-empty" aria-hidden="true">{firstName.charAt(0).toUpperCase() || '👤'}</div>
+        <div className="match-photo match-photo-empty" aria-hidden="true">
+          {firstName ? firstName.charAt(0).toUpperCase() : (
+            <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4.5 20.5c1.2-3.5 4-5.5 7.5-5.5s6.3 2 7.5 5.5" />
+            </svg>
+          )}
+        </div>
       )}
 
       {/* Cards show the FACIAL photo; full-body is shown on the opened

@@ -203,7 +203,7 @@
   transition: background var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
 }
 
-.pay-btn:hover:not(:disabled) { background: #ef5680; }
+.pay-btn:hover:not(:disabled) { background: var(--accent-hover); }
 .pay-btn:active:not(:disabled) { background: var(--accent-strong); transform: scale(0.985); }
 .pay-btn:disabled { opacity: 0.4; }
 .pay-btn:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }
@@ -278,7 +278,7 @@
   margin: 0 auto;
   border-radius: var(--radius-pill);
   background: var(--positive);
-  color: #fff;
+  color: var(--bg);
   font-size: 26px;
   font-weight: 700;
   display: flex;

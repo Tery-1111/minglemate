@@ -1,7 +1,7 @@
 .messages-page {
   min-height: 100vh;
   background: var(--bg);
-  color: #fff;
+  color: var(--text-primary);
   padding: 24px 16px;
 }
 
@@ -35,7 +35,7 @@
   border-radius: 14px;
   padding: 12px;
   cursor: pointer;
-  color: #fff;
+  color: var(--text-primary);
 }
 
 .message-row:hover {
@@ -56,7 +56,7 @@
   justify-content: center;
   background: var(--surface-raised);
   font-size: 20px;
-  color: #555;
+  color: var(--text-muted);
 }
 
 .message-row-main {
@@ -99,12 +99,14 @@
 }
 
 .empty-icon {
-  font-size: 40px;
+  display: flex;
+  justify-content: center;
   margin-bottom: 8px;
+  color: var(--text-muted);
 }
 
 .messages-empty h2 {
-  color: #fff;
+  color: var(--text-primary);
   margin: 0 0 6px;
   font-size: 18px;
 }

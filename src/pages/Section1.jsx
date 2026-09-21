@@ -62,7 +62,7 @@ export default function Section1() {
         }
       } catch (err) {
         console.error("Survey sync disruption:", err);
-        setError("Failed to coordinate profile progress maps safely.");
+        setError("We couldn't load your questionnaire. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -117,13 +117,13 @@ export default function Section1() {
       }
     } catch (err) {
       console.error("Answer upload crash execution:", err);
-      setError("Failed to preserve selected metrics sequence indices securely.");
+      setError("We couldn't save that answer. Check your connection and try again.");
     } finally {
       setIsSaving(false);
     }
   };
 
-  if (loading) return <div style={styles.centerContainer}>⚡ Loading Structural Survey Matrix...</div>;
+  if (loading) return <div style={styles.centerContainer}><span className="loading-dots">Loading your questionnaire</span></div>;
   if (error) return <div style={styles.centerContainer}><div style={styles.alertBox}>{error}</div></div>;
 
   const currentQuestion = CAMPUS_QUESTIONS[current];
@@ -131,7 +131,7 @@ export default function Section1() {
   return (
     <div style={styles.container}>
       <div style={styles.surveyCard}>
-        {/* Progress Matrix Indicator Bar */}
+        {/* Progress bar */}
         <div style={styles.progressBarWrapper}>
           <div 
             style={{ 
@@ -156,8 +156,10 @@ export default function Section1() {
               onClick={() => handleSelectOption(idx)}
               style={{
                 ...styles.optionButton,
-                background: answers[current] === idx ? 'rgba(232, 65, 107, 0.2)' : '#1a1a1a',
-                borderColor: answers[current] === idx ? '#E8416B' : '#333333',
+                // answers hold option TEXT (see handleSelectOption); compare
+                // text-to-text so a revisited question shows its saved choice.
+                background: answers[current] === option ? 'var(--accent-soft)' : 'var(--surface-raised)',
+                borderColor: answers[current] === option ? 'var(--accent)' : 'var(--border-strong)',
                 cursor: isSaving ? 'not-allowed' : 'pointer'
               }}
             >
@@ -183,7 +185,7 @@ export default function Section1() {
 const styles = {
   container: {
     minHeight: '100vh',
-    background: '#0a0a0a',
+    background: 'var(--bg)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -192,8 +194,8 @@ const styles = {
   },
   centerContainer: {
     minHeight: '100vh',
-    background: '#0a0a0a',
-    color: '#888888',
+    background: 'var(--bg)',
+    color: 'var(--text-muted)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -202,33 +204,33 @@ const styles = {
   surveyCard: {
     width: '100%',
     maxWidth: '480px',
-    background: '#141414',
-    border: '1px solid #262626',
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
     borderRadius: '16px',
     padding: '32px 24px'
   },
   progressBarWrapper: {
     width: '100%',
     height: '6px',
-    background: '#262626',
+    background: 'var(--surface-active)',
     borderRadius: '3px',
     marginBottom: '20px',
     overflow: 'hidden'
   },
   progressBarFill: {
     height: '100%',
-    background: '#E8416B',
+    background: 'var(--accent)',
     transition: 'width 0.3s ease-in-out'
   },
   counterText: {
-    color: '#888888',
+    color: 'var(--text-muted)',
     fontSize: '13px',
     fontWeight: '600',
     marginBottom: '8px',
     textTransform: 'uppercase'
   },
   questionTitle: {
-    color: '#ffffff',
+    color: 'var(--text-primary)',
     fontSize: '20px',
     fontWeight: '700',
     lineHeight: '1.4',
@@ -244,9 +246,9 @@ const styles = {
     width: '100%',
     textAlign: 'left',
     padding: '16px',
-    color: '#ffffff',
+    color: 'var(--text-primary)',
     fontSize: '15px',
-    border: '1px solid #333333',
+    border: '1px solid var(--border-strong)',
     borderRadius: '10px',
     transition: 'all 0.15s ease',
     outline: 'none'
@@ -254,7 +256,7 @@ const styles = {
   backBtn: {
     background: 'none',
     border: 'none',
-    color: '#666666',
+    color: 'var(--text-muted)',
     fontSize: '13px',
     fontWeight: '600',
     cursor: 'pointer',
@@ -263,9 +265,9 @@ const styles = {
     transition: 'color 0.2s'
   },
   alertBox: {
-    background: 'rgba(232, 65, 107, 0.1)',
-    border: '1px solid #E8416B',
-    color: '#E8416B',
+    background: 'var(--danger-soft)',
+    border: '1px solid var(--danger)',
+    color: 'var(--danger)',
     padding: '12px 20px',
     borderRadius: '8px'
   }

@@ -4,7 +4,7 @@
   align-items: center;
   justify-content: center;
   background: var(--bg);
-  color: white;
+  color: var(--text-primary);
 }
 
 .profile-page {
@@ -27,7 +27,7 @@
 .profile-back {
   background: transparent;
   border: none;
-  color: white;
+  color: var(--text-primary);
   font-size: 24px;
   cursor: pointer;
 }
@@ -35,17 +35,23 @@
 .profile-heading {
   font-size: 18px;
   font-weight: 700;
-  color: white;
+  color: var(--text-primary);
 }
 
 .profile-edit-btn {
   background: transparent;
-  border: 1px solid rgba(255,255,255,0.4);
-  color: white;
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
   padding: 6px 14px;
   border-radius: 20px;
   font-size: 13px;
   cursor: pointer;
+}
+
+.profile-edit-btn:focus-visible,
+.profile-action-btn:focus-visible {
+  outline: 2px solid var(--champagne);
+  outline-offset: 2px;
 }
 
 .profile-photos {
@@ -72,7 +78,7 @@
   margin-top: 12px;
   padding: 10px 20px;
   background: var(--accent);
-  color: white;
+  color: var(--text-on-accent);
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -83,9 +89,11 @@
 }
 
 .profile-name {
+  font-family: var(--font-display);
   font-size: 26px;
-  font-weight: 800;
-  color: white;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
   margin-bottom: 4px;
 }
 
@@ -122,11 +130,16 @@
   background: var(--surface-raised);
   border: 2px solid var(--border-strong);
   border-radius: 10px;
-  color: white;
+  color: var(--text-primary);
   font-size: 15px;
-  font-family: Arial, sans-serif;
+  font-family: inherit;
   resize: none;
   outline: none;
+}
+
+.profile-bio-input:focus,
+.profile-select:focus {
+  border-color: var(--accent);
 }
 
 .profile-select {
@@ -135,7 +148,7 @@
   background: var(--surface-raised);
   border: 2px solid var(--border-strong);
   border-radius: 10px;
-  color: white;
+  color: var(--text-primary);
   font-size: 15px;
   outline: none;
 }
@@ -143,7 +156,7 @@
 .profile-save-btn {
   padding: 14px;
   background: var(--accent);
-  color: white;
+  color: var(--text-on-accent);
   border: none;
   border-radius: 10px;
   font-size: 16px;
@@ -158,7 +171,7 @@
 .profile-interests h3 {
   font-size: 16px;
   font-weight: 700;
-  color: white;
+  color: var(--text-primary);
   margin-bottom: 12px;
 }
 
@@ -185,7 +198,7 @@
 .profile-action-btn {
   padding: 14px;
   background: var(--surface-raised);
-  color: white;
+  color: var(--text-primary);
   border: 2px solid var(--border-strong);
   border-radius: 10px;
   font-size: 15px;
@@ -211,7 +224,7 @@
 }
 
 .profile-error-text {
-  color: var(--accent);
+  color: var(--danger);
   font-size: 13px;
   margin: 8px 0;
 }
@@ -239,8 +252,8 @@
 }
 
 .prompt-edit-block {
-  background: #161620;
-  border: 1px solid #262633;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px;
   margin-bottom: 8px;
@@ -262,7 +275,7 @@
 .prompt-remove {
   background: none;
   border: none;
-  color: #6b6b80;
+  color: var(--text-muted);
   font-size: 14px;
   cursor: pointer;
   padding: 2px 6px;
@@ -271,9 +284,9 @@
 .prompt-answer-input {
   width: 100%;
   background: var(--bg);
-  border: 1px solid #3a3a4d;
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
-  color: #fff;
+  color: var(--text-primary);
   font-size: 14px;
   padding: 8px 10px;
   resize: vertical;
@@ -295,10 +308,10 @@
 
 .prompt-choice {
   text-align: left;
-  background: #161620;
-  border: 1px dashed #3a3a4d;
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
   border-radius: 10px;
-  color: #c9c9d4;
+  color: var(--text-secondary);
   font-size: 13px;
   padding: 10px 12px;
   cursor: pointer;
@@ -306,7 +319,7 @@
 
 .prompt-choice:hover {
   border-color: var(--accent);
-  color: #fff;
+  color: var(--text-primary);
 }
 
 .interests-editor {
@@ -316,19 +329,19 @@
 }
 
 .interest-chip {
-  background: #161620;
-  border: 1px solid #3a3a4d;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
   border-radius: 16px;
-  color: #c9c9d4;
+  color: var(--text-secondary);
   font-size: 13px;
   padding: 6px 12px;
   cursor: pointer;
 }
 
 .interest-chip.selected {
-  background: rgba(232, 65, 107, 0.18);
+  background: var(--accent-soft);
   border-color: var(--accent);
-  color: #ff8fab;
+  color: var(--text-primary);
 }
 
 .profile-prompts {
@@ -339,8 +352,8 @@
 }
 
 .profile-prompt {
-  background: #161620;
-  border: 1px solid #262633;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 10px 12px;
 }
@@ -353,7 +366,7 @@
 }
 
 .profile-prompt-a {
-  color: #e6e6ee;
+  color: var(--text-secondary);
   font-size: 14px;
   margin: 0;
 }
@@ -380,7 +393,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #ddd;
+  color: var(--text-secondary);
   font-size: 14px;
   margin-bottom: 10px;
   cursor: pointer;

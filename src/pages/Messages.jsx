@@ -163,7 +163,11 @@ export default function Messages() {
 
       {items && items.length === 0 && (
         <div className="messages-empty">
-          <div className="empty-icon">💬</div>
+          <div className="empty-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12a8 8 0 0 1-8 8H5.5L3 21.5V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z" />
+            </svg>
+          </div>
           <h2>No conversations yet</h2>
           <p>Your matches will appear here.</p>
         </div>
@@ -179,7 +183,12 @@ export default function Messages() {
             {item.photo ? (
               <img src={item.photo} alt={item.profile.full_name} className="message-avatar" />
             ) : (
-              <div className="message-avatar message-avatar-empty">👤</div>
+              <div className="message-avatar message-avatar-empty" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M4.5 20.5c1.2-3.5 4-5.5 7.5-5.5s6.3 2 7.5 5.5" />
+                </svg>
+              </div>
             )}
             <div className="message-row-main">
               <div className="message-row-top">

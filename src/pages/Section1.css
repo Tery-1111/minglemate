@@ -4,7 +4,7 @@
   align-items: center;
   justify-content: center;
   background: var(--bg);
-  color: white;
+  color: var(--text-secondary);
   font-size: 18px;
 }
 
@@ -27,7 +27,7 @@
 .s1-back {
   background: transparent;
   border: none;
-  color: white;
+  color: var(--text-primary);
   font-size: 24px;
   cursor: pointer;
   padding: 4px 8px;
@@ -67,9 +67,10 @@
 }
 
 .s1-question {
-  font-size: 20px;
-  font-weight: 700;
-  color: white;
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 600;
+  color: var(--text-primary);
   line-height: 1.5;
   margin-bottom: 32px;
 }
@@ -94,13 +95,13 @@
 
 .s1-choice:hover {
   border-color: var(--accent);
-  color: white;
+  color: var(--text-primary);
 }
 
 .s1-choice.selected {
   background: var(--accent);
   border-color: var(--accent);
-  color: white;
+  color: var(--text-on-accent);
 }
 
 .s1-choice:disabled {
