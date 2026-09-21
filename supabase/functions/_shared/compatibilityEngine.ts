@@ -12,7 +12,6 @@ export interface CompatibilityScore {
     expectations: number
     values: number
   }
-  dealbreakers: string[]
 }
 
 type Dimension = keyof CompatibilityScore['dimensions']
@@ -53,45 +52,13 @@ function scoreDimension(userA: UserProfile, userB: UserProfile, questions: numbe
   return (matchingAnswers / answeredQuestions.length) * 100
 }
 
-export function hasDealbreaker(userA: UserProfile, userB: UserProfile): {
-  isDealbreaker: boolean
-  reason: string | null
-} {
-  const relationshipAnswers = [userA.answers[31], userB.answers[31]]
-  if (relationshipAnswers.includes('Serious relationship') && relationshipAnswers.includes('Curious')) {
-    return {
-      isDealbreaker: true,
-      reason: 'Different relationship intentions: Serious relationship and Curious'
-    }
-  }
-
-  const importanceAnswers = [userA.answers[36], userB.answers[36]]
-  if (importanceAnswers.includes('Extremely important') && importanceAnswers.includes('Not important')) {
-    return {
-      isDealbreaker: true,
-      reason: 'Incompatible importance preferences: Extremely important and Not important'
-    }
-  }
-
-  return { isDealbreaker: false, reason: null }
-}
-
 export function calculateCompatibility(userA: UserProfile, userB: UserProfile): CompatibilityScore {
-  const dealbreaker = hasDealbreaker(userA, userB)
   const dimensions = {
     communication: scoreDimension(userA, userB, dimensionQuestions.communication),
     conflict: scoreDimension(userA, userB, dimensionQuestions.conflict),
     emotional: scoreDimension(userA, userB, dimensionQuestions.emotional),
     expectations: scoreDimension(userA, userB, dimensionQuestions.expectations),
     values: scoreDimension(userA, userB, dimensionQuestions.values)
-  }
-
-  if (dealbreaker.isDealbreaker) {
-    return {
-      overall: 0,
-      dimensions,
-      dealbreakers: [dealbreaker.reason as string]
-    }
   }
 
   const overall =
@@ -103,7 +70,6 @@ export function calculateCompatibility(userA: UserProfile, userB: UserProfile): 
 
   return {
     overall,
-    dimensions,
-    dealbreakers: []
+    dimensions
   }
 }

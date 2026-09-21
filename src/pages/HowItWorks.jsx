@@ -63,12 +63,6 @@ export default function HowItWorks() {
             rather than cause friction.
           </li>
         </ul>
-        <p>
-          Dealbreaker logic runs first: if two people's core intentions don't
-          line up — for example one wants something serious and the other is
-          just curious — they're never matched, no matter how similar they
-          look on paper.
-        </p>
 
         <h2>Chat that starts with real questions</h2>
         <p>

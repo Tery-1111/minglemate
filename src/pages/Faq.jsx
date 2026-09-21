@@ -12,7 +12,7 @@ const FAQS = [
   },
   {
     q: 'How are my matches chosen?',
-    a: 'You answer 50 questions across five compatibility dimensions — communication, conflict, emotional style, expectations, and values. Each week the matching engine delivers two students from your campus: your most similar match and a complementary one. Core dealbreakers are filtered out first.',
+    a: 'You answer 50 questions across five compatibility dimensions — communication, conflict, emotional style, expectations, and values. Each week the matching engine delivers two students from your campus: your most similar match and a complementary one.',
   },
   {
     q: 'Is MingleMate free?',
