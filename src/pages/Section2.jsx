@@ -7,7 +7,7 @@ const section2Questions = [
   "If we were matched by the algorithm, what would you hope to learn about me before meeting in person?",
   "What do you feel are your strongest traits that a partner should know about, and what are your weaknesses they should understand?",
   "If you could wake up tomorrow with one new ability or quality, what would it be and why?",
-  "What's somhing you've always wanted to try on campus but haven't, and what's stopping you?",
+  "What's something you've always wanted to try on campus but haven't, and what's stopping you?",
   "What does a perfect day on campus look like for you? Include academics, social life, and personal time.",
   "How do you define friendship at this stage of your life, and what role does it play in your relationships?",
   "Take four minutes and tell your life story — what do you think is most important for me to know about you?",
