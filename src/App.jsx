@@ -11,6 +11,7 @@ import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
 import Signup from './pages/Signup'
 import Login from './pages/Login'
+import VerifyCode from './pages/VerifyCode'
 
 // PERF: route-level code splitting. The landing/marketing routes stay
 // eager (fast first paint for visitors); the 12 authenticated app
@@ -97,6 +98,7 @@ function App() {
         <Route path='/privacy' element={<Privacy />} />
         <Route path='/signup' element={<Signup />} />
         <Route path='/login' element={<Login />} />
+        <Route path='/verify-code' element={<VerifyCode />} />
         <Route path='/profile-setup' element={<AuthGuard><Suspense fallback={<RouteFallback />}><ProfileSetup /></Suspense></AuthGuard>} />
         <Route path='/photo-upload' element={<AuthGuard><Suspense fallback={<RouteFallback />}><PhotoUpload /></Suspense></AuthGuard>} />
         <Route path='/interests' element={<AuthGuard><Suspense fallback={<RouteFallback />}><Interests /></Suspense></AuthGuard>} />

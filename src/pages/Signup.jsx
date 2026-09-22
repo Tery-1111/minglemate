@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import { track, identifyUser } from '../lib/analytics';
+import { track } from '../lib/analytics';
 import Turnstile from '../components/Turnstile';
 
 export default function Signup() {
@@ -55,15 +55,16 @@ export default function Signup() {
           /row-level security/i.test(profileError.message || '');
 
         if (profileError && !isRlsSessionless) throw profileError;
-
-        // Analytics: account created. Only the user ID is shared, never the email.
-        identifyUser(authData.user.id);
-        track('signup_completed');
-
-        // 3. Navigation is safe: auth user exists, profile row exists
-        // (created by trigger if the upsert above was skipped).
-        navigate('/profile-setup');
       }
+
+      // 3. Email confirmation flow: no session exists yet, so we do NOT
+      // navigate into the app. The user verifies a 6-digit code next.
+      // With "Confirm email" on, an ALREADY-REGISTERED address returns
+      // the same shape (a user with an empty identities array), so both
+      // cases take this exact same path — the response never reveals
+      // whether an email exists.
+      track('signup_code_sent');
+      navigate('/verify-code', { state: { email } });
     } catch (err) {
       // Analytics: signup failed (no error text is sent, it could hold personal data).
       track('signup_failed');
