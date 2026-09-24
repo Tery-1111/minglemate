@@ -38,9 +38,10 @@ export default function Signup() {
         // 2. Profile row: the DB trigger (fix_rls.sql) already creates it
         // via SECURITY DEFINER. This upsert is a fallback for setups
         // without the trigger — e.g. email-confirmation-disabled flows
-        // where the client DOES have a session here. If it fails with
-        // RLS (session-less confirmation flow), the trigger has it
-        // covered, so treat that specific case as success.
+        // where the client DOES have a session here. Its failure must
+        // never block the code screen: the auth account and the email
+        // with the code already exist at this point, so the only correct
+        // next step is verification. Logged, not thrown.
         const { error: profileError } = await supabase
           .from('users')
           .upsert({
@@ -50,11 +51,9 @@ export default function Signup() {
             created_at: new Date().toISOString(),
           });
 
-        const isRlsSessionless =
-          profileError &&
-          /row-level security/i.test(profileError.message || '');
-
-        if (profileError && !isRlsSessionless) throw profileError;
+        if (profileError) {
+          console.error('Profile fallback upsert failed:', profileError.message);
+        }
       }
 
       // 3. Email confirmation flow: no session exists yet, so we do NOT
@@ -66,6 +65,16 @@ export default function Signup() {
       track('signup_code_sent');
       navigate('/verify-code', { state: { email } });
     } catch (err) {
+      // Newer GoTrue versions reject an already-registered address with a
+      // 422 "user_already_exists" instead of the silent empty-identities
+      // 200 response. Treat it exactly like the silent case: show the
+      // code screen so the response never reveals which emails exist.
+      // No signup_code_sent here: no code was actually sent on this path.
+      if (err?.code === 'user_already_exists') {
+        navigate('/verify-code', { state: { email } });
+        return;
+      }
+
       // Analytics: signup failed (no error text is sent, it could hold personal data).
       track('signup_failed');
       setError(err.message || 'An error occurred during account registration.');
