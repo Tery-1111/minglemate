@@ -21,7 +21,12 @@ export default function VerifyCode() {
   const [resending, setResending] = useState(false)
   const [resendsUsed, setResendsUsed] = useState(0)
   const [tooMany, setTooMany] = useState(false)
-  const [resendError, setResendError] = useState('')
+  // Seeded when the caller (Login) already tried to send a code and it
+  // failed — the user must know none is on its way. Same message the
+  // screen's own resend button shows on failure.
+  const [resendError, setResendError] = useState(
+    location.state?.resendFailed ? "Couldn't send a new code. Please try again shortly." : ''
+  )
 
   const inputRef = useRef(null)
   useEffect(() => { inputRef.current?.focus() }, [])

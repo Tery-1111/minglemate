@@ -35,11 +35,14 @@ export default function Login() {
     if (authError) {
       // Correct password + unconfirmed email: Supabase refuses the grant
       // with code "email_not_confirmed". Send one fresh code, then let
-      // the user confirm on the code screen — same flow as signup.
+      // the user confirm on the code screen — same flow as signup. If
+      // the send itself fails (rate limit, SMTP outage), still route to
+      // the code screen but flag it, so it shows its resend-error
+      // message instead of implying a code is already on its way.
       if (authError.code === 'email_not_confirmed') {
-        await supabase.auth.resend({ type: 'signup', email })
+        const { error: resendError } = await supabase.auth.resend({ type: 'signup', email })
         setLoading(false)
-        navigate('/verify-code', { state: { email }, replace: true })
+        navigate('/verify-code', { state: { email, resendFailed: !!resendError }, replace: true })
         return
       }
 
