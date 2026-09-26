@@ -33,6 +33,7 @@ export default function Section2() {
   const [currentAnswer, setCurrentAnswer] = useState('')
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
   const [locked, setLocked] = useState(false)
   const [userId, setUserId] = useState(null)
   const [daysLeft, setDaysLeft] = useState(null)
@@ -91,11 +92,21 @@ export default function Section2() {
     if (!currentAnswer.trim()) return
     setSaving(true)
 
-    await supabase.from('section2_responses').upsert({
+    // onConflict mirrors the table's (user_id, question_number) unique
+    // constraint: retakes re-answer existing questions, and without it
+    // the upsert threw a duplicate-key error nobody surfaced.
+    const { error: saveError } = await supabase.from('section2_responses').upsert({
       user_id: userId,
       question_number: current + 1,
       answer_text: currentAnswer.trim()
-    })
+    }, { onConflict: 'user_id,question_number' })
+
+    if (saveError) {
+      console.error('Section 2 save failed:', saveError)
+      setError("We couldn't save that answer. Check your connection and try again.")
+      setSaving(false)
+      return
+    }
 
     const newAnswers = { ...answers, [current + 1]: currentAnswer.trim() }
     setAnswers(newAnswers)
@@ -182,6 +193,12 @@ export default function Section2() {
         />
 
         <p className="s2-char-count">{currentAnswer.length} characters</p>
+
+        {error && (
+          <p style={{ color: 'var(--danger, #e5484d)', fontSize: 13, margin: '0 0 12px' }}>
+            {error}
+          </p>
+        )}
 
         <button
           className="s2-btn"
