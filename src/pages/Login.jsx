@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import Turnstile from '../components/Turnstile'
 import PasswordField from '../components/PasswordField'
+import GoogleButton from '../components/GoogleButton'
 import './Login.css'
 
-// Password-only login. There is deliberately no OTP or magic-link step
-// here: the only code screen in the app is /verify-code, which handles
-// the one case a password login cannot complete on its own — a correct
-// password on an email that was never confirmed.
+// Login: email+password, or Google as the one OAuth alternative. There is
+// deliberately no OTP or magic-link step here: the only code screen in the
+// app is /verify-code, which handles the one case a password login cannot
+// complete on its own — a correct password on an email that was never
+// confirmed. Google users are always email-confirmed and skip it entirely.
 export default function Login() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
@@ -99,6 +101,10 @@ export default function Login() {
               options.captchaToken (Supabase CAPTCHA protection). */}
           <Turnstile onToken={setCaptchaToken} />
         </form>
+
+        {/* Google OAuth — same-window redirect; session is picked up by
+            detectSessionInUrl on return and AuthGuard routes the user in. */}
+        <GoogleButton onError={() => setError("Couldn't start Google sign-in. Please try again.")} />
 
         <p className="login-signup">
           Forgot password?{' '}

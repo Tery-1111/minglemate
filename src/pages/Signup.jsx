@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import { track } from '../lib/analytics';
 import Turnstile from '../components/Turnstile';
 import PasswordField from '../components/PasswordField';
+import GoogleButton from '../components/GoogleButton';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -153,6 +154,12 @@ export default function Signup() {
           >
             {loading ? 'Creating Profile...' : 'Sign Up'}
           </button>
+
+          {/* Google OAuth — the one-tap alternative to the email form.
+              Same-window redirect; session is picked up by
+              detectSessionInUrl on return and AuthGuard routes the user
+              in — a first-time Google user never sees /verify-code. */}
+          <GoogleButton onError={() => setError("Couldn't start Google sign-in. Please try again.")} />
 
           {/* Cloudflare Turnstile — token passed to signUp via
               options.captchaToken (Supabase CAPTCHA protection). */}
