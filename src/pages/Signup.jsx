@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { track } from '../lib/analytics';
 import Turnstile from '../components/Turnstile';
+import PasswordField from '../components/PasswordField';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -111,7 +112,7 @@ export default function Signup() {
 
           <div style={styles.inputGroup}>
             <label style={styles.label}>Password</label>
-            <input
+            <PasswordField
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

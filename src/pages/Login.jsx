@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import Turnstile from '../components/Turnstile'
+import PasswordField from '../components/PasswordField'
 import './Login.css'
 
 // Password-only login. There is deliberately no OTP or magic-link step
@@ -74,7 +75,7 @@ export default function Login() {
             required
             disabled={loading}
           />
-          <input
+          <PasswordField
             className="login-input"
             type="password"
             placeholder="Password"
@@ -98,6 +99,11 @@ export default function Login() {
               options.captchaToken (Supabase CAPTCHA protection). */}
           <Turnstile onToken={setCaptchaToken} />
         </form>
+
+        <p className="login-signup">
+          Forgot password?{' '}
+          <span onClick={() => navigate('/forgot-password')}>Reset it</span>
+        </p>
 
         <p className="login-signup">
           No account?{' '}
