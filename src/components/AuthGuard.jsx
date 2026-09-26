@@ -39,6 +39,15 @@ export default function AuthGuard({ children }) {
         setState({ status: 'anon', error: null })
         return
       }
+      // Email-confirmation gate: password signups get a session token
+      // but email_confirmed_at stays null until the 6-digit code is
+      // verified — those users are bounced to the code screen. OAuth
+      // users (e.g. Google) always have email_confirmed_at set, so they
+      // pass straight through and never see the code screen.
+      if (!data.user.email_confirmed_at) {
+        setState({ status: 'unconfirmed', error: null, email: data.user.email })
+        return
+      }
       setState({ status: 'authed', error: null })
     }
 
@@ -104,6 +113,12 @@ export default function AuthGuard({ children }) {
 
   if (state.status === 'anon') {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  }
+
+  if (state.status === 'unconfirmed') {
+    // Password signup that never finished email confirmation: the only
+    // way forward is the 6-digit code screen.
+    return <Navigate to="/verify-code" replace state={{ email: state.email }} />
   }
 
   return children

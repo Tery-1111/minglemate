@@ -4,138 +4,105 @@ import { supabase } from '../supabaseClient'
 import Turnstile from '../components/Turnstile'
 import './Login.css'
 
+// Password-only login. There is deliberately no OTP or magic-link step
+// here: the only code screen in the app is /verify-code, which handles
+// the one case a password login cannot complete on its own — a correct
+// password on an email that was never confirmed.
 export default function Login() {
   const navigate = useNavigate()
-  const [step, setStep] = useState(1)
   const [email, setEmail] = useState('')
-  const [otp, setOtp] = useState(['', '', '', '', '', '', '', ''])
+  const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [captchaToken, setCaptchaToken] = useState(null)
 
-  async function handleEmailSubmit() {
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (loading) return
+
     setLoading(true)
     setError('')
 
-    const { error: otpError } = await supabase.auth.signInWithOtp({
+    // No `data` binding needed: success hands off to AuthGuard, which
+    // re-validates the session and email confirmation server-side.
+    const { error: authError } = await supabase.auth.signInWithPassword({
       email,
-      options: {
-        shouldCreateUser: false,
-        // Turnstile token for the OTP request (Supabase CAPTCHA).
-        captchaToken,
+      password,
+      // Turnstile token for the password grant (Supabase CAPTCHA).
+      options: { captchaToken },
+    })
+
+    if (authError) {
+      // Correct password + unconfirmed email: Supabase refuses the grant
+      // with code "email_not_confirmed". Send one fresh code, then let
+      // the user confirm on the code screen — same flow as signup. If
+      // the send itself fails (rate limit, SMTP outage), still route to
+      // the code screen but flag it, so it shows its resend-error
+      // message instead of implying a code is already on its way.
+      if (authError.code === 'email_not_confirmed') {
+        const { error: resendError } = await supabase.auth.resend({ type: 'signup', email })
+        setLoading(false)
+        navigate('/verify-code', { state: { email, resendFailed: !!resendError }, replace: true })
+        return
       }
-    })
 
-    if (otpError) {
-      // M6: show one generic message for every failure mode so
-      // attackers can't probe which campus emails have accounts.
-      setError("If that email is registered, we've sent you a code. Check your inbox.")
+      // Every other failure gets one identical message so attackers can't
+      // probe which campus emails have accounts.
+      setError('Email or password is incorrect.')
       setLoading(false)
       return
     }
 
-    setStep(2)
-    setLoading(false)
-  }
-
-  async function handleOtpSubmit() {
-    setLoading(true)
-    setError('')
-    const token = otp.join('')
-
-    const { error: verifyError } = await supabase.auth.verifyOtp({
-      email,
-      token,
-      type: 'email'
-    })
-
-    if (verifyError) {
-      setError('Invalid code. Please try again.')
-      setLoading(false)
-      return
-    }
-
+    // Success: AuthGuard additionally requires a confirmed email before
+    // any app page renders. data.session/data.user are the signed-in state.
     navigate('/home')
-  }
-
-  function handleOtpChange(value, index) {
-    const newOtp = [...otp]
-    newOtp[index] = value
-    setOtp(newOtp)
-    if (value && index < 7) {
-      document.getElementById(`login-otp-${index + 1}`).focus()
-    }
   }
 
   return (
     <div className="login-container">
       <div className="login-card">
-        <h2 className="login-title">
-          {step === 1 ? 'Welcome Back' : 'Enter Code'}
-        </h2>
+        <h2 className="login-title">Welcome Back</h2>
 
-        {step === 1 && (
-          <>
-            <p className="login-subtitle">Enter your registered email</p>
-            <input
-              className="login-input"
-              type="email"
-              placeholder="you@university.ac.ke"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-            />
-            {error && <p className="login-error">{error}</p>}
-            <button
-              className="login-btn"
-              onClick={handleEmailSubmit}
-              disabled={loading || !email}
-            >
-              {loading ? 'Sending...' : 'Continue'}
-            </button>
+        <p className="login-subtitle">Enter your registered email</p>
+        <form onSubmit={handleSubmit}>
+          <input
+            className="login-input"
+            type="email"
+            placeholder="you@university.ac.ke"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            required
+            disabled={loading}
+          />
+          <input
+            className="login-input"
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            required
+            disabled={loading}
+          />
 
-            {/* Cloudflare Turnstile — token passed to signInWithOtp via
-                options.captchaToken (Supabase CAPTCHA protection). */}
-            <Turnstile onToken={setCaptchaToken} />
+          {error && <p className="login-error">{error}</p>}
 
-            <p className="login-signup">
-              No account?{' '}
-              <span onClick={() => navigate('/signup')}>Sign Up</span>
-            </p>
-          </>
-        )}
+          <button
+            type="submit"
+            className="login-btn"
+            disabled={loading || !email || !password}
+          >
+            {loading ? 'Logging In...' : 'Log In'}
+          </button>
 
-        {step === 2 && (
-          <>
-            <p className="login-subtitle">
-              We sent an 8-digit code to {email}
-            </p>
-            <div className="otp-container">
-              {otp.map((digit, index) => (
-                <input
-                  key={index}
-                  id={`login-otp-${index}`}
-                  className="otp-input"
-                  type="text"
-                  maxLength={1}
-                  value={digit}
-                  onChange={e => handleOtpChange(e.target.value, index)}
-                />
-              ))}
-            </div>
-            {error && <p className="login-error">{error}</p>}
-            <button
-              className="login-btn"
-              onClick={handleOtpSubmit}
-              disabled={loading || otp.join('').length < 8}
-            >
-              {loading ? 'Verifying...' : 'Log In'}
-            </button>
-            <p className="login-signup">
-              Wrong email?{' '}
-              <span onClick={() => setStep(1)}>Go back</span>
-            </p>
-          </>
-        )}
+          {/* Cloudflare Turnstile — token passed to signInWithPassword via
+              options.captchaToken (Supabase CAPTCHA protection). */}
+          <Turnstile onToken={setCaptchaToken} />
+        </form>
+
+        <p className="login-signup">
+          No account?{' '}
+          <span onClick={() => navigate('/signup')}>Sign Up</span>
+        </p>
       </div>
     </div>
   )
