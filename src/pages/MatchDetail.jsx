@@ -175,7 +175,6 @@ export default function MatchDetail() {
         )}
 
         <div className="md-id">
-          <span className={`md-tier-chip md-tier-${tier || 'none'}`}>{tier === 'qrashe' ? 'Qrashe' : tier === 'tier1' ? 'Tier 1' : tier === 'tier2' ? 'Tier 2' : 'Match'}</span>
           <h1 className="md-name display">{profile.full_name}, {profile.age}</h1>
         </div>
 
