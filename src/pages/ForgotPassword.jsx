@@ -26,9 +26,13 @@ export default function ForgotPassword() {
     setError('')
 
     // Same Turnstile pattern Login/Signup use (options.captchaToken).
+    // redirectTo is REQUIRED: without it GoTrue embeds the Site URL root
+    // in the reset link, so clicking it lands on the marketing page with
+    // the recovery hash instead of the reset screen. The allow-list
+    // entry for /reset-password on the dashboard is inert without this.
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(
       email,
-      { captchaToken }
+      { captchaToken, redirectTo: `${window.location.origin}/reset-password` }
     )
 
     setLoading(false)
