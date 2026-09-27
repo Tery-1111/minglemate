@@ -9,16 +9,30 @@
   -webkit-user-drag: none;
 }
 
+/* Size variants: fixed height + width:auto keeps intrinsic aspect ratio;
+   max-width guards against overflow on narrow viewports with wide assets.
+   display:block + object-fit:contain come from the base class. */
+.brand-logo--sm,
+.brand-logo--nav,
+.brand-logo--md,
+.brand-logo--auth,
+.brand-logo--hero,
+.brand-logo--watermark {
+  max-width: 100%;
+}
+
 .brand-logo--sm { height: 24px; width: auto; }   /* h-6  */
 .brand-logo--nav { height: 28px; width: auto; }  /* h-7  */
 .brand-logo--md { height: 32px; width: auto; }   /* h-8  */
 .brand-logo--auth { height: 40px; width: auto; } /* h-10 */
 
-/* 3D hero: square render target on /celebration */
+/* 3D hero: square render target on /celebration.
+   max-width + height:auto pairing preserves true aspect on very wide assets
+   instead of letterboxing into the 128px square. */
 .brand-logo--hero {
   height: 128px;
-  width: 128px;
-  object-fit: contain;
+  width: auto;
+  max-width: 128px;
   margin-bottom: 24px;
   filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.45)); /* drop-shadow-2xl */
 }
