@@ -112,6 +112,7 @@
   line-height: 1.6;
   max-width: var(--measure);
   margin-bottom: 12px;
+  overflow-wrap: anywhere; /* unbroken tokens must not breach the 60ch measure */
 }
 
 .profile-residence {

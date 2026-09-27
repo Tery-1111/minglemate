@@ -103,6 +103,7 @@
   max-width: var(--measure);
   margin: 0 0 var(--space-4);
   white-space: pre-wrap;
+  overflow-wrap: anywhere; /* unbroken tokens must not breach the 60ch measure */
 }
 
 .md-interests {

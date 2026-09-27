@@ -19,12 +19,12 @@
   /* ---- Color: text (champagne-tinted ramp — never pure gray) ---- */
   --text-primary: #f6efdd;       /* headings, names, key numbers — champagne white */
   --text-secondary: #b5ac99;     /* supporting copy — warm champagne-gray */
-  --text-muted: #7e7768;         /* metadata, timestamps, hints */
+  --text-muted: #998f7f;         /* metadata, timestamps, hints — >=4.5:1 on every surface */
   --text-on-accent: #f8e7c9;     /* champagne on emerald — the brand moment */
 
   /* ---- Color: brand ---- */
   --accent: #0e6b51;             /* Emerald Ink, lifted for dark surfaces — primary actions */
-  --accent-hover: #12805f;       /* hover */
+  --accent-hover: #107458;       /* hover — kept >=4.5:1 under --text-on-accent */
   --accent-strong: #0a5440;      /* pressed */
   --accent-soft: rgba(14, 107, 81, 0.18);   /* selected fills, quiet emerald fields */
   --champagne: #f8e7c9;          /* brand secondary — reserved highlights, borders */
@@ -198,6 +198,15 @@ input, textarea, select { font-family: inherit; }
   outline-offset: 2px;
 }
 
+/* Universal keyboard focus ring: one visible, consistent affordance for
+   every focusable control (buttons, inputs, links, custom rows). The
+   champagne ring holds ~15:1 on ink surfaces and ~5.3:1 on emerald fills.
+   Per-component :focus-visible rules elsewhere remain and win the cascade. */
+:focus-visible {
+  outline: 2px solid var(--champagne);
+  outline-offset: 2px;
+}
+
 /* Standard page scaffold for main-app screens */
 .page {
   min-height: 100vh;
@@ -312,7 +321,11 @@ button[aria-disabled='true'] {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
+    /* staggered reveals (celebration fadeUp) must not wait out their
+       delays with elements still invisible — drop delays too */
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
