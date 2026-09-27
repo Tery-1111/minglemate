@@ -1,0 +1,13 @@
+/* BrandLogo — height-constrained variants (plain CSS; no Tailwind in this repo).
+   object-fit: contain keeps aspect ratio at every size. */
+.brand-logo {
+  display: block;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.brand-logo--sm { height: 24px; width: auto; } /* h-6 */
+.brand-logo--md { height: 32px; width: auto; } /* h-8 */
+.brand-logo--lg { height: 48px; width: auto; } /* h-12 */
+.brand-logo--xl { height: 64px; width: auto; } /* h-16 */

@@ -1,0 +1,17 @@
+{
+  "name": "MingleMate — Compatibility-Based Dating for Students",
+  "short_name": "MingleMate",
+  "description": "Matched by real compatibility, not endless swiping. 50 guided questions, two curated weekly matches, safe campus chat.",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#090f0d",
+  "background_color": "#090f0d",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
