@@ -1,43 +1,53 @@
-# Brand assets — drop zone + spec
+# Brand assets — drop zone + activation spec
 
 This directory is the production home for brand identity assets. It is
-**intentionally empty of image files** right now: the only source material
-available (a 1400px mockup collage with baked-in shadows) cannot yield
-production-quality marks, so vector sources must come from the brand design
-first. `BrandLogo` (src/components/BrandLogo.jsx) already points here and
-falls back gracefully until the files exist.
+**intentionally empty of image files**: no vector sources exist (the only
+reference material is a mockup collage that cannot yield production marks).
+Everything else is already wired — the moment the three files below land,
+flip one flag and the entire brand layer goes live. No other code changes.
 
-## Required files
+## Required files (exact names)
 
 | File | Used by | Spec |
 |---|---|---|
-| `logo-mark.svg` | `BrandLogo variant="icon"` (tight UI: mobile headers, avatar fallbacks) | Vector, square viewBox, transparent background, ~24–64px render target, strokes/fills self-contained |
-| `logo-mark.png` | `apple-touch-icon` (180x180) + manifest fallback | 180×180 PNG, no transparency (iOS composites on black), flatten on brand surface color |
-| `logo-horizontal.svg` | `BrandLogo variant="horizontal"` (primary headers/footers) | Vector, lockup = mark + wordmark, safe clear space, legible at 32px height |
-| `logo-3d-hero.webp` | `BrandLogo variant="hero3d"` (celebration screen, landing hero) | WebP, ≤ 150 KB, 2× high-DPI (render ~640px+, export ~1280px), transparent or known-composited background |
+| `minglemate_mark.svg` | `BrandLogo variant="mark"` — nav header slot, auth header, questionnaire headers, settings/profile watermarks; favicon + manifest after PNG exports | Vector, square viewBox, transparent background, clean at 24px |
+| `minglemate_mark_192.png` / `minglemate_mark_512.png` | manifest maskable icons + apple-touch-icon source | 192×192 / 512×512 PNG |
+| `minglemate_logo_lockup.webp` | `BrandLogo variant="lockup"` — auth header branding, (og/twitter after an OG card exists) | Horizontal wordmark + mark, transparent background, legible at 32px height, ≤ 100 KB |
+| `minglemate_logo_3d.webp` | `BrandLogo variant="3d"` — /celebration hero | Transparent background, ≤ 150 KB, 2× high-DPI (128px render → ~256px+ export) |
 
-## Consumption swap-points (already wired)
+## Wired touchpoints (all gated on BRAND_ASSETS_READY)
 
-- `index.html` — `<link rel="icon">` comment marks the favicon swap point.
-- `index.html` — `apple-touch-icon` is deliberately absent until `logo-mark.png` exists.
-- `index.html` — `og:image` keeps the existing unbranded gradient placeholder until a 1200×630 raster is exported from the new vectors (OG must be raster; SVG is ignored by crawlers).
-- `public/manifest.json` — icons point at `/favicon.svg`; swap to `logo-mark.png` (+ 192/512 PNGs) when available.
-- `src/components/BrandLogo.jsx` — flip `BRAND_ASSETS_READY` to `true` once the files above exist; the icon variant then serves `logo-mark.svg`.
+- `src/components/BottomNav.jsx` — desktop-only compact header slot (`.brand-header`, ≥768px, matches the floating-dock breakpoint)
+- `src/pages/Login.jsx` — auth form branding header (`brand-logo--auth`)
+- `src/pages/Section1.jsx` / `Section2.jsx` — questionnaire header marks
+- `src/pages/MatchCelebration.jsx` — hero graphic above the heart (`brand-logo--hero`, replaces the legacy heart's position; heart kept)
+- `src/pages/Settings.jsx` / `Profile.jsx` — footer watermarks (`brand-logo--watermark`)
 
-## Current state of the asset layer (audited)
+## Activation procedure (when assets land)
 
-The existing brand surfaces predate the Emerald Ink UI system and do not
-match it: `public/favicon.svg` is a purple gradient bolt (fill `#863bff`)
-and `public/og-image.png` is an unbranded purple gradient with no mark or
-wordmark. The in-app brand mark is the typographic `.brand-roundel` (Home,
-Matches). Any real brand assets — from any palette — therefore *restore*
-consistency rather than break it. Until then the swap points above keep
-serving these files so nothing 404s.
+1. Drop the files into this directory with the exact names above.
+2. In `src/components/BrandLogo.jsx` set `BRAND_ASSETS_READY = true`.
+3. In `index.html` apply the favicon / apple-touch-icon / og:image swap lines
+   already written as comments at each tag.
+4. In `public/manifest.json` apply the `_brand_swap` icons array.
+5. `npm run build`, visual check at 375px + 1440px (CLS, header collisions,
+   48px targets untouched), commit.
+
+Until step 2, every touchpoint renders **nothing** — no broken images, no
+layout shift — because BrandLogo returns null while gated.
+
+## Metadata state (audited)
+
+The current favicon (`public/favicon.svg`, purple bolt) and OG image
+(`public/og-image.png`, unbranded gradient) predate the Emerald Ink UI
+system and do not match it. They stay live until the swap points above fire;
+real brand assets from *any* palette restore consistency rather than break
+it. The in-app mark meanwhile remains the typographic `.brand-roundel`
+(Home, Matches empty states).
 
 ## Explicitly out of scope until a product decision
 
-The "Nexus Verus" exploration (pink/purple 3D gradient identity) reverses the
-ratified Emerald Ink + Champagne design system (PR #11). These files must not
-ship without an explicit rebrand decision and palette integration plan — the
-component and metadata are asset-agnostic, but the visual identity swap is a
-separate, deliberate act.
+Adopting the "Nexus Verus" exploration (pink/purple 3D identity) reverses
+the ratified Emerald Ink + Champagne system. The component is asset-agnostic;
+the identity swap is a separate, deliberate act requiring the vector sources
+above.

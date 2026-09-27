@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import { BrandLogo } from '../components/BrandLogo'
 import './Settings.css'
 
 const APP_VERSION = '1.0.0'
@@ -226,6 +227,9 @@ export default function Settings() {
           Delete Account
         </button>
       </section>
+
+      {/* Brand watermark (renders nothing until brand assets land) */}
+      <BrandLogo variant="mark" className="brand-logo--watermark" />
 
       {/* ---- Delete confirmation modal ---- */}
       {showDeleteConfirm && (

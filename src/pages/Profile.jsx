@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import { BrandLogo } from '../components/BrandLogo'
 import BottomNav from '../components/BottomNav'
 import {
   BIO_MAX,
@@ -539,6 +540,9 @@ export default function Profile() {
       {/* Primary navigation — Profile is the 4th tab, same as the
           other main screens (fixes the navigation dead end). */}
       <BottomNav active="profile" />
+
+      {/* Brand watermark (renders nothing until brand assets land) */}
+      <BrandLogo variant="mark" className="brand-logo--watermark" />
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import { BrandLogo } from '../components/BrandLogo'
 import './MatchCelebration.css'
 
 // MATCH CELEBRATION: shown after a mutual weekly match (navigated to
@@ -63,6 +64,7 @@ export default function MatchCelebration() {
   return (
     <div className="celebration-page">
       <div className="celebration-card">
+        <BrandLogo variant="3d" className="brand-logo--hero" />
         <svg className="celebration-heart" viewBox="0 0 24 24" width="52" height="52" fill="var(--champagne)" aria-hidden="true">
           <path d="M12 21c-5.6-3.8-9-7-9-10.8C3 7.3 5.2 5 8 5c1.6 0 3.1.8 4 2 .9-1.2 2.4-2 4-2 2.8 0 5 2.3 5 5.2 0 3.8-3.4 7-9 10.8z" />
         </svg>

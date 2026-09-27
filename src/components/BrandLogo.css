@@ -1,5 +1,7 @@
-/* BrandLogo — height-constrained variants (plain CSS; no Tailwind in this repo).
-   object-fit: contain keeps aspect ratio at every size. */
+/* BrandLogo — plain-CSS size classes (repo has no Tailwind).
+   The brief's utility names map as: h-6 -> --sm, h-7 -> --nav,
+   h-8 -> --md, h-10 -> --auth, h-32 -> --hero. object-fit: contain
+   keeps aspect ratio; fixed height + width:auto = zero CLS. */
 .brand-logo {
   display: block;
   object-fit: contain;
@@ -7,7 +9,49 @@
   -webkit-user-drag: none;
 }
 
-.brand-logo--sm { height: 24px; width: auto; } /* h-6 */
-.brand-logo--md { height: 32px; width: auto; } /* h-8 */
-.brand-logo--lg { height: 48px; width: auto; } /* h-12 */
-.brand-logo--xl { height: 64px; width: auto; } /* h-16 */
+.brand-logo--sm { height: 24px; width: auto; }   /* h-6  */
+.brand-logo--nav { height: 28px; width: auto; }  /* h-7  */
+.brand-logo--md { height: 32px; width: auto; }   /* h-8  */
+.brand-logo--auth { height: 40px; width: auto; } /* h-10 */
+
+/* 3D hero: square render target on /celebration */
+.brand-logo--hero {
+  height: 128px;
+  width: 128px;
+  object-fit: contain;
+  margin-bottom: 24px;
+  filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.45)); /* drop-shadow-2xl */
+}
+
+/* Vertical rhythm when the logo sits above headings (auth, questionnaire) */
+.brand-logo--gap { margin-bottom: 16px; }
+
+/* Settings/Profile footer watermark */
+.brand-logo--watermark {
+  height: 24px;
+  width: auto;
+  opacity: 0.6;
+  margin: 0 auto;
+  display: block;
+}
+
+/* Mobile nav header brand slot (renders only >=768px alongside the
+   floating dock, matching BottomNav.css breakpoint) */
+.brand-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  display: none; /* mobile: no desktop header */
+  align-items: center;
+  justify-content: center;
+  padding: 14px 16px;
+  pointer-events: none;
+}
+
+@media (min-width: 768px) {
+  .brand-header { display: flex; }
+}
+
+.brand-header .brand-logo { pointer-events: auto; }
