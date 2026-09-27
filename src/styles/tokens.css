@@ -44,11 +44,12 @@
   --spark: #b6ff2e;              /* Lime Spark — reserved; do not use without a product reason */
 
   /* ---- Borders ----
-     Both clear WCAG 1.4.11 non-text 3:1 on every surface incl.
-     --surface-active (min 3.24 / 3.53) while keeping the green-gray
-     undertone and the strong-over-default hierarchy. */
-  --border: #667a70;             /* default hairlines — green-gray */
-  --border-strong: #6d8075;      /* emphasized dividers */
+   Compromise values: ~2.2-2.6:1 against surfaces — well above the
+   original near-invisible hairlines, deliberately below the WCAG 1.4.11
+   3:1 bar so dividers stay quiet. --border-strong keeps a clear step
+   above --border; btn-ghost hover (--text-muted) still lifts above both. */
+  --border: #515f58;             /* default hairlines — green-gray */
+  --border-strong: #586960;      /* emphasized dividers */
 
   /* ---- Typography ----
      Display: Fraunces (editorial serif — warm, human, unmistakably
