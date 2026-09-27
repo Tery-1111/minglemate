@@ -92,6 +92,35 @@
   /* ---- Layout ---- */
   --content-w: 720px;    /* max width for feed-style screens */
   --nav-h: 64px;         /* bottom nav height + safe area handled separately */
+
+  /* ---- Semantic aliases (design-elevation layer) ----
+     Purpose-named surfaces on top of the canvas ramp; components
+     consume these so a future re-theme never touches page CSS. */
+  --bg-primary: var(--bg);
+  --bg-surface: var(--surface);
+  --bg-elevated: var(--surface-raised);
+
+  --status-success: var(--positive);
+  --status-success-soft: rgba(87, 217, 163, 0.12);
+  --status-warning: var(--warning);
+  --status-warning-soft: rgba(224, 178, 92, 0.12);
+  --status-error: var(--danger);
+  --status-error-soft: var(--danger-soft);
+  --status-pending: var(--info);
+  --status-pending-soft: rgba(77, 141, 255, 0.12);
+
+  /* Fluid type — no awkward wraps between 375px and 1440px.
+     Fixed px tokens remain for metadata/captions. */
+  --fs-display-fluid: clamp(1.75rem, 1.4rem + 1.75vw, 2.75rem);
+  --fs-title-fluid: clamp(1.25rem, 1rem + 1.25vw, 2.25rem);
+  --fs-name-fluid: clamp(1.125rem, 1rem + 0.6vw, 1.375rem);
+  --fs-body-fluid: clamp(0.9rem, 0.85rem + 0.25vw, 1rem);
+
+  /* Readability measure for bios and long body copy */
+  --measure: 60ch;
+
+  /* Touch target floor (Fitts) */
+  --tap-min: 48px;
 }
 
 /* ---- Base type + resets ---- */
@@ -241,6 +270,42 @@ input, textarea, select { font-family: inherit; }
   background-size: 200% 100%;
   animation: mm-shimmer 1.4s linear infinite;
   border-radius: var(--radius-sm);
+}
+
+/* ---- Micro-state primitives (shared) ---- */
+
+/* Component-matched skeleton blocks (Phase 4) */
+.skeleton-line { height: 12px; border-radius: var(--radius-pill); margin-bottom: var(--space-2); }
+.skeleton-line.w60 { width: 60%; }
+.skeleton-line.w80 { width: 80%; }
+.skeleton-photo { width: 100%; aspect-ratio: 3 / 4; }
+
+/* Unified disabled/in-flight treatment: 50% opacity + not-allowed */
+button:disabled,
+button[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Inline error/retry panel (Phase 4) */
+.error-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--status-error-soft);
+  border: 1px solid var(--status-error);
+  border-radius: var(--radius-md);
+  color: var(--status-error);
+  font-size: var(--fs-secondary);
+  text-align: center;
+}
+.error-panel .btn-accent {
+  width: auto;
+  min-width: 140px;
+  min-height: 44px;
+  padding: 10px 24px;
 }
 
 /* ---- Reduced motion: respect globally ---- */

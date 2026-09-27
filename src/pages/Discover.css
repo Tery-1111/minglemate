@@ -20,7 +20,7 @@
 
 .discover-title {
   font-family: var(--font-display);
-  font-size: var(--fs-title);
+  font-size: var(--fs-title-fluid);
   font-weight: 600;
   line-height: var(--lh-tight);
   margin: 0;
@@ -197,6 +197,7 @@
 
 .discover-fc-btn {
   flex-shrink: 0;
+  min-height: 48px;
   padding: 11px 22px;
   background: var(--accent);
   color: var(--text-on-accent);
@@ -204,11 +205,11 @@
   border-radius: var(--radius-md);
   font-size: var(--fs-secondary);
   font-weight: 650;
-  transition: background var(--dur-fast) ease, opacity var(--dur-fast) ease;
+  transition: background var(--dur-fast) ease, opacity var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
 }
 
 .discover-fc-btn:hover:not(:disabled) { background: var(--accent-hover); }
-.discover-fc-btn:active:not(:disabled) { background: var(--accent-strong); }
+.discover-fc-btn:active:not(:disabled) { background: var(--accent-strong); transform: scale(0.97); }
 .discover-fc-btn:disabled { opacity: 0.35; }
 .discover-fc-btn:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }
 
@@ -244,6 +245,26 @@
   color: var(--text-muted);
   padding: 96px 0;
 }
+
+/* Skeleton loading: component-matched placeholders, not a spinner */
+.discover-skeletons {
+  max-width: var(--content-w);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+
+.discover-skeleton-card {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding-bottom: var(--space-3);
+}
+
+.discover-skeleton-card .skeleton-photo { border-radius: 0; margin-bottom: var(--space-3); }
+.discover-skeleton-card .skeleton-line { margin-inline: var(--space-3); }
 
 /* Empty state: editorial, not an afterthought */
 .discover-empty {

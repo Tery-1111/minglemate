@@ -15,15 +15,20 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 2px;
   background: none;
   border: none;
   color: var(--text-muted);
   font-size: 11px;
-  padding: 6px 0;
+  /* Fitts: full-width column with a 48px minimum target height */
+  min-height: 48px;
+  padding: 4px 0;
   cursor: pointer;
-  transition: color var(--dur-fast) ease;
+  transition: color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
 }
+
+.bottom-nav .nav-btn:active { transform: scale(0.94); }
 
 .bottom-nav .nav-btn:focus-visible {
   outline: 2px solid var(--champagne);
@@ -46,4 +51,41 @@
 
 .page-with-nav {
   padding-bottom: 76px;
+}
+
+/* ------------------------------------------------------------
+   Desktop (768px+): the phone dock mutates into a centered
+   floating pill — thumb-zone dock becomes an always-reachable
+   dock without overlapping page content.
+   ------------------------------------------------------------ */
+@media (min-width: 768px) {
+  .bottom-nav {
+    left: 50%;
+    right: auto;
+    bottom: 20px;
+    transform: translateX(-50%);
+    width: max-content;
+    gap: var(--space-2);
+    padding: 6px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-pill);
+    box-shadow: var(--shadow-card);
+  }
+
+  .bottom-nav .nav-btn {
+    flex: 0 0 auto;
+    flex-direction: row;
+    gap: var(--space-2);
+    padding: 0 18px;
+    min-height: 44px;
+    border-radius: var(--radius-pill);
+    font-size: 12.5px;
+  }
+
+  .bottom-nav .nav-btn.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  .page-with-nav { padding-bottom: 40px; }
 }

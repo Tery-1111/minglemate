@@ -16,7 +16,7 @@
 }
 
 .matches-title {
-  font-size: var(--fs-title);
+  font-size: var(--fs-title-fluid);
   font-weight: 600;
   line-height: var(--lh-tight);
   margin: 0;
@@ -34,6 +34,16 @@
   color: var(--text-muted);
   padding: 96px 0;
 }
+
+/* Skeleton loading: three tier-matched placeholder sections */
+.matches-skeletons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.matches-skeletons .skeleton-line { margin-bottom: var(--space-3); }
+.matches-skeletons .skeleton-photo { aspect-ratio: 4 / 3; border-radius: var(--radius-lg); }
 
 /* Empty state — editorial, honest, one action */
 .matches-empty {
@@ -187,4 +197,33 @@
 
 @media (hover: none) {
   .match-open-hint { display: none; }
+}
+
+/* ------------------------------------------------------------
+   Desktop (768px+): Miller's Law — the three tiers read as
+   three parallel columns instead of a vertical stack.
+   ------------------------------------------------------------ */
+@media (min-width: 768px) {
+  .matches-page {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-5);
+    align-items: start;
+  }
+
+  .matches-header,
+  .matches-empty,
+  .matches-loading,
+  .matches-skeletons {
+    grid-column: 1 / -1;
+  }
+
+  .matches-page section { margin-bottom: 0; }
+
+  /* Qrashe lists can be longer — let its column scroll naturally */
+  .matches-page section:last-child {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
 }

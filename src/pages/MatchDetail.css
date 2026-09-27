@@ -22,8 +22,9 @@
   position: absolute;
   top: -6px;
   left: -8px;
-  width: 40px;
-  height: 40px;
+  /* Fitts: 48px minimum touch target */
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -35,8 +36,10 @@
   font-size: 18px;
   cursor: pointer;
   z-index: 2;
-  transition: background var(--dur-fast) ease;
+  transition: background var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
 }
+
+.md-back:active { transform: scale(0.94); }
 
 .md-back:hover { background: rgba(6, 5, 7, 0.75); }
 .md-back:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }
@@ -87,7 +90,7 @@
 }
 
 .md-name {
-  font-size: var(--fs-title);
+  font-size: var(--fs-name-fluid);
   font-weight: 600;
   line-height: var(--lh-tight);
   margin: 0;
@@ -95,8 +98,9 @@
 
 .md-bio {
   color: var(--text-secondary);
-  font-size: var(--fs-body);
+  font-size: var(--fs-body-fluid);
   line-height: var(--lh-body);
+  max-width: var(--measure);
   margin: 0 0 var(--space-4);
   white-space: pre-wrap;
 }
@@ -198,12 +202,15 @@
   border: 1px solid var(--border);
   color: var(--text-muted);
   border-radius: var(--radius-md);
+  min-height: 48px;
   padding: 10px 0;
   font-size: var(--fs-secondary);
   font-weight: 550;
   cursor: pointer;
-  transition: border-color var(--dur-fast) ease, color var(--dur-fast) ease;
+  transition: border-color var(--dur-fast) ease, color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
 }
+
+.md-action:active { transform: scale(0.97); }
 
 .md-action:hover { border-color: var(--border-strong); color: var(--text-secondary); }
 .md-action:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }

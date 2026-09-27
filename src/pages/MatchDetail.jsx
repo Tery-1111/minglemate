@@ -140,7 +140,16 @@ export default function MatchDetail() {
   }
 
   if (loading) {
-    return <div className="md-page"><p className="md-loading loading-dots">Loading</p></div>
+    // Skeleton loading: hero photo + identity placeholder.
+    return (
+      <div className="md-page" aria-busy="true">
+        <div className="md-card">
+          <div className="skeleton skeleton-photo" />
+          <div className="skeleton skeleton-line w60" style={{ marginTop: 'var(--space-3)' }} />
+          <div className="skeleton skeleton-line w80" />
+        </div>
+      </div>
+    )
   }
 
   if (!profile) {

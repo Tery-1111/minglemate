@@ -1,5 +1,6 @@
 .celebration-page {
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg);
   color: var(--text-primary);
   display: flex;
@@ -14,10 +15,26 @@
   text-align: center;
 }
 
+/* Phased reveal (Phase 3, Aesthetic-Usability): heart → title →
+   cards cascade in; each person card rises with a stagger. */
 .celebration-heart {
   display: block;
   margin: 0 auto 10px;
   animation: heartIn 0.5s var(--ease-out) both;
+}
+
+.celebration-title { animation: fadeUp 0.45s var(--ease-out) 0.15s both; }
+.celebration-sub { animation: fadeUp 0.45s var(--ease-out) 0.25s both; }
+
+.celebration-person { animation: fadeUp 0.5s var(--ease-out) both; }
+.celebration-person:nth-child(1) { animation-delay: 0.4s; }
+.celebration-person:nth-child(2) { animation-delay: 0.55s; }
+
+.celebration-btn { animation: fadeUp 0.5s var(--ease-out) 0.75s both; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes heartIn {
@@ -31,7 +48,7 @@
 
 .celebration-title {
   font-family: var(--font-display);
-  font-size: 30px;
+  font-size: var(--fs-display-fluid);
   font-weight: 600;
   color: var(--text-primary);
   margin: 0 0 6px;
