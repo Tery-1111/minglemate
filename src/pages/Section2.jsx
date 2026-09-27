@@ -33,9 +33,8 @@ export default function Section2() {
   const [currentAnswer, setCurrentAnswer] = useState('')
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [locked, setLocked] = useState(false)
+  const [error, setError] = useState(null)
   const [userId, setUserId] = useState(null)
-  const [daysLeft, setDaysLeft] = useState(null)
 
   useEffect(() => {
     checkAccess()
@@ -47,27 +46,11 @@ export default function Section2() {
     if (!session) { navigate('/'); return }
     setUserId(session.user.id)
 
-    const { data: user } = await supabase
-      .from('users')
-      .select('section2_unlocked, section2_free_expires_at')
-      .eq('id', session.user.id)
-      .single()
-
-    const now = new Date()
-    const expiry = user?.section2_free_expires_at ? new Date(user.section2_free_expires_at) : null
-    const isUnlocked = user?.section2_unlocked
-    const isFreeActive = expiry && now < expiry
-
-    if (!isUnlocked && !isFreeActive) {
-      setLocked(true)
-      setLoading(false)
-      return
-    }
-
-    if (isFreeActive) {
-      const diff = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24))
-      setDaysLeft(diff)
-    }
+    // Spec (§2): the questionnaires are never paywalled — a user can
+    // always answer or edit their own Section 2 answers, regardless of
+    // payment or trial status. Payment lives exclusively in
+    // Connect/contact-reveal, so there is no unlock/trial gate here;
+    // this only restores the user's existing answers for editing.
 
     // Load existing answers
     const { data: existing } = await supabase
@@ -91,11 +74,21 @@ export default function Section2() {
     if (!currentAnswer.trim()) return
     setSaving(true)
 
-    await supabase.from('section2_responses').upsert({
+    // onConflict mirrors the table's (user_id, question_number) unique
+    // constraint: retakes re-answer existing questions, and without it
+    // the upsert threw a duplicate-key error nobody surfaced.
+    const { error: saveError } = await supabase.from('section2_responses').upsert({
       user_id: userId,
       question_number: current + 1,
       answer_text: currentAnswer.trim()
-    })
+    }, { onConflict: 'user_id,question_number' })
+
+    if (saveError) {
+      console.error('Section 2 save failed:', saveError)
+      setError("We couldn't save that answer. Check your connection and try again.")
+      setSaving(false)
+      return
+    }
 
     const newAnswers = { ...answers, [current + 1]: currentAnswer.trim() }
     setAnswers(newAnswers)
@@ -123,35 +116,6 @@ export default function Section2() {
     )
   }
 
-  if (locked) {
-    return (
-      <div className="s2-locked-container">
-        <div className="s2-locked-card">
-          <div className="s2-locked-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="5" y="11" width="14" height="9" rx="2" />
-              <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-            </svg>
-          </div>
-          <h2>Section 2 Locked</h2>
-          <p>Your free access period has ended. Unlock Section 2 to get deeper matches.</p>
-          <button
-            className="s2-unlock-btn"
-            onClick={() => navigate('/payment')}
-          >
-            Unlock with M-Pesa
-          </button>
-          <button
-            className="s2-back-btn"
-            onClick={() => navigate('/home')}
-          >
-            Back to Home
-          </button>
-        </div>
-      </div>
-    )
-  }
-
   const progress = ((current + 1) / section2Questions.length) * 100
 
   return (
@@ -161,9 +125,6 @@ export default function Section2() {
           ←
         </button>
         <span className="s2-progress-text">Question {current + 1} of {section2Questions.length}</span>
-        {daysLeft !== null && (
-          <span className="s2-free-badge">{daysLeft}d free</span>
-        )}
       </div>
 
       <div className="s2-progress-bar">
@@ -182,6 +143,12 @@ export default function Section2() {
         />
 
         <p className="s2-char-count">{currentAnswer.length} characters</p>
+
+        {error && (
+          <p style={{ color: 'var(--danger, #e5484d)', fontSize: 13, margin: '0 0 12px' }}>
+            {error}
+          </p>
+        )}
 
         <button
           className="s2-btn"
