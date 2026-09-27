@@ -43,9 +43,12 @@
   --highlight: #fff275;          /* Butter Yellow — rare attention states */
   --spark: #b6ff2e;              /* Lime Spark — reserved; do not use without a product reason */
 
-  /* ---- Borders ---- */
-  --border: #1f2b26;             /* default hairlines — green-gray */
-  --border-strong: #2d3d36;      /* emphasized dividers */
+  /* ---- Borders ----
+     Both clear WCAG 1.4.11 non-text 3:1 on every surface incl.
+     --surface-active (min 3.24 / 3.53) while keeping the green-gray
+     undertone and the strong-over-default hierarchy. */
+  --border: #667a70;             /* default hairlines — green-gray */
+  --border-strong: #6d8075;      /* emphasized dividers */
 
   /* ---- Typography ----
      Display: Fraunces (editorial serif — warm, human, unmistakably
