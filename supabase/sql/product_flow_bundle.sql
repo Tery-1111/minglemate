@@ -392,9 +392,9 @@ begin
     case when seller.share_phone then seller.phone end,
     case when seller.share_whatsapp then seller.whatsapp_number end,
     case when seller.share_email then seller.email end,
-    seller.social_instagram,
-    seller.social_x,
-    seller.social_tiktok
+    case when seller.share_social_instagram then seller.social_instagram end,
+    case when seller.share_social_x then seller.social_x end,
+    case when seller.share_social_tiktok then seller.social_tiktok end
   on conflict (buyer_id, seller_id) do nothing
   returning id into v_unlock_id;
 
@@ -505,7 +505,9 @@ begin
       case when seller.share_phone then seller.phone end,
       case when seller.share_whatsapp then seller.whatsapp_number end,
       case when seller.share_email then seller.email end,
-      seller.social_instagram, seller.social_x, seller.social_tiktok;
+      case when seller.share_social_instagram then seller.social_instagram end,
+      case when seller.share_social_x then seller.social_x end,
+      case when seller.share_social_tiktok then seller.social_tiktok end;
   end if;
 end;
 $$;

@@ -47,6 +47,9 @@ export default function Profile() {
     share_phone: true,
     share_whatsapp: true,
     share_email: false,
+    share_social_instagram: true,
+    share_social_x: true,
+    share_social_tiktok: true,
     social_instagram: '',
     social_x: '',
     social_tiktok: '',
@@ -89,6 +92,9 @@ export default function Profile() {
       share_phone: userData?.share_phone !== false,
       share_whatsapp: userData?.share_whatsapp !== false,
       share_email: userData?.share_email === true,
+      share_social_instagram: userData?.share_social_instagram !== false,
+      share_social_x: userData?.share_social_x !== false,
+      share_social_tiktok: userData?.share_social_tiktok !== false,
       social_instagram: userData?.social_instagram || '',
       social_x: userData?.social_x || '',
       social_tiktok: userData?.social_tiktok || '',
@@ -191,6 +197,9 @@ export default function Profile() {
         share_phone: sharing.share_phone,
         share_whatsapp: sharing.share_whatsapp,
         share_email: sharing.share_email,
+        share_social_instagram: sharing.share_social_instagram,
+        share_social_x: sharing.share_social_x,
+        share_social_tiktok: sharing.share_social_tiktok,
         social_instagram: sharing.social_instagram || null,
         social_x: sharing.social_x || null,
         social_tiktok: sharing.social_tiktok || null,
@@ -443,6 +452,14 @@ export default function Profile() {
               />
               Share email
             </label>
+            <label className="sharing-toggle">
+              <input
+                type="checkbox"
+                checked={sharing.share_social_instagram}
+                onChange={e => setSharing({ ...sharing, share_social_instagram: e.target.checked })}
+              />
+              Share Instagram handle
+            </label>
             <input
               className="profile-select"
               type="text"
@@ -450,6 +467,14 @@ export default function Profile() {
               value={sharing.social_instagram}
               onChange={e => setSharing({ ...sharing, social_instagram: e.target.value })}
             />
+            <label className="sharing-toggle">
+              <input
+                type="checkbox"
+                checked={sharing.share_social_x}
+                onChange={e => setSharing({ ...sharing, share_social_x: e.target.checked })}
+              />
+              Share X / Twitter handle
+            </label>
             <input
               className="profile-select"
               type="text"
@@ -457,6 +482,14 @@ export default function Profile() {
               value={sharing.social_x}
               onChange={e => setSharing({ ...sharing, social_x: e.target.value })}
             />
+            <label className="sharing-toggle">
+              <input
+                type="checkbox"
+                checked={sharing.share_social_tiktok}
+                onChange={e => setSharing({ ...sharing, share_social_tiktok: e.target.checked })}
+              />
+              Share TikTok handle
+            </label>
             <input
               className="profile-select"
               type="text"
