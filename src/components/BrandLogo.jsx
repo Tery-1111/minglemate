@@ -18,7 +18,7 @@ import './BrandLogo.css';
  * true once the files land and every touchpoint goes live simultaneously —
  * no further code changes required. See public/assets/brand/README.md.
  */
-export const BRAND_ASSETS_READY = false;
+export const BRAND_ASSETS_READY = true;
 
 const assets = {
   mark: '/assets/brand/minglemate_mark.svg',

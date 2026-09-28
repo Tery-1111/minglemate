@@ -8,11 +8,22 @@
   "background_color": "#090f0d",
   "icons": [
     {
-      "src": "/favicon.svg",
+      "src": "/assets/brand/minglemate_mark.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
+    },
+    {
+      "src": "/assets/brand/minglemate_mark_192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/assets/brand/minglemate_mark_512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
-  ],
-  "_brand_swap": "When /assets/brand/minglemate_mark.svg (+ 192/512 PNGs) exist, replace icons with: [{src:/assets/brand/minglemate_mark.svg, sizes:any, type:image/svg+xml, purpose:any}, {src:/assets/brand/minglemate_mark_192.png, sizes:192x192, type:image/png, purpose:maskable}, {src:/assets/brand/minglemate_mark_512.png, sizes:512x512, type:image/png, purpose:maskable}]"
+  ]
 }

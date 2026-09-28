@@ -10,10 +10,8 @@
     />
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://minglemate.vercel.app/" />
-    <!-- Favicon swap point: the moment /assets/brand/minglemate_mark.svg exists, replace the line below with:
-         <link rel="icon" type="image/svg+xml" href="/assets/brand/minglemate_mark.svg" />
-         (also add: <link rel="apple-touch-icon" href="/assets/brand/minglemate_mark.png" /> if a 180x180 PNG is exported) -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/assets/brand/minglemate_mark.svg" />
+    <link rel="apple-touch-icon" href="/assets/brand/minglemate_mark_180.png" />
     <!-- apple-touch-icon is intentionally absent: iOS requires a 180x180 PNG and none exists yet.
          Add it together with /assets/brand/logo-mark.png when vector sources arrive. -->
     <link rel="manifest" href="/manifest.json" />
@@ -36,11 +34,7 @@
       content="Matched by real compatibility, not endless swiping. 50 guided questions, two curated weekly matches, safe campus chat."
     />
     <meta property="og:url" content="https://minglemate.vercel.app/" />
-    <!-- og/twitter image swap point: the moment /assets/brand/minglemate_logo_lockup.webp exists (plus a 1200x630 OG card), replace both image tags with:
-         <meta property="og:image" content="https://minglemate.vercel.app/assets/brand/minglemate_logo_lockup.webp" />
-         <meta name="twitter:image" content="https://minglemate.vercel.app/assets/brand/minglemate_logo_lockup.webp" />
-         NOTE: og:image should ideally be a 1200x630 raster card; crawlers ignore SVG and crop arbitrary webp.
-         Keep the current unbranded placeholder until that card exists. -->
+    <!-- og-image.png is now the branded Emerald Ink card (mark + wordmark); regenerate via .brandtmp/generate_brand.py -->
     <meta property="og:image" content="https://minglemate.vercel.app/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
