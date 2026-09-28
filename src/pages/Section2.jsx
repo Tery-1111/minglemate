@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import { BrandLogo } from '../components/BrandLogo'
 import './Section2.css'
 
 const section2Questions = [
@@ -121,6 +122,7 @@ export default function Section2() {
   return (
     <div className="s2-container">
       <div className="s2-header">
+        <BrandLogo variant="mark" className="brand-logo--sm" />
         <button className="s2-back" onClick={() => current > 0 ? (setCurrent(current - 1), setCurrentAnswer(answers[current] || '')) : navigate('/home')}>
           ←
         </button>

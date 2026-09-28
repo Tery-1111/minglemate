@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import { BrandLogo } from '../components/BrandLogo';
 import { section1Questions as CAMPUS_QUESTIONS } from '../data/section1Questions';
 
 export default function Section1() {
@@ -131,6 +132,7 @@ export default function Section1() {
   return (
     <div style={styles.container}>
       <div style={styles.surveyCard}>
+        <BrandLogo variant="mark" className="brand-logo--sm brand-logo--gap" />
         {/* Progress bar */}
         <div style={styles.progressBarWrapper}>
           <div 

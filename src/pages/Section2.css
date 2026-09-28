@@ -30,7 +30,12 @@
   color: var(--text-primary);
   font-size: 24px;
   cursor: pointer;
-  padding: 4px 8px;
+  /* Fitts: 48px minimum touch target */
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .s2-progress-text {
@@ -70,10 +75,11 @@
 }
 
 .s2-question {
-  font-size: 20px;
+  font-size: var(--fs-name-fluid);
   font-weight: 700;
-  color: white;
+  color: var(--text-primary);
   line-height: 1.5;
+  max-width: var(--measure);
   margin-bottom: 24px;
 }
 
@@ -83,9 +89,9 @@
   background: var(--surface-raised);
   border: 2px solid var(--border-strong);
   border-radius: 12px;
-  color: white;
+  color: var(--text-primary);
   font-size: 15px;
-  font-family: Arial, sans-serif;
+  font-family: inherit;
   resize: none;
   outline: none;
   transition: border 0.2s;
@@ -105,16 +111,19 @@
 
 .s2-btn {
   width: 100%;
+  min-height: 48px;
   padding: 16px;
   background: var(--accent);
-  color: white;
+  color: var(--text-on-accent);
   border: none;
   border-radius: 12px;
   font-size: 16px;
   font-weight: 700;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: opacity 0.2s, background var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
 }
+
+.s2-btn:active:not(:disabled) { background: var(--accent-strong); transform: scale(0.98); }
 
 .s2-btn:disabled {
   opacity: 0.5;

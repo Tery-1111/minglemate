@@ -77,9 +77,15 @@ export default function Matches() {
   }
 
   if (loading) {
+    // Skeleton loading: tier-matched placeholder sections.
     return (
-      <div className="matches-page">
-        <p className="matches-loading loading-dots">Loading your matches</p>
+      <div className="matches-page" aria-busy="true">
+        <div className="matches-skeletons">
+          <div className="skeleton skeleton-line w60" />
+          <div className="skeleton skeleton-photo" />
+          <div className="skeleton skeleton-line w80" />
+          <div className="skeleton skeleton-photo" />
+        </div>
       </div>
     )
   }

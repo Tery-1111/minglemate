@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import { BrandLogo } from '../components/BrandLogo'
 import Turnstile from '../components/Turnstile'
 import PasswordField from '../components/PasswordField'
 import GoogleButton from '../components/GoogleButton'
@@ -64,6 +65,7 @@ export default function Login() {
   return (
     <div className="login-container">
       <div className="login-card">
+        <BrandLogo variant="lockup" className="brand-logo--auth brand-logo--gap" />
         <h2 className="login-title">Welcome Back</h2>
 
         <p className="login-subtitle">Enter your registered email</p>

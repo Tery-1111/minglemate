@@ -28,7 +28,9 @@
   color: var(--text-primary);
   font-size: 22px;
   cursor: pointer;
-  width: 36px;
+  /* Fitts: 48px minimum touch target */
+  width: 48px;
+  height: 48px;
   text-align: left;
 }
 
@@ -61,6 +63,7 @@
   justify-content: space-between;
   gap: 12px;
   width: 100%;
+  min-height: 48px;
   padding: 13px 14px;
   margin-bottom: 6px;
   background: var(--surface);
@@ -72,7 +75,10 @@
   text-decoration: none;
   cursor: pointer;
   box-sizing: border-box;
+  transition: border-color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
 }
+
+.settings-row:active { transform: scale(0.985); }
 
 .settings-row-static {
   cursor: default;
@@ -109,9 +115,11 @@
   position: relative;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.2s;
+  transition: background 0.2s, transform var(--dur-fast) var(--ease-out);
   padding: 0;
 }
+
+.toggle:active { transform: scale(0.94); }
 
 .toggle.on {
   background: var(--accent);

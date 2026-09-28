@@ -1,4 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom'
+import { BrandLogo, BRAND_ASSETS_READY } from './BrandLogo'
 import './BottomNav.css'
 
 // Primary navigation: Discover / Matches / Messages / Profile.
@@ -46,7 +47,15 @@ export default function BottomNav() {
     : TABS.find(t => pathname.startsWith(t.path))?.key || ''
 
   return (
-    <nav className="bottom-nav">
+    <>
+      {/* Brand slot: desktop-only compact header mark (renders nothing until
+          brand assets land — gated on BRAND_ASSETS_READY). */}
+      {BRAND_ASSETS_READY && (
+        <div className="brand-header" aria-hidden="true">
+          <BrandLogo variant="mark" className="brand-logo--sm" />
+        </div>
+      )}
+      <nav className="bottom-nav">
       {TABS.map(tab => (
         <button
           key={tab.key}
@@ -58,6 +67,7 @@ export default function BottomNav() {
           <span className="nav-label">{tab.label}</span>
         </button>
       ))}
-    </nav>
+      </nav>
+    </>
   )
 }

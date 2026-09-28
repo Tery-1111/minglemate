@@ -10,7 +10,12 @@
     />
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://minglemate.vercel.app/" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/assets/brand/minglemate_mark.svg" />
+    <link rel="apple-touch-icon" href="/assets/brand/minglemate_mark_180.png" />
+    <!-- apple-touch-icon is intentionally absent: iOS requires a 180x180 PNG and none exists yet.
+         Add it together with /assets/brand/logo-mark.png when vector sources arrive. -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#090f0d" />
 
     <!-- Fraunces: display serif for titles/names/prices (600 weight only) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -29,6 +34,7 @@
       content="Matched by real compatibility, not endless swiping. 50 guided questions, two curated weekly matches, safe campus chat."
     />
     <meta property="og:url" content="https://minglemate.vercel.app/" />
+    <!-- og-image.png is now the branded Emerald Ink card (mark + wordmark); regenerate via .brandtmp/generate_brand.py -->
     <meta property="og:image" content="https://minglemate.vercel.app/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />

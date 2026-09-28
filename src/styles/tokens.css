@@ -19,12 +19,12 @@
   /* ---- Color: text (champagne-tinted ramp — never pure gray) ---- */
   --text-primary: #f6efdd;       /* headings, names, key numbers — champagne white */
   --text-secondary: #b5ac99;     /* supporting copy — warm champagne-gray */
-  --text-muted: #7e7768;         /* metadata, timestamps, hints */
+  --text-muted: #998f7f;         /* metadata, timestamps, hints — >=4.5:1 on every surface */
   --text-on-accent: #f8e7c9;     /* champagne on emerald — the brand moment */
 
   /* ---- Color: brand ---- */
   --accent: #0e6b51;             /* Emerald Ink, lifted for dark surfaces — primary actions */
-  --accent-hover: #12805f;       /* hover */
+  --accent-hover: #107458;       /* hover — kept >=4.5:1 under --text-on-accent */
   --accent-strong: #0a5440;      /* pressed */
   --accent-soft: rgba(14, 107, 81, 0.18);   /* selected fills, quiet emerald fields */
   --champagne: #f8e7c9;          /* brand secondary — reserved highlights, borders */
@@ -43,9 +43,13 @@
   --highlight: #fff275;          /* Butter Yellow — rare attention states */
   --spark: #b6ff2e;              /* Lime Spark — reserved; do not use without a product reason */
 
-  /* ---- Borders ---- */
-  --border: #1f2b26;             /* default hairlines — green-gray */
-  --border-strong: #2d3d36;      /* emphasized dividers */
+  /* ---- Borders ----
+   Compromise values: ~2.2-2.6:1 against surfaces — well above the
+   original near-invisible hairlines, deliberately below the WCAG 1.4.11
+   3:1 bar so dividers stay quiet. --border-strong keeps a clear step
+   above --border; btn-ghost hover (--text-muted) still lifts above both. */
+  --border: #515f58;             /* default hairlines — green-gray */
+  --border-strong: #586960;      /* emphasized dividers */
 
   /* ---- Typography ----
      Display: Fraunces (editorial serif — warm, human, unmistakably
@@ -92,6 +96,35 @@
   /* ---- Layout ---- */
   --content-w: 720px;    /* max width for feed-style screens */
   --nav-h: 64px;         /* bottom nav height + safe area handled separately */
+
+  /* ---- Semantic aliases (design-elevation layer) ----
+     Purpose-named surfaces on top of the canvas ramp; components
+     consume these so a future re-theme never touches page CSS. */
+  --bg-primary: var(--bg);
+  --bg-surface: var(--surface);
+  --bg-elevated: var(--surface-raised);
+
+  --status-success: var(--positive);
+  --status-success-soft: rgba(87, 217, 163, 0.12);
+  --status-warning: var(--warning);
+  --status-warning-soft: rgba(224, 178, 92, 0.12);
+  --status-error: var(--danger);
+  --status-error-soft: var(--danger-soft);
+  --status-pending: var(--info);
+  --status-pending-soft: rgba(77, 141, 255, 0.12);
+
+  /* Fluid type — no awkward wraps between 375px and 1440px.
+     Fixed px tokens remain for metadata/captions. */
+  --fs-display-fluid: clamp(1.75rem, 1.4rem + 1.75vw, 2.75rem);
+  --fs-title-fluid: clamp(1.25rem, 1rem + 1.25vw, 2.25rem);
+  --fs-name-fluid: clamp(1.125rem, 1rem + 0.6vw, 1.375rem);
+  --fs-body-fluid: clamp(0.9rem, 0.85rem + 0.25vw, 1rem);
+
+  /* Readability measure for bios and long body copy */
+  --measure: 60ch;
+
+  /* Touch target floor (Fitts) */
+  --tap-min: 48px;
 }
 
 /* ---- Base type + resets ---- */
@@ -165,6 +198,15 @@ input, textarea, select { font-family: inherit; }
 }
 .btn-ghost:hover { border-color: var(--text-muted); background: var(--surface); }
 .btn-ghost:focus-visible {
+  outline: 2px solid var(--champagne);
+  outline-offset: 2px;
+}
+
+/* Universal keyboard focus ring: one visible, consistent affordance for
+   every focusable control (buttons, inputs, links, custom rows). The
+   champagne ring holds ~15:1 on ink surfaces and ~5.3:1 on emerald fills.
+   Per-component :focus-visible rules elsewhere remain and win the cascade. */
+:focus-visible {
   outline: 2px solid var(--champagne);
   outline-offset: 2px;
 }
@@ -243,11 +285,51 @@ input, textarea, select { font-family: inherit; }
   border-radius: var(--radius-sm);
 }
 
+/* ---- Micro-state primitives (shared) ---- */
+
+/* Component-matched skeleton blocks (Phase 4) */
+.skeleton-line { height: 12px; border-radius: var(--radius-pill); margin-bottom: var(--space-2); }
+.skeleton-line.w60 { width: 60%; }
+.skeleton-line.w80 { width: 80%; }
+.skeleton-photo { width: 100%; aspect-ratio: 3 / 4; }
+
+/* Unified disabled/in-flight treatment: 50% opacity + not-allowed */
+button:disabled,
+button[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Inline error/retry panel (Phase 4) */
+.error-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--status-error-soft);
+  border: 1px solid var(--status-error);
+  border-radius: var(--radius-md);
+  color: var(--status-error);
+  font-size: var(--fs-secondary);
+  text-align: center;
+}
+.error-panel .btn-accent {
+  width: auto;
+  min-width: 140px;
+  min-height: 44px;
+  padding: 10px 24px;
+}
+
 /* ---- Reduced motion: respect globally ---- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
+    /* staggered reveals (celebration fadeUp) must not wait out their
+       delays with elements still invisible — drop delays too */
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

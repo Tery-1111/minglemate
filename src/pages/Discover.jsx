@@ -55,9 +55,23 @@ export default function Discover() {
   const selected = (candidates || []).find(c => c.id === selectedId) || null
 
   if (loading) {
+    // Skeleton loading: five component-matched placeholder cards.
     return (
       <div className="discover-page page-with-nav">
-        <div className="discover-loading loading-dots">Loading profiles</div>
+        <header className="discover-header">
+          <div>
+            <h1 className="discover-title">Discover</h1>
+            <p className="discover-sub">People you may match with</p>
+          </div>
+        </header>
+        <div className="discover-skeletons" aria-busy="true">
+          {[0, 1, 2, 3, 4].map(i => (
+            <div key={i} className="discover-skeleton-card">
+              <div className="skeleton skeleton-photo" />
+              <div className="skeleton skeleton-line w60" />
+            </div>
+          ))}
+        </div>
         <BottomNav />
       </div>
     )
