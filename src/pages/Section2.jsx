@@ -109,16 +109,11 @@ export default function Section2() {
       setCurrentAnswer(newAnswers[current + 2] || '')
       setSaveState('idle')
     } else {
-      const { error: finishError } = await supabase
-        .from('users')
-        .update({ section2_unlocked: true })
-        .eq('id', userId)
-      if (finishError) {
-        setSaveState('error')
-        setSaving(false)
-        return
-      }
-      // Onboarding complete → open Discover.
+      // Onboarding complete → open Discover. Section 2 answers are free
+      // and grant no entitlement: `section2_unlocked` is server-owned (set
+      // only by payment-callback after a verified KSh 200 payment), and any
+      // client write to it is discarded by the clamp_user_protected_columns
+      // trigger on public.users. Do not reintroduce a client update here.
       navigate('/discover')
     }
 

@@ -94,7 +94,10 @@ export default function ProfileSetup() {
         social_instagram: form.social_instagram || null,
         social_x: form.social_x || null,
         social_tiktok: form.social_tiktok || null,
-        section2_free_expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+        // section2_free_expires_at is deliberately NOT sent by the client:
+        // the 14-day trial is granted server-side by handle_new_user() when
+        // the profile row is created, and clamp_user_protected_columns
+        // discards any client write to it or to section2_unlocked.
       })
 
     if (upsertError) {
