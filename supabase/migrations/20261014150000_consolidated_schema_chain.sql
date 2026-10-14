@@ -873,6 +873,48 @@ create table if not exists public.conversations (
   check (user_a_id <> user_b_id)
 );
 
+-- ------------------------------------------------------------
+-- Convergence for databases that already had a conversations table:
+-- the `create table if not exists` above is a no-op there, so a legacy
+-- table missing any of these columns would fail this file's own later
+-- `insert into public.conversations (... match_tier ...)` with 42703.
+-- Columns only — no constraint is tightened on a table that may already
+-- hold rows.
+-- ------------------------------------------------------------
+alter table public.conversations
+  add column if not exists user_a_id  uuid,
+  add column if not exists user_b_id  uuid,
+  add column if not exists match_tier text,
+  add column if not exists status     text default 'active',
+  add column if not exists locked_at  timestamptz,
+  add column if not exists created_at timestamptz default now();
+
+do $$
+begin
+  -- The pair has to be unique. Tested by the columns the constraint
+  -- covers, not by its name: the chain's own `unique (user_a_id,
+  -- user_b_id)` is auto-named, so a name test would add a second,
+  -- identical unique index to every database that already has one.
+  if not exists (
+    select 1
+    from pg_constraint con
+    where con.conrelid = 'public.conversations'::regclass
+      and con.contype = 'u'
+      and (
+        select array_agg(att.attname::text order by att.attname::text)
+        from unnest(con.conkey) as k(attnum)
+        join pg_attribute att
+          on att.attrelid = con.conrelid and att.attnum = k.attnum
+      ) = array['user_a_id', 'user_b_id']::text[]
+  ) then
+    begin
+      alter table public.conversations
+        add constraint conversations_user_pair_key unique (user_a_id, user_b_id);
+    exception when duplicate_object then null;
+    end;
+  end if;
+end $$;
+
 alter table public.conversations enable row level security;
 
 drop policy if exists "conversations_select_participant" on public.conversations;

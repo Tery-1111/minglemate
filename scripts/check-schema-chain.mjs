@@ -54,13 +54,32 @@ const triggers = counts(code, /\bcreate\s+trigger\s+"?([a-z0-9_]+)"?/gi)
 const indexes = counts(code, /\bcreate\s+(?:unique\s+)?index\s+(?:if\s+not\s+exists\s+)?(?:public\.)?([a-z0-9_]+)/gi)
 const columns = counts(code, /\badd\s+column\s+if\s+not\s+exists\s+([a-z0-9_]+)/gi)
 
+// Duplicate adds are keyed by (table, column), not by name alone: the same
+// column name legitimately exists on two tables (users.status and
+// conversations.status), while adding one column twice to the SAME table is
+// the defect this guards against. `columns` above stays name-keyed for the
+// specific pins below (callback_key, the entitlement columns).
+const columnsByTable = new Map()
+for (const stmt of code.matchAll(/\balter\s+table\s+(?:if\s+exists\s+)?(?:public\.)?([a-z0-9_]+)([^;]*);/gi)) {
+  const table = stmt[1].toLowerCase()
+  for (const col of stmt[2].matchAll(/\badd\s+column\s+if\s+not\s+exists\s+([a-z0-9_]+)/gi)) {
+    const key = `${table}.${col[1].toLowerCase()}`
+    columnsByTable.set(key, (columnsByTable.get(key) || 0) + 1)
+  }
+}
+const total = (map) => [...map.values()].reduce((a, b) => a + b, 0)
+
 check('every function is defined exactly once', dupes(functions).length === 0, JSON.stringify(dupes(functions)))
 check('every table is created exactly once', dupes(tables).length === 0, JSON.stringify(dupes(tables)))
 check('every view is defined exactly once', dupes(views).length === 0, JSON.stringify(dupes(views)))
 check('every policy is created exactly once', dupes(policies).length === 0, JSON.stringify(dupes(policies)))
 check('every trigger is created exactly once', dupes(triggers).length === 0, JSON.stringify(dupes(triggers)))
 check('every index is created exactly once', dupes(indexes).length === 0, JSON.stringify(dupes(indexes)))
-check('no column is added twice', dupes(columns).length === 0, JSON.stringify(dupes(columns)))
+// The second condition keeps this honest: if the attribution above stopped
+// matching, columnsByTable would be empty and the rule would pass vacuously.
+check('no column is added twice, per table',
+  dupes(columnsByTable).length === 0 && total(columnsByTable) === total(columns),
+  `dupes=${JSON.stringify(dupes(columnsByTable))} byTable=${total(columnsByTable)} byName=${total(columns)}`)
 
 for (const [kind, name] of [
   ['function', 'handle_new_user'], ['function', 'my_profile'], ['function', 'complete_connect_unlock'],
