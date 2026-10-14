@@ -106,10 +106,15 @@ required_columns(tbl, col, want_type, script) as (values
   ('public.users', 'notifications_enabled', null, null),
   ('public.user_responses', 'user_id', null, null),
   ('public.user_responses', 'question_number', null, null),
+  -- photos: this list used to require `slot`, which public.photos does not
+  -- have — `slot_key` belongs to the unrelated legacy user_photos table — so
+  -- the row reported a permanent false MISSING. display_order is the photos
+  -- column the app and the chain really read (seven screens order by it,
+  -- Photos.jsx/PhotoUpload.jsx write it, admin_user_detail orders by it).
   ('public.photos', 'user_id', null, null),
   ('public.photos', 'photo_url', null, null),
   ('public.photos', 'photo_type', null, null),
-  ('public.photos', 'slot', null, null),
+  ('public.photos', 'display_order', null, null),
   ('public.matches', 'user_a_id', null, null),
   ('public.matches', 'user_b_id', null, null),
   ('public.matches', 'status', null, null),
