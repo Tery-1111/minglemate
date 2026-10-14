@@ -33,6 +33,10 @@ export default function Section2() {
   const [currentAnswer, setCurrentAnswer] = useState('')
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  // Save-state machine: idle → saving → saved | error. 'error' keeps
+  // the user's text in the box (nothing is silently discarded) and
+  // offers Retry. 'saved' flashes briefly before advancing.
+  const [saveState, setSaveState] = useState('idle') // idle | saving | saved | error
   const [locked, setLocked] = useState(false)
   const [userId, setUserId] = useState(null)
   const [daysLeft, setDaysLeft] = useState(null)
@@ -88,26 +92,47 @@ export default function Section2() {
   }
 
   async function handleSave() {
-    if (!currentAnswer.trim()) return
+    if (!currentAnswer.trim() || saving) return // no duplicate submits
     setSaving(true)
+    setSaveState('saving')
 
-    await supabase.from('section2_responses').upsert({
+    const text = currentAnswer.trim()
+    const { error } = await supabase.from('section2_responses').upsert({
       user_id: userId,
       question_number: current + 1,
-      answer_text: currentAnswer.trim()
+      answer_text: text
     })
 
-    const newAnswers = { ...answers, [current + 1]: currentAnswer.trim() }
+    if (error) {
+      // ROLLBACK: keep the user's text exactly as typed; say what
+      // happened; offer Retry. Never silently discard.
+      setSaveState('error')
+      setSaving(false)
+      return
+    }
+
+    const newAnswers = { ...answers, [current + 1]: text }
     setAnswers(newAnswers)
+    setSaveState('saved')
+
+    // A beat of confirmation — the save visibly lands before the
+    // next question arrives.
+    await new Promise(r => setTimeout(r, 500))
 
     if (current < section2Questions.length - 1) {
       setCurrent(current + 1)
       setCurrentAnswer(newAnswers[current + 2] || '')
+      setSaveState('idle')
     } else {
-      await supabase
+      const { error: finishError } = await supabase
         .from('users')
         .update({ section2_unlocked: true })
         .eq('id', userId)
+      if (finishError) {
+        setSaveState('error')
+        setSaving(false)
+        return
+      }
       // Onboarding complete → open Discover.
       navigate('/discover')
     }
@@ -171,24 +196,41 @@ export default function Section2() {
       </div>
 
       <div className="s2-content">
-        <h2 className="s2-question">{section2Questions[current]}</h2>
+        <h2 key={current} className="s2-question s1-question-enter">{section2Questions[current]}</h2>
 
         <textarea
           className="s2-textarea"
           placeholder="Write your answer here... be honest and open."
           value={currentAnswer}
-          onChange={e => setCurrentAnswer(e.target.value)}
+          onChange={e => { setCurrentAnswer(e.target.value); if (saveState === 'error') setSaveState('idle') }}
           rows={6}
+          aria-invalid={saveState === 'error'}
         />
 
         <p className="s2-char-count">{currentAnswer.length} characters</p>
+
+        {saveState === 'saved' && (
+          <p className="s2-save-note s2-save-note-ok" role="status">Saved ✓</p>
+        )}
+        {saveState === 'error' && (
+          <p className="s2-save-note s2-save-note-err" role="alert">
+            We couldn't save your answer — it's still here. Check your connection and try again.
+          </p>
+        )}
 
         <button
           className="s2-btn"
           onClick={handleSave}
           disabled={!currentAnswer.trim() || saving}
+          aria-busy={saving}
         >
-          {saving ? 'Saving...' : current < section2Questions.length - 1 ? 'Next Question →' : 'Complete Section 2 ✓'}
+          {saving
+            ? 'Saving…'
+            : saveState === 'error'
+              ? 'Retry saving →'
+              : current < section2Questions.length - 1
+                ? 'Next Question →'
+                : 'Complete Section 2 ✓'}
         </button>
       </div>
     </div>

@@ -78,9 +78,20 @@ export default function Matches() {
   }
 
   if (loading) {
+    // SECTION-SHAPED LOADING (loading-spec §13): the three sections keep
+    // their intended structure (label + card geometry) while resolving.
+    // No fake counts, no invented users, never "loading forever".
     return (
-      <div className="matches-page">
-        <p className="matches-loading loading-dots">Loading your matches</p>
+      <div className="matches-page" aria-busy="true">
+        <header className="matches-header">
+          <h1 className="matches-title display">Matches</h1>
+        </header>
+        {['Tier 1 · Similarity', 'Tier 2 · Complementary', 'Qrashe · Force Connect'].map(label => (
+          <section key={label} aria-hidden="true">
+            <p className="section-label">{label}</p>
+            <div className="skeleton match-card-skeleton" />
+          </section>
+        ))}
         <BottomNav />
       </div>
     )
@@ -142,12 +153,13 @@ export default function Matches() {
       {matches.qrashe && matches.qrashe.length > 0 && (
         <section>
           <p className="section-label">Qrashe · Force Connect</p>
-          {matches.qrashe.map(q => (
+          {matches.qrashe.map((q, i) => (
             <MatchCard
               key={q.id}
               match={q}
               tier="Qrashe"
               currentUserId={userId}
+              enterDelay={i * 80}
               onOpen={() => navigate(`/match/${q.id}`)}
             />
           ))}
@@ -159,7 +171,7 @@ export default function Matches() {
   )
 }
 
-function MatchCard({ match, tier, onOpen }) {
+function MatchCard({ match, tier, enterDelay = 0, onOpen }) {
   // Reconciliation pass: the old gift/prompt actions (gift_transactions /
   // payment_prompts) were a parallel payment path superseded by the
   // purpose-based Connect system. Removed from the card; the tables
@@ -170,7 +182,8 @@ function MatchCard({ match, tier, onOpen }) {
 
   return (
     <div
-      className="match-card"
+      className="match-card rise-in"
+      style={enterDelay ? { animationDelay: `${enterDelay}ms` } : undefined}
       role="button"
       tabIndex={0}
       aria-label={`Open match with ${match.full_name}`}
@@ -178,7 +191,7 @@ function MatchCard({ match, tier, onOpen }) {
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen() } }}
     >
       {facial ? (
-        <img src={facial.photo_url} alt="" className="match-photo" loading="lazy" />
+        <img src={facial.photo_url} alt="" className="match-photo" loading="lazy" decoding="async" />
       ) : (
         <div className="match-photo match-photo-empty" aria-hidden="true">
           {firstName ? firstName.charAt(0).toUpperCase() : (

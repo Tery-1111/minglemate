@@ -96,9 +96,19 @@ export default function Chat() {
   const [conversationArchived, setConversationArchived] = useState(false)
   const messagesEndRef = useRef(null)
   const currentUserRef = useRef(null)
+  // Realtime channel must be cleaned up by the effect itself. Returning a
+  // cleanup from async loadChat() is swallowed by React — channels would
+  // leak on every conversation switch.
+  const channelRef = useRef(null)
 
   useEffect(() => {
     loadChat()
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current)
+        channelRef.current = null
+      }
+    }
   }, [matchId])
 
   useEffect(() => {
@@ -240,8 +250,9 @@ export default function Chat() {
       }, 800)
     }
 
-    // Realtime — only for incoming messages from match (not bot)
-    const channel = supabase
+    // Realtime — only for incoming messages from match (not bot).
+    // Stored in a ref; the effect above owns the cleanup.
+    channelRef.current = supabase
       .channel(`chat-${session.user.id}-${matchId}`)
       .on('postgres_changes', {
         event: 'INSERT',
@@ -260,8 +271,6 @@ export default function Chat() {
         }
       })
       .subscribe()
-
-    return () => supabase.removeChannel(channel)
   }
 
   async function sendBotQuestion(questionNumber, progress, userId, recipientId) {
@@ -358,14 +367,33 @@ export default function Chat() {
     setSending(true)
 
     const weekId = getWeekId()
-    const hasContact = containsContact(newMessage)
+    const text = newMessage.trim()
+    const hasContact = containsContact(text)
+
+    // OPTIMISTIC SEND (safe for messages): render the bubble instantly
+    // as `pending`, reconcile with the insert. On failure the bubble
+    // flips to `failed` with a Retry action — never silently dropped,
+    // never shown as delivered.
+    const clientId = `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const optimistic = {
+      id: clientId,
+      sender_id: currentUser,
+      recipient_id: matchId,
+      content: text,
+      sent_at: new Date().toISOString(),
+      is_bot: false,
+      _pending: true,
+    }
+    setMessages(prev => [...prev, optimistic])
+    setNewMessage('')
+    setSendError('')
 
     const { data, error: sendError } = await supabase
       .from('messages')
       .insert({
         sender_id: currentUser,
         recipient_id: matchId,
-        content: newMessage.trim(),
+        content: text,
         match_week_id: weekId,
         has_contact_info: hasContact,
         is_bot: false
@@ -373,27 +401,30 @@ export default function Chat() {
       .select()
       .single()
 
+    // Reconcile: replace the optimistic bubble with the real row.
+    setMessages(prev => {
+      const withoutTmp = prev.filter(m => m.id !== clientId)
+      if (sendError) {
+        // Keep it visible as failed — user can retry or dismiss.
+        return [...withoutTmp, { ...optimistic, _pending: false, _failed: true }]
+      }
+      if (!data) return withoutTmp
+      const exists = withoutTmp.find(m => m.id === data.id)
+      if (exists) return withoutTmp
+      return [...withoutTmp, data]
+    })
+
     // Database-side rate limit (messages_rate_limit trigger) — the
     // limit is enforced for every insert path, not just this UI.
     if (sendError) {
       setSendError(
         sendError.message === 'RATE_LIMITED'
           ? 'You are sending messages too quickly. Please take a short break.'
-          : 'Message could not be sent. Please try again.'
+          : ''
       )
       setSending(false)
       return
     }
-
-    if (data) {
-      setMessages(prev => {
-        const exists = prev.find(m => m.id === data.id)
-        if (exists) return prev
-        return [...prev, data]
-      })
-    }
-
-    setNewMessage('')
 
     await supabase.from('engagement_metrics').upsert({
       user_id: currentUser,
@@ -437,6 +468,17 @@ export default function Chat() {
     }
   }
 
+  async function retryMessage(failedMsg) {
+    // Retry a failed send through the same optimistic path, but
+    // reusing the original text (it was never lost).
+    setMessages(prev => prev.filter(m => m.id !== failedMsg.id))
+    setNewMessage(failedMsg.content)
+  }
+
+  function discardMessage(failedMsg) {
+    setMessages(prev => prev.filter(m => m.id !== failedMsg.id))
+  }
+
   function renderMessage(msg, index) {
     const isMe = msg.sender_id === currentUser
     const isBot = msg.is_bot
@@ -474,23 +516,69 @@ export default function Chat() {
     const shouldBlur = !isMe && containsContact(msg.content) && !contactsRevealed
     const displayContent = shouldBlur ? blurContactInfo(msg.content) : msg.content
 
+    // OPTIMISTIC RECONCILIATION VISIBLE: pending bubbles show "Sending…"
+    // in the timestamp slot; failed ones show an inline Retry/Discard.
+    // These states ride the same bubble so the text never moves.
+    const stateNote = msg._failed
+      ? 'Not sent'
+      : msg._pending
+        ? 'Sending…'
+        : null
+
     return (
-      <div key={msg.id || index} className={`message ${isMe ? 'sent' : 'received'}`}>
+      <div key={msg.id || index} className={`message msg-in ${isMe ? 'sent' : 'received'}`}>
         {shouldBlur && (
           <p className="blur-warning">⚠️ Contact info hidden until 14 questions are discussed</p>
         )}
         <p className="message-text">{displayContent}</p>
-        <p className="message-time">
-          {new Date(msg.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </p>
+        {stateNote ? (
+          <span className={`message-state${msg._failed ? ' message-state-failed' : ''}`}>
+            {stateNote}
+            {msg._failed && (
+              <>
+                <button className="message-retry" onClick={() => retryMessage(msg)}>Retry</button>
+                <button className="message-retry message-retry-dim" onClick={() => discardMessage(msg)}>Discard</button>
+              </>
+            )}
+          </span>
+        ) : (
+          <p className="message-time">
+            {new Date(msg.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </p>
+        )}
       </div>
     )
   }
 
   if (loading) {
+    // CONVERSATION-SHAPED LOADING (loading-spec §16): header, question
+    // block and message-row skeletons in the eventual layout — never a
+    // bare "Loading messages...". Pure CSS, no extra requests.
     return (
-      <div className="chat-loading">
-        <p>Loading chat...</p>
+      <div className="chat-container" aria-busy="true">
+        <div className="chat-header">
+          <div className="skeleton chat-sk-back" aria-hidden="true" />
+          <div className="chat-match-info">
+            <span className="skeleton chat-sk-name" aria-hidden="true" />
+            <span className="skeleton chat-sk-sub" aria-hidden="true" />
+          </div>
+        </div>
+        <div className="skeleton chat-sk-progress" aria-hidden="true" />
+        <div className="chat-messages">
+          <div className="bot-message" aria-hidden="true">
+            <div className="skeleton chat-sk-bot" />
+          </div>
+          <div className="message sent" aria-hidden="true">
+            <div className="skeleton chat-sk-msg-r" />
+          </div>
+          <div className="message received" aria-hidden="true">
+            <div className="skeleton chat-sk-msg-l" />
+          </div>
+        </div>
+        <div className="chat-input-area">
+          <div className="skeleton chat-sk-input" aria-hidden="true" />
+          <div className="skeleton chat-sk-send" aria-hidden="true" />
+        </div>
       </div>
     )
   }
@@ -581,10 +669,22 @@ export default function Chat() {
       <div className="chat-messages">
         {messages.length === 0 && (
           <div className="chat-empty">
-            <p>Starting your guided conversation...</p>
+            <p>
+              {sendingBot
+                ? 'Preparing your first question…'
+                : "Waiting for your match to join the conversation — they haven't responded yet."}
+            </p>
           </div>
         )}
         {messages.map((msg, i) => renderMessage(msg, i))}
+        {sendingBot && messages.length > 0 && (
+          <div className="bot-message">
+            <div className="bot-bubble bot-typing" aria-live="polite">
+              <span className="bot-tag">MingleMate</span>
+              <p>Thinking of the next question…</p>
+            </div>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 

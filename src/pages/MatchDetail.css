@@ -41,15 +41,26 @@
 .md-back:hover { background: rgba(6, 5, 7, 0.75); }
 .md-back:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }
 
-/* Photo hero */
+/* Photo hero — the wrap owns the box + skeleton underlay; the img
+   fades in inside it (continuity, no layout shift). */
+.md-photo-wrap {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-4);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.md-photo-wrap .skeleton {
+  border-radius: 0;
+}
+
 .md-photo {
   width: 100%;
   aspect-ratio: 3 / 4;
   object-fit: cover;
-  border-radius: var(--radius-lg);
-  margin-bottom: var(--space-4);
   display: block;
-  background: var(--surface);
 }
 
 .md-photo-empty {

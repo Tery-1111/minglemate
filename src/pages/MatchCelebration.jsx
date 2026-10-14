@@ -3,18 +3,35 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import './MatchCelebration.css'
 
-// MATCH CELEBRATION: shown after a mutual weekly match (navigated to
-// from Home/Dashboard when this week's match_history row is fresh).
-// Displays the two Tier 1 / Tier 2 cards, then routes into Matches.
+// MATCH CELEBRATION — emotional LEVEL 3 (peak): calm → anticipation →
+// reveal → peak → continue (spec §13). The sequence is:
+//   1. "Match detected" — quiet heart mark, no names yet (anticipation)
+//   2. The two identity cards fade/rise in, one after the other (reveal)
+//   3. "It's a Match!" title stamps in with the tier labels (peak)
+//   4. Continue → Matches
+// Everything is also readable without animation (prefers-reduced-motion
+// collapses the sequence; all text states are real DOM, not motion-only).
 export default function MatchCelebration() {
   const navigate = useNavigate()
   const [tier1, setTier1] = useState(null)
   const [tier2, setTier2] = useState(null)
   const [loading, setLoading] = useState(true)
+  // Celebration beats: 'detecting' → 'revealing' → 'matched'
+  const [beat, setBeat] = useState('detecting')
 
   useEffect(() => {
     load()
   }, [])
+
+  // ANTICIPATION: a short, fixed build — never a loader pretending to
+  // work, just a deliberate pause that makes the reveal land. Skipped
+  // under reduced motion via the CSS (animation durations collapse).
+  useEffect(() => {
+    if (loading) return
+    const t1 = setTimeout(() => setBeat('revealing'), 900)
+    const t2 = setTimeout(() => setBeat('matched'), 2200)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
+  }, [loading])
 
   function getWeekId() {
     const now = new Date()
@@ -57,26 +74,52 @@ export default function MatchCelebration() {
   }
 
   if (loading) {
-    return <div className="celebration-page"><p className="celebration-loading">…</p></div>
+    // Beat 0: match detected — the quiet inhale before the reveal.
+    return (
+      <div className="celebration-page">
+        <div className="celebration-card celebration-anticipate" role="status">
+          <svg className="celebration-heart" viewBox="0 0 24 24" width="52" height="52" fill="var(--champagne)" aria-hidden="true">
+            <path d="M12 21c-5.6-3.8-9-7-9-10.8C3 7.3 5.2 5 8 5c1.6 0 3.1.8 4 2 .9-1.2 2.4-2 4-2 2.8 0 5 2.3 5 5.2 0 3.8-3.4 7-9 10.8z" />
+          </svg>
+          <h1 className="celebration-title">Match detected</h1>
+          <p className="celebration-sub">The algorithm found your weekly connections…</p>
+        </div>
+      </div>
+    )
   }
+
+  const people = [
+    { label: 'Similarity Match', person: tier1, color: 'var(--accent)' },
+    { label: 'Complementary Match', person: tier2, color: 'var(--champagne)' },
+  ].filter(c => c.person)
 
   return (
     <div className="celebration-page">
       <div className="celebration-card">
-        <svg className="celebration-heart" viewBox="0 0 24 24" width="52" height="52" fill="var(--champagne)" aria-hidden="true">
+        <svg className={`celebration-heart${beat === 'matched' ? ' celebration-heart-peak' : ''}`} viewBox="0 0 24 24" width="52" height="52" fill="var(--champagne)" aria-hidden="true">
           <path d="M12 21c-5.6-3.8-9-7-9-10.8C3 7.3 5.2 5 8 5c1.6 0 3.1.8 4 2 .9-1.2 2.4-2 4-2 2.8 0 5 2.3 5 5.2 0 3.8-3.4 7-9 10.8z" />
         </svg>
-        <h1 className="celebration-title">It's a Match!</h1>
-        <p className="celebration-sub">
-          The algorithm found your weekly connections.
+        <h1 key={beat} className={`celebration-title ${beat === 'matched' ? 'stamp-in' : 's1-question-enter'}`}>
+          {beat === 'matched' ? "It's a Match!" : 'Match detected'}
+        </h1>
+        <p className="celebration-sub" role="status">
+          {beat === 'matched'
+            ? 'Your weekly connections are ready.'
+            : 'The algorithm found your weekly connections…'}
         </p>
 
-        <div className="celebration-cards">
-          {[
-            { label: 'Similarity Match', person: tier1, color: 'var(--accent)' },
-            { label: 'Complementary Match', person: tier2, color: 'var(--champagne)' },
-          ].filter(c => c.person).map(c => (
-            <div key={c.person.id} className="celebration-person">
+        {/* Beat timing drives the reveal: identities rise in one after
+            the other; before 'revealing' they exist in the DOM with
+            aria-hidden so screen readers meet them at the same moment
+            the title peaks. */}
+        <div className="celebration-cards" aria-busy={beat !== 'matched'}>
+          {people.map((c, i) => (
+            <div
+              key={c.person.id}
+              className={`celebration-person rise-in${beat === 'matched' ? ' celebration-peak' : ' celebration-reveal'}`}
+              style={{ animationDelay: beat === 'matched' ? `${i * 120}ms` : `${600 + i * 500}ms` }}
+              aria-hidden={beat !== 'matched' ? true : undefined}
+            >
               {c.person.face ? (
                 <img src={c.person.face} alt={c.person.full_name} className="celebration-photo" />
               ) : (
@@ -91,14 +134,16 @@ export default function MatchCelebration() {
               <div className="celebration-tier" style={{ color: c.color }}>{c.label}</div>
             </div>
           ))}
-          {!tier1 && !tier2 && (
-            <p className="celebration-none">No matches this week yet.</p>
+          {!tier1 && !tier2 && beat === 'matched' && (
+            <p className="celebration-none rise-in">No matches this week yet.</p>
           )}
         </div>
 
-        <button className="celebration-btn" onClick={() => navigate('/matches')}>
-          See My Matches →
-        </button>
+        {beat === 'matched' && (
+          <button className="celebration-btn stamp-in" onClick={() => navigate('/matches')}>
+            See My Matches →
+          </button>
+        )}
       </div>
     </div>
   )

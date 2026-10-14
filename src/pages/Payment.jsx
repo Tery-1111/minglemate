@@ -19,7 +19,13 @@ export default function Payment() {
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState('')
-  const [phase, setPhase] = useState('idle') // idle | pushing | success | timeout
+  // Payment state machine (loading-spec §22): idle → initiating →
+  // processing (awaiting PIN) → success | pending | failed. 'pending'
+  // is NOT success — it means the STK push timed out client-side but
+  // the payment may still complete server-side (recovery). 'failed'
+  // is a definitive negative result. Both preserve context and offer
+  // the correct next action without re-charging blind.
+  const [phase, setPhase] = useState('idle') // idle | pushing | success | pending | failed
   const [error, setError] = useState('')
   const [userId, setUserId] = useState(null)
   const [awaitingPin, setAwaitingPin] = useState(false)
@@ -180,8 +186,12 @@ export default function Payment() {
 
       if (attempts >= 12) {
         clearInterval(interval)
-        setStatus('Payment is taking longer than expected. Check your M-Pesa messages — we keep watching in case it completes.')
-        setPhase('timeout')
+        // PENDING ≠ SUCCESS: the push wasn't confirmed in the polling
+        // window. The awaitingPin watcher below keeps watching and
+        // routes onward if the backend completes it — so the user is
+        // never stranded and never double-charged by re-initiating.
+        setStatus('Payment is still pending. Check your M-Pesa messages — we keep watching and will route you onward if it completes.')
+        setPhase('pending')
         setLoading(false)
       }
     }, 5000)
@@ -253,8 +263,8 @@ export default function Payment() {
 
   const isConnect = purpose !== 'section2'
 
-  // ---------- States: pushing / success / timeout ----------
-  if (phase === 'pushing' || phase === 'success' || phase === 'timeout') {
+  // ---------- States: pushing / success / pending / failed ----------
+  if (phase === 'pushing' || phase === 'success' || phase === 'pending' || phase === 'failed') {
     return (
       <div className="payment-container">
         <div className="payment-card">
@@ -301,13 +311,45 @@ export default function Payment() {
             </div>
           )}
 
-          {phase === 'timeout' && (
-            <div className="pay-state" role="status">
-              <div className="pay-waiticon" aria-hidden="true">⏳</div>
-              <h2 className="pay-state-title">Still waiting</h2>
+          {phase === 'pending' && (
+            <div className="pay-state pay-state-pending" role="status">
+              <div className="pay-waiticon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 7v5l3 3" />
+                </svg>
+              </div>
+              <h2 className="pay-state-title">Payment pending</h2>
               <p className="pay-state-sub">{status}</p>
-              <button className="pay-btn" onClick={() => { setPhase('idle'); setStatus(''); setLoading(false); setAwaitingPin(false) }}>
-                Try again
+              {/* Recovery actions: wait (watcher keeps running) or
+                  start over — never an automatic re-charge. */}
+              <button
+                className="pay-btn"
+                onClick={() => { setPhase('idle'); setStatus(''); setLoading(false); setAwaitingPin(false) }}
+              >
+                Start a new payment
+              </button>
+            </div>
+          )}
+
+          {phase === 'failed' && (
+            <div className="pay-state pay-state-failed" role="alert">
+              <div className="pay-waiticon pay-failed-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M9 9l6 6M15 9l-6 6" />
+                </svg>
+              </div>
+              <h2 className="pay-state-title">Payment failed</h2>
+              <p className="pay-state-sub">{status || 'The payment did not go through. Nothing has been unlocked.'}</p>
+              <p className="pay-state-note">
+                Your request: <strong>{meta.title}</strong> · {meta.price} — nothing was charged unless M-Pesa confirms otherwise.
+              </p>
+              <button className="pay-btn" onClick={() => { setPhase('idle'); setStatus(''); setLoading(false) }}>
+                Try payment again
+              </button>
+              <button className="pay-cancel-link" onClick={() => navigate(meta.back)}>
+                Back to {meta.eyebrow === 'Section 2' ? 'Section 2' : 'Matches'}
               </button>
             </div>
           )}

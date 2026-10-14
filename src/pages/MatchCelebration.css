@@ -25,8 +25,33 @@
   to { opacity: 1; transform: scale(1); }
 }
 
+/* ANTICIPATION beat: the heart holds a slow, single inhale while the
+   "Match detected" state is up — then stops. Not perpetual motion. */
+.celebration-anticipate .celebration-heart {
+  animation: heartHold 1.6s var(--ease-out) both;
+}
+
+@keyframes heartHold {
+  0% { opacity: 0; transform: scale(0.85); }
+  45% { opacity: 1; transform: scale(1.06); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* PEAK: one emphasis pulse the moment "It's a Match!" stamps in. */
+.celebration-heart-peak {
+  animation: heartPeak 0.6s var(--ease-out) both;
+}
+
+@keyframes heartPeak {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .celebration-heart { animation: none; }
+  .celebration-heart,
+  .celebration-anticipate .celebration-heart,
+  .celebration-heart-peak { animation: none; }
 }
 
 .celebration-title {
@@ -55,6 +80,13 @@
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 14px 10px;
+}
+
+/* Reveal vs peak framing: during the reveal the cards sit quiet;
+   at the peak the ring + champagne border lift them one level. */
+.celebration-peak {
+  border-color: var(--border-champagne);
+  box-shadow: 0 0 24px var(--peak-ring);
 }
 
 .celebration-photo {

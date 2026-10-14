@@ -7,6 +7,19 @@
   color: var(--text-primary);
 }
 
+/* Conversation-shaped loading skeleton — mirrors the real header,
+   progress bar, bubbles and composer so the eventual screen feels
+   like it resolves into place, not appears. */
+.chat-sk-back { width: 24px; height: 24px; border-radius: 50%; }
+.chat-sk-name { display: block; width: 130px; height: 14px; margin-bottom: 6px; }
+.chat-sk-sub { display: block; width: 90px; height: 10px; }
+.chat-sk-progress { height: 3px; border-radius: 0; }
+.chat-sk-bot { width: 78%; height: 84px; border-radius: 16px; }
+.chat-sk-msg-r { width: 56%; height: 48px; border-radius: 18px; border-bottom-right-radius: 4px; }
+.chat-sk-msg-l { width: 62%; height: 42px; border-radius: 18px; border-bottom-left-radius: 4px; }
+.chat-sk-input { flex: 1; height: 44px; border-radius: 20px; }
+.chat-sk-send { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; }
+
 .chat-container {
   min-height: 100vh;
   display: flex;
@@ -155,6 +168,52 @@
   color: var(--text-muted);
   margin-top: 4px;
   padding: 0 4px;
+}
+
+/* Optimistic send states: pending + failed ride under the bubble.
+   Failed is actionable (Retry / Discard) — a message is never
+   silently dropped and never shown as delivered early. */
+.message-state {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.message-state-failed {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.message-retry {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.message-retry-dim {
+  color: var(--text-muted);
+}
+
+/* Pending bubbles render slightly translucent — visually distinct
+   from confirmed messages without a spinner. */
+.message.sent .message-text:has(+ .message-state) {
+  opacity: 0.75;
+}
+
+/* Waiting-for-question indicator: single line, stops on its own —
+   never a perpetual animation. */
+.bot-typing p {
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 .chat-input-area {

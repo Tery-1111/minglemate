@@ -35,6 +35,17 @@
   padding: 96px 0;
 }
 
+/* Loading skeleton: the real card shape inside its real section —
+   tier labels visible, one skeleton card per section. */
+.match-card-skeleton {
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-lg);
+}
+
+.matches-page section[aria-hidden] .section-label {
+  opacity: 0.6;
+}
+
 /* Empty state — editorial, honest, one action */
 .matches-empty {
   text-align: center;
@@ -85,6 +96,11 @@
   border: 1px solid var(--border);
   cursor: pointer;
   transition: border-color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+}
+
+/* REACTION: touch/press feedback on every device */
+.match-card:active {
+  transform: scale(0.97);
 }
 
 .match-card:hover {

@@ -13,6 +13,7 @@ export default function Home() {
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
   const [userId, setUserId] = useState(null)
+  const [signingOut, setSigningOut] = useState(false)
   const notificationsEnabledRef = useRef(true)
 
   useEffect(() => {
@@ -92,6 +93,8 @@ export default function Home() {
   }
 
   async function handleSignOut() {
+    if (signingOut) return
+    setSigningOut(true)
     await supabase.auth.signOut()
     navigate('/')
   }
@@ -102,7 +105,14 @@ export default function Home() {
         <h1 className="home-logo">MingleMate</h1>
         <div className="home-header-actions">
           {/* Settings lives under Profile (Profile → Settings). */}
-          <button className="signout-btn" onClick={handleSignOut}>Sign Out</button>
+          <button
+            className="signout-btn"
+            onClick={handleSignOut}
+            disabled={signingOut}
+            aria-busy={signingOut}
+          >
+            {signingOut ? 'Signing out…' : 'Sign Out'}
+          </button>
         </div>
       </div>
 

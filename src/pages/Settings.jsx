@@ -23,6 +23,10 @@ export default function Settings() {
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
 
+  // Logout: acknowledged immediately, guarded against double clicks.
+  // We do NOT fake a logged-out screen before signOut() completes.
+  const [signingOut, setSigningOut] = useState(false)
+
   useEffect(() => {
     load()
   }, [])
@@ -214,9 +218,16 @@ export default function Settings() {
         </button>
         <button
           className="settings-row settings-row-logout"
-          onClick={async () => { await supabase.auth.signOut(); navigate('/') }}
+          onClick={async () => {
+            if (signingOut) return
+            setSigningOut(true)
+            await supabase.auth.signOut()
+            navigate('/')
+          }}
+          disabled={signingOut}
+          aria-busy={signingOut}
         >
-          <span>Log out</span>
+          <span>{signingOut ? 'Signing out…' : 'Log out'}</span>
         </button>
 
         <button

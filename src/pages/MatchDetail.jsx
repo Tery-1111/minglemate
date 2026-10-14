@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import FadeImage from '../components/FadeImage'
 import './MatchDetail.css'
 
 // OPEN MATCH: same experience for Tier 1 / Tier 2 / Qrashe.
@@ -19,6 +20,10 @@ export default function MatchDetail() {
   const [loading, setLoading] = useState(true)
   const [myId, setMyId] = useState(null)
   const [actionMsg, setActionMsg] = useState('')
+  // Safety actions are state-machined: idle → busy(name) → done/error.
+  // The clicked button enters a visible busy state immediately (no
+  // frozen click, no double submit) and reports its outcome in text.
+  const [busyAction, setBusyAction] = useState(null) // null | 'unmatch' | 'block' | 'report'
 
   useEffect(() => {
     load()
@@ -115,28 +120,37 @@ export default function MatchDetail() {
   }
 
   async function handleUnmatch() {
+    if (busyAction) return
     if (!confirm('Unmatch? This ends the conversation. This cannot be done after Connect.')) return
+    setBusyAction('unmatch')
     const { error } = await supabase.rpc('unmatch_conversation', { other_user_id: matchId })
     setActionMsg(error ? (error.message || 'Could not unmatch.') : 'Unmatched.')
+    setBusyAction(null)
     if (!error) setTimeout(() => navigate('/matches'), 800)
   }
 
   async function handleBlock() {
+    if (busyAction) return
     if (!confirm('Block this person? You will not be able to message each other.')) return
+    setBusyAction('block')
     const { error } = await supabase
       .from('user_blocks')
       .insert({ blocker_id: myId, blocked_id: matchId })
     setActionMsg(error ? (error.message || 'Could not block.') : 'Blocked.')
+    setBusyAction(null)
     if (!error) setTimeout(() => navigate('/matches'), 800)
   }
 
   async function handleReport() {
+    if (busyAction) return
     const reason = prompt('What is the problem with this profile?')
     if (!reason) return
+    setBusyAction('report')
     const { error } = await supabase
       .from('reports')
       .insert({ reporter_id: myId, reported_id: matchId, reason })
     setActionMsg(error ? (error.message || 'Could not report.') : 'Report sent. Thank you.')
+    setBusyAction(null)
   }
 
   if (loading) {
@@ -165,24 +179,32 @@ export default function MatchDetail() {
       <div className="md-card">
         <button className="md-back" onClick={() => navigate(-1)} aria-label="Go back">←</button>
 
-        {/* Full-body photo is the hero; facial remains the card photo */}
-        {bodyPhoto ? (
-          <img src={bodyPhoto} alt={profile.full_name} className="md-photo" />
-        ) : facePhoto ? (
-          <img src={facePhoto} alt={profile.full_name} className="md-photo" />
+        {/* Full-body photo is the hero; facial remains the card photo.
+            CONTINUITY: the photo fades in over its own box (no pop, no
+            layout shift) — the same box the skeleton occupied. */}
+        {bodyPhoto || facePhoto ? (
+          <FadeImage
+            src={bodyPhoto || facePhoto}
+            alt={profile.full_name}
+            className="md-photo-wrap"
+            imgClassName="md-photo"
+            decoding="async"
+          />
         ) : (
           <div className="md-photo md-photo-empty" aria-hidden="true">{firstName.charAt(0).toUpperCase()}</div>
         )}
 
-        <div className="md-id">
+        {/* PROGRESSIVE REVEAL: identity → bio → interests arrive as a
+            short stagger, not one dump. All remain in DOM for AT. */}
+        <div className="md-id rise-in">
           <span className={`md-tier-chip md-tier-${tier || 'none'}`}>{tier === 'qrashe' ? 'Qrashe' : tier === 'tier1' ? 'Tier 1' : tier === 'tier2' ? 'Tier 2' : 'Match'}</span>
           <h1 className="md-name display">{profile.full_name}, {profile.age}</h1>
         </div>
 
-        {profile.bio && <p className="md-bio">{profile.bio}</p>}
+        {profile.bio && <p className="md-bio rise-in" style={{ animationDelay: '80ms' }}>{profile.bio}</p>}
 
         {profile.interests && profile.interests.length > 0 && (
-          <div className="md-interests">
+          <div className="md-interests rise-in" style={{ animationDelay: '140ms' }}>
             {profile.interests.slice(0, 6).map(tag => (
               <span key={tag} className="md-tag">{tag}</span>
             ))}
@@ -190,7 +212,7 @@ export default function MatchDetail() {
         )}
 
         {!unlock && (
-          <div className="md-cta-block">
+          <div className="md-cta-block rise-in" style={{ animationDelay: '180ms' }}>
             <button className="btn-accent md-btn" onClick={() => navigate(`/chat/${matchId}`)}>
               Start Conversation
             </button>
@@ -241,13 +263,19 @@ export default function MatchDetail() {
 
         <div className="md-actions">
           {!unlock && (
-            <button className="md-action md-action-warn" onClick={handleUnmatch}>Unmatch</button>
+            <button className="md-action md-action-warn" onClick={handleUnmatch} disabled={!!busyAction} aria-busy={busyAction === 'unmatch'}>
+              {busyAction === 'unmatch' ? 'Unmatching…' : 'Unmatch'}
+            </button>
           )}
-          <button className="md-action" onClick={handleBlock}>Block</button>
-          <button className="md-action" onClick={handleReport}>Report</button>
+          <button className="md-action" onClick={handleBlock} disabled={!!busyAction} aria-busy={busyAction === 'block'}>
+            {busyAction === 'block' ? 'Blocking…' : 'Block'}
+          </button>
+          <button className="md-action" onClick={handleReport} disabled={!!busyAction} aria-busy={busyAction === 'report'}>
+            {busyAction === 'report' ? 'Sending…' : 'Report'}
+          </button>
         </div>
 
-        {actionMsg && <p className="md-action-msg">{actionMsg}</p>}
+        {actionMsg && <p className="md-action-msg" role="status">{actionMsg}</p>}
       </div>
     </div>
   )

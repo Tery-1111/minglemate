@@ -75,7 +75,10 @@ export default function Section1() {
     setIsSaving(true);
     setError(null);
 
-    // Update locally stored array element values cleanly
+    // OPTIMISTIC (safe): the selection is shown instantly — the chosen
+    // option lights up before any network round trip. The save is
+    // awaited; on failure we keep the user's answer on screen (never
+    // silently revert) and surface a retryable error.
     const updatedAnswers = [...answers];
     updatedAnswers[current] = CAMPUS_QUESTIONS[current].options[optionIndex];
     setAnswers(updatedAnswers);
@@ -107,16 +110,24 @@ export default function Section1() {
 
       if (userUpdateError) throw userUpdateError;
 
+      setError(null);
+
       // 3. Routing navigation pipeline logic
       if (isSurveyFinished) {
         // Onboarding order: Algorithm Questionnaire → Guided-Question
         // Questionnaire (Section 2) → Discover.
         navigate('/section2');
       } else {
+        // TRANSFORMATION: advance after the save is confirmed — the
+        // selected option visibly holds its state through the save,
+        // then the next question slides in (see .s1-question-enter).
         setCurrent(nextStepIndex);
       }
     } catch (err) {
       console.error("Answer upload crash execution:", err);
+      // ROLLBACK (input-preserving): keep the optimistic selection so
+      // the user's choice is never lost; the error is retryable by
+      // simply tapping the same option again.
       setError("We couldn't save that answer. Check your connection and try again.");
     } finally {
       setIsSaving(false);
@@ -131,13 +142,20 @@ export default function Section1() {
   return (
     <div style={styles.container}>
       <div style={styles.surveyCard}>
-        {/* Progress bar */}
-        <div style={styles.progressBarWrapper}>
-          <div 
-            style={{ 
-              ...styles.progressBarFill, 
-              width: `${((current + 1) / CAMPUS_QUESTIONS.length) * 100}%` 
-            }} 
+        {/* Progress bar — width animates; the percentage is ALSO text
+            so progress never depends on motion alone. */}
+        <div
+          style={styles.progressBarWrapper}
+          role="progressbar"
+          aria-valuenow={current + 1}
+          aria-valuemin={1}
+          aria-valuemax={CAMPUS_QUESTIONS.length}
+        >
+          <div
+            style={{
+              ...styles.progressBarFill,
+              width: `${((current + 1) / CAMPUS_QUESTIONS.length) * 100}%`
+            }}
           />
         </div>
 
@@ -145,33 +163,46 @@ export default function Section1() {
           Question {current + 1} of {CAMPUS_QUESTIONS.length}
         </div>
 
-        <h2 style={styles.questionTitle}>{currentQuestion?.text}</h2>
+        <h2 key={current} style={styles.questionTitle} className="s1-question-enter">{currentQuestion?.text}</h2>
 
-        {/* Options Stack Grid Selection */}
+        {/* Options Stack Grid Selection — selection feedback is
+            instant (optimistic); saving is communicated separately so
+            a slow network never looks like a dead button. */}
         <div style={styles.optionsContainer}>
-          {currentQuestion?.options.map((option, idx) => (
-            <button
-              key={idx}
-              disabled={isSaving}
-              onClick={() => handleSelectOption(idx)}
-              style={{
-                ...styles.optionButton,
-                // answers hold option TEXT (see handleSelectOption); compare
-                // text-to-text so a revisited question shows its saved choice.
-                background: answers[current] === option ? 'var(--accent-soft)' : 'var(--surface-raised)',
-                borderColor: answers[current] === option ? 'var(--accent)' : 'var(--border-strong)',
-                cursor: isSaving ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {option}
-            </button>
-          ))}
+          {currentQuestion?.options.map((option, idx) => {
+            const isSelected = answers[current] === option;
+            return (
+              <button
+                key={idx}
+                disabled={isSaving}
+                aria-pressed={isSelected}
+                onClick={() => handleSelectOption(idx)}
+                style={{
+                  ...styles.optionButton,
+                  background: isSelected ? 'var(--accent-soft)' : 'var(--surface-raised)',
+                  borderColor: isSelected ? 'var(--accent)' : 'var(--border-strong)',
+                  boxShadow: isSelected ? '0 0 0 1px var(--accent)' : 'none',
+                  cursor: isSaving ? 'wait' : 'pointer',
+                  opacity: isSaving && !isSelected ? 0.6 : 1
+                }}
+              >
+                {option}
+              </button>
+            );
+          })}
         </div>
 
+        {isSaving && (
+          <p style={styles.savingNote} role="status">Saving your answer…</p>
+        )}
+        {!isSaving && error && (
+          <p style={styles.errorNote} role="alert">{error}</p>
+        )}
+
         {current > 0 && (
-          <button 
+          <button
             disabled={isSaving}
-            onClick={() => setCurrent(prev => prev - 1)} 
+            onClick={() => setCurrent(prev => prev - 1)}
             style={styles.backBtn}
           >
             ← Previous Question
@@ -263,6 +294,20 @@ const styles = {
     padding: '4px',
     outline: 'none',
     transition: 'color 0.2s'
+  },
+  savingNote: {
+    color: 'var(--text-secondary)',
+    fontSize: '13px',
+    fontWeight: '600',
+    textAlign: 'center',
+    margin: '0 0 8px'
+  },
+  errorNote: {
+    color: 'var(--danger)',
+    fontSize: '13px',
+    fontWeight: '600',
+    textAlign: 'center',
+    margin: '0 0 8px'
   },
   alertBox: {
     background: 'var(--danger-soft)',

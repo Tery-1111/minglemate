@@ -88,6 +88,34 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --dur-fast: 140ms;
   --dur-base: 220ms;
+  --dur-slow: 420ms;   /* reveals, celebration beats */
+
+  /* ---- LIVENESS: emotional intensity tokens ----
+     The interface moves through calm → interest → peak. Surfaces
+     and accents are reached through these semantic aliases so the
+     emotional system can be re-tuned (or palette-tested) centrally
+     without touching any page CSS. Level 1 (calm) is the default.
+     Level 2 (interest) is selection/focus/active-conversation.
+     Level 3 (peak) is match/celebration/connect-success. */
+  --lively-1: var(--surface);            /* calm surface */
+  --lively-2: var(--surface-active);     /* interest surface (hover/active fill) */
+  --peak-accent: var(--accent);          /* the celebratory action color */
+  --peak-ring: var(--accent-soft);       /* celebration halo fill */
+  --press-scale: 0.985;                  /* shared pressed feedback */
+
+  /* PALETTE EXPERIMENT SLOTS (spec §9) — the romantic system is
+     defined once, in slots, so A/B variants can be trialled by
+     swapping values here only. Current values: Emerald Ink identity
+     (the shipped brand). Candidate slots map:
+       --romantic-deep   → Deep Wine / Burgundy / Deep Plum
+       --romantic-cream  → Warm Cream / Soft Ivory
+       --romantic-vivid  → Crimson / Coral Red / Vivid Red
+       --romantic-soft   → Blush / Soft Pink
+     Do NOT hardcode candidate hexes in page CSS; they land here. */
+  --romantic-deep: #064e3b;      /* Emerald Ink (brand root) */
+  --romantic-cream: #f8e7c9;     /* Champagne */
+  --romantic-vivid: #0e6b51;     /* lifted emerald */
+  --romantic-soft: rgba(248, 231, 201, 0.08);
 
   /* ---- Layout ---- */
   --content-w: 720px;    /* max width for feed-style screens */
@@ -241,6 +269,99 @@ input, textarea, select { font-family: inherit; }
   background-size: 200% 100%;
   animation: mm-shimmer 1.4s linear infinite;
   border-radius: var(--radius-sm);
+}
+
+/* ------------------------------------------------------------
+   LIVENESS PRIMITIVES — shared, token-driven, reduced-motion safe
+   ------------------------------------------------------------ */
+
+/* Image reveal: photos fade in over their container (which shows a
+   skeleton/placeholder underneath) instead of popping into place.
+   JS adds .is-loaded when the img finishes decoding. */
+.img-reveal {
+  opacity: 0;
+  transition: opacity var(--dur-slow) var(--ease-out);
+}
+.img-reveal.is-loaded { opacity: 1; }
+
+/* Image failure fallback (FadeImage): the box keeps its shape and
+   offers Retry — never a broken rectangle. */
+.img-failed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background: var(--surface-raised);
+  color: var(--text-muted);
+}
+
+.img-failed-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 1;
+}
+
+.img-retry {
+  background: none;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 14px;
+  cursor: pointer;
+}
+
+.img-retry:hover { border-color: var(--text-muted); color: var(--text-primary); }
+
+/* Content block reveal for progressive disclosure (cards, lists,
+   celebration identities). Fine without JS: initial render animates. */
+@keyframes mm-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.rise-in {
+  animation: mm-rise var(--dur-slow) var(--ease-out) both;
+}
+
+/* Chat/message entrance: small horizontal rise, direction-neutral so
+   bubbles read as arriving rather than popping. */
+@keyframes mm-msg-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.msg-in { animation: mm-msg-in var(--dur-base) var(--ease-out) both; }
+
+/* Success tick stamp for verified states (payments, saved edits). */
+@keyframes mm-stamp {
+  0% { opacity: 0; transform: scale(0.5); }
+  60% { transform: scale(1.12); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.stamp-in { animation: mm-stamp 0.45s var(--ease-out) both; }
+
+/* Universal pressed feedback for card-like buttons. */
+.pressable {
+  transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast) ease;
+}
+.pressable:active { transform: scale(var(--press-scale)); }
+
+/* Question slide-in (questionnaires): the next question visibly
+   ARRIVES — progress reads as motion + text, not a hard swap. */
+@keyframes mm-question-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.s1-question-enter {
+  animation: mm-question-in var(--dur-base) var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .img-reveal { opacity: 1; transition: none; }
+  .rise-in, .msg-in, .stamp-in, .s1-question-enter { animation: none; }
+  .pressable:active { transform: none; }
 }
 
 /* ---- Reduced motion: respect globally ---- */

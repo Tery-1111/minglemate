@@ -28,6 +28,9 @@ export default function Profile() {
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
+  // Save-state machine for the edit form: idle → saving → saved | error.
+  // 'saved' is a visible confirmation, not a silent success.
+  const [saveState, setSaveState] = useState('idle') // idle | saving | saved | error
   const [error, setError] = useState('')
 
   const [form, setForm] = useState({
@@ -99,6 +102,7 @@ export default function Profile() {
   function startEditing() {
     setPromptDraft(form.prompts.map(p => ({ ...p })))
     setError('')
+    setSaveState('idle')
     setEditing(true)
   }
 
@@ -140,6 +144,7 @@ export default function Profile() {
   }
 
   async function handleSave() {
+    if (saving) return // no duplicate submits
     setError('')
 
     // Same limits the DB constraints enforce (bio 300, prompts <= 3)
@@ -155,6 +160,7 @@ export default function Profile() {
     }
 
     setSaving(true)
+    setSaveState('saving')
     const { data: { session } } = await supabase.auth.getSession()
 
     const { error: updateError } = await supabase
@@ -169,16 +175,22 @@ export default function Profile() {
       .eq('id', session.user.id)
 
     if (updateError) {
-      // DB boundary (bio_max_300 / prompts_shape) is the final gate
-      setError(updateError.message)
+      // ROLLBACK: keep every edit in the form (nothing discarded),
+      // state the failure plainly.
+      setError(updateError.message || 'Could not save your changes.')
+      setSaveState('error')
       setSaving(false)
       return
     }
 
+    // Success: reflect immediately (the visible profile updates in
+    // place), show a stamped confirmation, exit edit mode.
     setUser({ ...user, ...check.value })
     setForm(prev => ({ ...prev, prompts: check.value.prompts }))
+    setSaveState('saved')
     setEditing(false)
     setSaving(false)
+    setTimeout(() => setSaveState('idle'), 2500)
   }
 
   async function handleSharingSave() {
@@ -222,6 +234,12 @@ export default function Profile() {
           {editing ? 'Cancel' : 'Edit'}
         </button>
       </div>
+
+      {/* CONSEQUENCE: a saved edit is confirmed in text (works without
+          animation); an edit-in-progress is announced via aria-busy. */}
+      {saveState === 'saved' && (
+        <p className="profile-save-banner stamp-in" role="status">Changes saved ✓</p>
+      )}
 
       {isPaused && !editing && (
         <div className="profile-paused-banner">
@@ -366,14 +384,15 @@ export default function Profile() {
               })}
             </div>
 
-            {error && <p className="profile-error-text">{error}</p>}
+            {error && <p className="profile-error-text" role="alert">{error}</p>}
 
             <button
               className="profile-save-btn"
               onClick={handleSave}
               disabled={saving}
+              aria-busy={saving}
             >
-              {saving ? 'Saving...' : 'Save Changes'}
+              {saveState === 'error' ? 'Retry saving' : saving ? 'Saving…' : 'Save Changes'}
             </button>
           </div>
         ) : (
