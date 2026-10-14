@@ -199,6 +199,18 @@ it). All of these are read-only rows, so this costs nothing to re-check.
 
 ---
 
+## Admin panel prerequisites
+
+The Admin Reports tab (`Admin.jsx:117`) will fail until the consolidated chain is
+applied AND `admin_reports_list` exists with its `is_admin()` guard. Applying the
+chain in staging and confirming the function returns without error is a hard
+prerequisite — the guard lives in the database, not the frontend, so the Reports
+tab stays broken until `supabase/migrations/20261014150000_consolidated_schema_chain.sql`
+has been run against the project. A signed-in non-admin calling the RPC by hand
+must get `42501 Forbidden`, not rows.
+
+---
+
 ## 6. Post-deploy verification (order matters)
 
 - [ ] **6.1** **Signup:** create a fresh account → should land on `/onboarding` with NO RLS error; profile row exists in `users`.
