@@ -83,7 +83,13 @@ serve(async (req) => {
     blockedPairs.add(pairKey(b.blocker_id, b.blocked_id))
   }
 
-  const matches = []
+  // Weekly compatibility pairs, held in memory only. These are NOT
+  // `matches` rows: that table holds Qrashe pairs created by the paid
+  // Force Connect flow, and the app reads every status='active' row
+  // there as a Qrashe match — writing a weekly pair into it would
+  // mislabel that pair. Weekly delivery below goes to match_history,
+  // which is what the Matches screen and Match Celebration read.
+  const pairs = []
   for (let firstIndex = 0; firstIndex < (users || []).length; firstIndex++) {
     for (let secondIndex = firstIndex + 1; secondIndex < (users || []).length; secondIndex++) {
       const firstUser = users[firstIndex]
@@ -104,24 +110,13 @@ serve(async (req) => {
         : [secondProfile, firstProfile]
       const result = calculateCompatibility(userA, userB)
 
-      matches.push({
+      // Score is kept for this run's ranking only.
+      pairs.push({
         user_a_id: userA.id,
         user_b_id: userB.id,
-        compatibility_score: Math.round(result.overall),
-        compatibility_drivers: {
-          dimensions: result.dimensions
-        },
-        status: 'pending',
-        is_visible: true
+        compatibility_score: Math.round(result.overall)
       })
     }
-  }
-  // Insert compatibility rows (idempotent per pair), tracking which user saw which side
-  const { error: compatError } = await supabase
-    .from('matches')
-    .upsert(matches, { onConflict: 'user_a_id,user_b_id' })
-  if (compatError) {
-    return new Response(JSON.stringify({ error: compatError.message }), { status: 400 })
   }
 
   // Deliver weekly Tier 1 / Tier 2 matches per user, compatible with the existing
@@ -140,9 +135,9 @@ serve(async (req) => {
     if (row.tier2_match_id) previousPartners.add(`${row.user_id}:${row.tier2_match_id}`)
   }
 
-  // Index matches by participant for fast top-2 lookup
+  // Index the pairs by participant for fast top-2 lookup
   const byUser: Record<string, { partnerId: string; score: number }[]> = {}
-  for (const m of matches) {
+  for (const m of pairs) {
     for (const [self, partner] of [[m.user_a_id, m.user_b_id], [m.user_b_id, m.user_a_id]] as const) {
       if (!byUser[self]) byUser[self] = []
       byUser[self].push({ partnerId: partner, score: m.compatibility_score })
@@ -178,7 +173,7 @@ serve(async (req) => {
     }
   }
 
-  return new Response(JSON.stringify({ success: true, matchesProcessed: matches.length, usersDelivered: historyRows.length }), { status: 200 })
+  return new Response(JSON.stringify({ success: true, matchesProcessed: pairs.length, usersDelivered: historyRows.length }), { status: 200 })
 })
 
 function getWeekId(date = new Date()): string {
