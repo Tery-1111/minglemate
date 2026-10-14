@@ -1961,6 +1961,12 @@ grant execute on function public.my_profile() to authenticated;
 --     server-owned. A client write is silently DISCARDDED (the caller's
 --     existing value is preserved), so no client gets an error and no
 --     entitlement can be forged.
+--   * The same clamp also covers the server-owned columns no client path
+--     writes: `reg_number`, `reputation_score`, `status` and
+--     `section2_responses`. (Verified against src/: no screen writes any of
+--     them. `profile_status`, `section1_*`, `share_*`, `social_*`,
+--     `display_phone`, `onesignal_player_id` and `notifications_enabled`
+--     remain client-writable because the app does write them.)
 --   * The 14-day trial is granted once, server-side, when the profile
 --     row is created for a new auth user (handle_new_user).
 --   * Verified payments still unlock, because payment-callback uses the
@@ -1977,14 +1983,32 @@ grant execute on function public.my_profile() to authenticated;
 -- ------------------------------------------------------------
 
 -- ------------------------------------------------------------
+-- 1b. The columns the clamp reads must exist before it writes them.
+--     reg_number, reputation_score, users.status and section2_responses
+--     are part of the deployed users table (schema dump), but no earlier
+--     stage of this chain converges them: a plpgsql assignment to a
+--     missing column fails the entire write with 42703, which would make
+--     every client profile update fail on a database built from this
+--     chain's preconditions alone. Same pattern as the columns above —
+--     add-if-not-exists, defaults matching the deployed table.
+-- ------------------------------------------------------------
+alter table public.users
+  add column if not exists reg_number text,
+  add column if not exists reputation_score integer default 100,
+  add column if not exists status text default 'active',
+  add column if not exists section2_responses integer[] default '{}'::integer[];
+
+-- ------------------------------------------------------------
 -- 2. Column-level entitlement clamp.
 --    Fires on every write to public.users. It is a NO-OP for trusted
 --    server paths — the service role, the SQL editor, and the
 --    auth.users signup trigger none of which carry a user JWT — and for
---    anonymous writes (RLS already blocks those). It only ever rewrites
---    the two entitlement columns, so every other column a client
---    legitimately edits (bio, interests, share_*, social_*, status,
---    notifications_enabled, ...) is untouched.
+--    anonymous writes (RLS already blocks those). It rewrites only the
+--    server-owned columns — the two entitlements and the four legacy
+--    server-owned fields — so every other column a client legitimately
+--    edits (bio, interests, profile_status, section1_*, share_*,
+--    social_*, display_phone, onesignal_player_id, notifications_enabled,
+--    ...) is untouched.
 -- ------------------------------------------------------------
 create or replace function public.clamp_user_protected_columns()
 returns trigger
@@ -2014,12 +2038,22 @@ begin
     -- A row created by a client never carries entitlement.
     new.section2_unlocked := false;
     new.section2_free_expires_at := null;
+    -- Nor server-owned state: a row a client creates starts at the values
+    -- the server would have given it, whatever the request asked for.
+    new.reg_number := null;
+    new.reputation_score := 100;
+    new.status := 'active';
+    new.section2_responses := '{}'::integer[];
   else
     -- Existing values are preserved verbatim; the client may not change
     -- them. Deliberately not an error: the client's write simply has no
-    -- effect on these two columns.
+    -- effect on these columns.
     new.section2_unlocked := old.section2_unlocked;
     new.section2_free_expires_at := old.section2_free_expires_at;
+    new.reg_number := old.reg_number;
+    new.reputation_score := old.reputation_score;
+    new.status := old.status;
+    new.section2_responses := old.section2_responses;
   end if;
 
   return new;
