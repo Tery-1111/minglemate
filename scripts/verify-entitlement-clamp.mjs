@@ -36,6 +36,23 @@
 import { execFileSync } from 'node:child_process'
 import { createHmac, randomUUID } from 'node:crypto'
 
+// A stack probe before anything else. Without it the script falls through to
+// `supabase status`, which can report a URL for a project that is not running,
+// and then blocks on an untimed fetch to a dead port instead of exiting.
+// 2 means "skipped: nothing to test against", not "failed".
+async function stackIsUp() {
+  try {
+    const res = await fetch('http://127.0.0.1:54321/rest/v1/', {
+      signal: AbortSignal.timeout(1500),
+    })
+    return res.status > 0
+  } catch { return false }
+}
+if (!(await stackIsUp())) {
+  console.error('no local stack — skipped (exit 2)')
+  process.exit(2)
+}
+
 const DEFAULT_URL = 'http://127.0.0.1:54321'
 
 const fromEnv = {
@@ -159,14 +176,17 @@ const check = (name, ok, detail = '') => {
 }
 const note = (msg) => console.log(`        ${msg}`)
 
-async function api(path, { method = 'GET', key, token, body, prefer } = {}) {
+async function api(path, { method = 'GET', key, token, body, prefer, timeoutMs } = {}) {
   const headers = { apikey: key, Authorization: `Bearer ${token || key}` }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (prefer) headers.Prefer = prefer
   const res = await fetch(`${URL_}${path}`, {
     method,
     headers,
-    body: body === undefined ? undefined : JSON.stringify(body)
+    body: body === undefined ? undefined : JSON.stringify(body),
+    // Only the connectivity probe passes a budget: a target that answers
+    // nothing must be a skip, never a hang. Test requests stay unbounded.
+    signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined
   })
   const text = await res.text()
   let json = null
@@ -179,7 +199,7 @@ const me = (path, token, opts = {}) => api(path, { ...opts, key: stack.anon, tok
 
 // ---------------------------------------------------------------- connectivity
 {
-  const health = await asService('/rest/v1/').catch((e) => ({ status: 0, text: String(e) }))
+  const health = await asService('/rest/v1/', { timeoutMs: 2000 }).catch((e) => ({ status: 0, text: String(e) }))
   if (health.status === 0) {
     console.log(`No reachable stack at ${URL_} (${health.text}). Is it running? try: supabase start`)
     process.exit(2)
