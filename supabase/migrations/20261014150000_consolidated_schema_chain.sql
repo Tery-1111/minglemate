@@ -3056,6 +3056,10 @@ begin
           ur.section2_unlocked,
           -- derived from profile_status: there is no users.is_active column
           (coalesce(ur.profile_status, '') = 'active') as is_active,
+          -- profile_status is multi-valued ('incomplete' | 'active' | 'paused'
+          -- | 'pending_deletion'), so the raw state is emitted alongside the
+          -- boolean: a two-state chip cannot tell paused from pending deletion.
+          coalesce(ur.profile_status, 'active') as status,
           ur.created_at
         from public.users ur
         left join public.campuses c on c.id = ur.campus_id
@@ -3146,6 +3150,8 @@ begin
       -- Admin.jsx renders them (both as booleans).
       select json_build_object(
         'profile_status', ur.profile_status,
+        -- multi-valued (see admin_users_list): raw state for the UI
+        'status', coalesce(ur.profile_status, 'active'),
         'section1_complete', ur.section1_complete,
         'section2_unlocked', ur.section2_unlocked,
         'is_active', (coalesce(ur.profile_status, '') = 'active'),

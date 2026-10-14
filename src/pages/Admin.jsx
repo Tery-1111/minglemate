@@ -441,8 +441,8 @@ export default function Admin() {
                   {detail.photos?.length > 0 && (
                     <div className="admin-photos">
                       {detail.photos.map(p => (
-                        <figure key={p.slot}>
-                          <img src={p.photo_url} alt={p.slot} />
+                        <figure key={p.photo_type}>
+                          <img src={p.photo_url} alt={p.photo_type} />
                           <figcaption>{p.photo_type === 'facial' ? 'Facial photo' : 'Full-body photo'}</figcaption>
                         </figure>
                       ))}
@@ -451,7 +451,7 @@ export default function Admin() {
 
                   {detail.status && (
                     <div className="admin-detail-grid">
-                      <p>Status: {detail.status.profile_status} · account {detail.status.is_active === false ? 'deactivated' : 'active'}</p>
+                      <p>Status: {detail.status.profile_status} · account {String(detail.status.status || 'active').replace(/_/g, ' ')}</p>
                       <p>Section 1: {detail.status.section1_complete ? 'complete' : 'incomplete'} · Section 2: {detail.status.section2_unlocked ? 'unlocked' : 'locked'}</p>
                       <p>Contact sharing — phone: {detail.status.share_phone ? 'on' : 'off'} · whatsapp: {detail.status.share_whatsapp ? 'on' : 'off'} · social: {detail.status.share_social ? 'on' : 'off'}</p>
                       {Array.isArray(detail.status.interests) && detail.status.interests.length > 0 && (
