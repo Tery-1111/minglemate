@@ -1,5 +1,12 @@
 # MingleMate Security Assessment — Penetration Test Report
 
+> **⚠️ Reconciliation 2026-10-14 — partly stale.** 4 claims here are false and 14
+> stale: the "4 SQL files / 5 functions" counts, the OTP-login description, the
+> "per-origin CORS in all client-facing functions" claim (match-generator has
+> none), the enforced-CSP claim (it is Report-Only), and several "pending SQL"
+> statuses that are now in the chain but unverified as deployed. See
+> [docs/docs-reconciliation-2026-10-14.md](docs/docs-reconciliation-2026-10-14.md) §2.
+
 **Date:** 2026-09-18 · **Target:** minglemate (React SPA + Supabase + Edge Functions)
 **Method:** Static white-box analysis of source, git history, and live runtime probing. No destructive testing against production data.
 
@@ -134,7 +141,7 @@ Found **22 findings: 5 Critical, 8 High, 7 Medium, 2 Low/Info**. The most seriou
 
 ## Priority remediation order
 
-1. **Now:** Apply `fix_rls.sql` (unblocks auth) → `harden_profile_reads.sql` → `admin_role.sql`; insert your `admin_users` row.
+1. **Now:** Apply `supabase/migrations/20261014150000_consolidated_schema_chain.sql` — one idempotent entrypoint that absorbs `fix_rls.sql`, `harden_profile_reads.sql`, `admin_role.sql`, `remediation_bundle.sql`, `product_flow_bundle.sql`, `storage_rls.sql` and the rest; then insert your `admin_users` row. Those files are **retired** under `supabase/sql/superseded/` — do not run them (see `DEPLOYMENT-CHECKLIST.md` §1).
 2. **This week:** Fix `initiate-payment` (JWT-derived user, server-set price, rate limit, phone validation); fix `payment-callback` (intent row, idempotency, correct mapping). Delete `notifications.js`; add auth checks to `send-notification` and both matching functions.
 3. **Verify then ship:** RLS for `messages`, `section2_chat_progress`, and photo storage (H7/H8/M1) — written on request.
 4. **Hygiene:** rotate the burned JWT + admin passwords; optional git history scrub; add security headers; normalize OTP errors.

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>MingleMate mobile audit</title>
+<style>
+  body { background: #0b0a0c; color: #e9e4d8; font: 13px/1.5 monospace; padding: 12px; }
+  h1 { font-size: 15px; margin: 0 0 8px; }
+  pre { color: #9fe3c0; white-space: pre-wrap; margin: 8px 0 16px; }
+  iframe { border: 2px solid red; background: #000; display: block; }
+</style>
+</head>
+<body>
+<h1 id="title">loading…</h1>
+<iframe id="frame"></iframe>
+<pre id="report">measuring…</pre>
+<script>
+  const q = new URLSearchParams(location.search);
+  const route = q.get('route') || '/discover';
+  const w = parseInt(q.get('w') || '360', 10);
+  const h = parseInt(q.get('h') || '740', 10);
+  const mock = q.get('mock') || '';
+  document.getElementById('title').textContent = 'route=' + route + ' viewport=' + w + 'x' + h + (mock ? ' MOCK' : '');
+  const frame = document.getElementById('frame');
+  frame.width = w; frame.height = h;
+  frame.src = route;
+
+  function el(d, cls, text, tag) {
+    const e = d.createElement(tag || 'div');
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  // Inject synthetic content using the production class names so the real
+  // CSS/grid rules are exercised even when the DB has no candidates.
+  function injectMock(d) {
+    if (mock === 'discover') {
+      const main = d.querySelector('.discover-page') || d.body;
+      const grid = d.querySelector('.discover-grid');
+      const g = grid || el(d, 'discover-grid', null);
+      if (!grid) main.appendChild(g);
+      const names = ['Amina Wanjiku', 'Brian Otieno', 'Cynthia Muthoni', 'David Kimani', 'Esther Njeri'];
+      names.forEach((n, i) => {
+        const card = el(d, 'discover-card');
+        card.appendChild(el(d, 'discover-photo-empty', '🙂'));
+        const scrim = el(d, 'discover-scrim');
+        scrim.appendChild(el(d, 'discover-name', n));
+        scrim.appendChild(el(d, 'discover-age', 20 + i));
+        card.appendChild(scrim);
+        card.appendChild(el(d, 'discover-fc-hint', 'Force Connect'));
+        g.appendChild(card);
+      });
+      const bar = el(d, 'discover-actionbar');
+      const info = el(d, 'discover-actionbar-info');
+      info.appendChild(el(d, 'discover-actionbar-title', 'Esther Njeri, 24'));
+      info.appendChild(el(d, 'discover-actionbar-sub', 'Force Connect for KSh 80'));
+      bar.appendChild(info);
+      bar.appendChild(el(d, 'discover-fc-btn', 'Force Connect'));
+      main.appendChild(bar);
+    }
+    if (mock === 'matches') {
+      const page = d.querySelector('.matches-page') || d.body;
+      ['Tier 1', 'Tier 2', 'Qrashe'].forEach(tier => {
+        const sec = el(d, 'matches-section');
+        sec.appendChild(el(d, 'section-label', tier));
+        const card = el(d, 'match-card');
+        card.appendChild(el(d, 'match-photo-empty', '🙂'));
+        const scrim = el(d, 'match-scrim');
+        scrim.appendChild(el(d, 'match-name', 'Amina Wanjiku, 22'));
+        scrim.appendChild(el(d, 'match-age', 'Tier ' + tier.slice(-1)));
+        card.appendChild(scrim);
+        card.appendChild(el(d, 'match-tier-chip' + (tier === 'Qrashe' ? ' match-tier-qrashe' : ''), tier));
+        card.appendChild(el(d, 'match-open-hint', 'Open'));
+        sec.appendChild(card);
+        page.appendChild(sec);
+      });
+    }
+  }
+
+  function measure() {
+    let out;
+    try {
+      const d = frame.contentDocument, W = frame.contentWindow;
+      const doc = d.documentElement;
+      const overflowX = doc.scrollWidth - w;
+      let widest = null;
+      d.querySelectorAll('body *').forEach(elx => {
+        const r = elx.getBoundingClientRect();
+        if (r.width > 0 && r.right > w + 1 && (!widest || r.right > widest.right)) {
+          widest = { right: Math.round(r.right), tag: elx.tagName, cls: String(elx.className).slice(0, 50) };
+        }
+      });
+      const small = [];
+      d.querySelectorAll('button, a, [role="button"]').forEach(elx => {
+        const hh = elx.getBoundingClientRect().height;
+        if (hh > 0 && hh < 40) small.push(Math.round(hh) + 'px:' + (String(elx.className).slice(0, 44) || elx.tagName));
+      });
+      const nav = d.querySelector('.bottom-nav');
+      let gridCols = null, cardW = null;
+      const grid = d.querySelector('.discover-grid');
+      if (grid) {
+        gridCols = W.getComputedStyle(grid).gridTemplateColumns.split(' ').length;
+        const card = grid.querySelector('.discover-card');
+        if (card) cardW = Math.round(card.getBoundingClientRect().width);
+      }
+      // scrim collision: does the name ellipsize rather than overlap the age?
+      let scrimOverlap = null;
+      const nm = d.querySelector('.discover-name') || d.querySelector('.match-name');
+      const ag = d.querySelector('.discover-age') || d.querySelector('.match-age');
+      if (nm && ag) scrimOverlap = (nm.scrollWidth > nm.clientWidth);
+      out = {
+        appPath: W.location.pathname,
+        horizontalOverflowPx: overflowX,
+        widestElement: widest,
+        tapTargetsUnder40px: small.slice(0, 10),
+        bottomNavHeight: nav ? Math.round(nav.getBoundingClientRect().height) : null,
+        discoverGridColumns: gridCols,
+        discoverCardWidth: cardW,
+        nameTruncated: scrimOverlap,
+        firstText: d.body.innerText.replace(/\s+/g, ' ').slice(0, 110)
+      };
+    } catch (e) { out = { error: String(e) }; }
+    document.getElementById('report').textContent = JSON.stringify(out, null, 1);
+  }
+  frame.addEventListener('load', () => {
+    setTimeout(() => { if (mock) { try { injectMock(frame.contentDocument); } catch (e) {} } measure(); }, 2500);
+    setTimeout(() => { if (mock) { try { injectMock(frame.contentDocument); } catch (e) {} } measure(); }, 5500);
+  });
+</script>
+</body>
+</html>
