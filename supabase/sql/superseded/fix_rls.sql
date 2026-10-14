@@ -22,8 +22,13 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.users (id, email)
-  values (new.id, new.email)
+  -- The 14-day Section 2 trial is a SERVER grant, written here when the
+  -- profile row is created. It is no longer computed by the client
+  -- (ProfileSetup.jsx stops sending it), and the
+  -- clamp_user_protected_columns trigger on public.users discards any
+  -- later client write to section2_unlocked or section2_free_expires_at.
+  insert into public.users (id, email, section2_unlocked, section2_free_expires_at)
+  values (new.id, new.email, false, now() + interval '14 days')
   on conflict (id) do nothing;
   return new;
 end;
