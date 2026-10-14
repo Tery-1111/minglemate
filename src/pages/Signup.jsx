@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import { track, identifyUser } from '../lib/analytics';
+import { track } from '../lib/analytics';
 import Turnstile from '../components/Turnstile';
+import PasswordField from '../components/PasswordField';
+import GoogleButton from '../components/GoogleButton';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -38,9 +40,10 @@ export default function Signup() {
         // 2. Profile row: the DB trigger (fix_rls.sql) already creates it
         // via SECURITY DEFINER. This upsert is a fallback for setups
         // without the trigger — e.g. email-confirmation-disabled flows
-        // where the client DOES have a session here. If it fails with
-        // RLS (session-less confirmation flow), the trigger has it
-        // covered, so treat that specific case as success.
+        // where the client DOES have a session here. Its failure must
+        // never block the code screen: the auth account and the email
+        // with the code already exist at this point, so the only correct
+        // next step is verification. Logged, not thrown.
         const { error: profileError } = await supabase
           .from('users')
           .upsert({
@@ -50,21 +53,30 @@ export default function Signup() {
             created_at: new Date().toISOString(),
           });
 
-        const isRlsSessionless =
-          profileError &&
-          /row-level security/i.test(profileError.message || '');
-
-        if (profileError && !isRlsSessionless) throw profileError;
-
-        // Analytics: account created. Only the user ID is shared, never the email.
-        identifyUser(authData.user.id);
-        track('signup_completed');
-
-        // 3. Navigation is safe: auth user exists, profile row exists
-        // (created by trigger if the upsert above was skipped).
-        navigate('/profile-setup');
+        if (profileError) {
+          console.error('Profile fallback upsert failed:', profileError.message);
+        }
       }
+
+      // 3. Email confirmation flow: no session exists yet, so we do NOT
+      // navigate into the app. The user verifies a 6-digit code next.
+      // With "Confirm email" on, an ALREADY-REGISTERED address returns
+      // the same shape (a user with an empty identities array), so both
+      // cases take this exact same path — the response never reveals
+      // whether an email exists.
+      track('signup_code_sent');
+      navigate('/verify-code', { state: { email } });
     } catch (err) {
+      // Newer GoTrue versions reject an already-registered address with a
+      // 422 "user_already_exists" instead of the silent empty-identities
+      // 200 response. Treat it exactly like the silent case: show the
+      // code screen so the response never reveals which emails exist.
+      // No signup_code_sent here: no code was actually sent on this path.
+      if (err?.code === 'user_already_exists') {
+        navigate('/verify-code', { state: { email } });
+        return;
+      }
+
       // Analytics: signup failed (no error text is sent, it could hold personal data).
       track('signup_failed');
       setError(err.message || 'An error occurred during account registration.');
@@ -101,7 +113,7 @@ export default function Signup() {
 
           <div style={styles.inputGroup}>
             <label style={styles.label}>Password</label>
-            <input
+            <PasswordField
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -142,6 +154,12 @@ export default function Signup() {
           >
             {loading ? 'Creating Profile...' : 'Sign Up'}
           </button>
+
+          {/* Google OAuth — the one-tap alternative to the email form.
+              Same-window redirect; session is picked up by
+              detectSessionInUrl on return and AuthGuard routes the user
+              in — a first-time Google user never sees /verify-code. */}
+          <GoogleButton onError={() => setError("Couldn't start Google sign-in. Please try again.")} />
 
           {/* Cloudflare Turnstile — token passed to signUp via
               options.captchaToken (Supabase CAPTCHA protection). */}

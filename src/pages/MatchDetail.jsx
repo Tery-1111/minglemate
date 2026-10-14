@@ -194,10 +194,7 @@ export default function MatchDetail() {
           <div className="md-photo md-photo-empty" aria-hidden="true">{firstName.charAt(0).toUpperCase()}</div>
         )}
 
-        {/* PROGRESSIVE REVEAL: identity → bio → interests arrive as a
-            short stagger, not one dump. All remain in DOM for AT. */}
         <div className="md-id rise-in">
-          <span className={`md-tier-chip md-tier-${tier || 'none'}`}>{tier === 'qrashe' ? 'Qrashe' : tier === 'tier1' ? 'Tier 1' : tier === 'tier2' ? 'Tier 2' : 'Match'}</span>
           <h1 className="md-name display">{profile.full_name}, {profile.age}</h1>
         </div>
 
