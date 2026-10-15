@@ -38,22 +38,25 @@ export default function Signup() {
 
       if (authData?.user) {
         // 2. Profile row: the DB trigger (fix_rls.sql) already creates it
-        // via SECURITY DEFINER. This upsert is a fallback for setups
-        // without the trigger — e.g. email-confirmation-disabled flows
-        // where the client DOES have a session here. Its failure must
-        // never block the code screen: the auth account and the email
-        // with the code already exist at this point, so the only correct
-        // next step is verification. Logged, not thrown.
+        // via SECURITY DEFINER. This update is the client-side fallback for
+        // setups where a session exists at this point (e.g.
+        // email-confirmation-disabled flows): it writes created_at onto the
+        // row the trigger created. It is an UPDATE and not an upsert because
+        // the column grants give the client no read on email, and
+        // `on conflict (id) do update set email = excluded.email` needs that
+        // read (measured 42501). Its failure must never block the code
+        // screen: the auth account and the email with the code already exist
+        // at this point, so the only correct next step is verification.
+        // Logged, not thrown.
         const { error: profileError } = await supabase
           .from('users')
-          .upsert({
-            id: authData.user.id,
-            email: email,
+          .update({
             created_at: new Date().toISOString(),
-          });
+          })
+          .eq('id', authData.user.id);
 
         if (profileError) {
-          console.error('Profile fallback upsert failed:', profileError.message);
+          console.error('Profile fallback update failed:', profileError.message);
         }
       }
 

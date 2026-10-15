@@ -290,6 +290,13 @@ let intentId = null
 // Pre-existing state of the column privilege the clamp check needs, so the
 // finally block can put back what it found rather than a fixed assumption.
 let hadUpdate = null
+// Set only if THIS run granted UPDATE. The cleanup takes back only that,
+// because a table-level revoke also drops column-level grants this run never
+// made.
+let grantedUpdate = false
+// True when the grant this run made was a two-column grant rather than a
+// table-wide one, so the finally block revokes exactly that shape.
+let grantedUpdateColumns = false
 
 try {
   subjectId = await createUser(subjectEmail)
@@ -343,10 +350,10 @@ try {
     (await ledger('section2_unlock_paid', subjectId)).length === 0)
 
   // ---------------------------------- 2. the clamp, with privileges out of the way
-  // The chain keeps table-wide INSERT/UPDATE/DELETE on public.users for clients
-  // and gates them with the own-row RLS policy (harden_profile_reads.sql: "RLS
-  // policies gate them to own-row writes"); the clamp trigger is the column
-  // guard. A database can also arrive with UPDATE revoked by hand, and then the
+  // The chain grants UPDATE per column on public.users and gates the rows with
+  // the own-row RLS policy; the clamp trigger is the column guard for the
+  // server-owned columns. A database can also arrive with UPDATE revoked
+  // entirely, and then the
   // write above is refused one layer earlier and the check below would pass even
   // if the clamp had been deleted — a regression test that cannot see the thing
   // it is named after. So UPDATE is made present for the length of this check,
@@ -355,8 +362,32 @@ try {
   // columns, and the write must still be discarded and still leave no grant.
   let clampTested = false
   try {
-    hadUpdate = sqlExec("select has_table_privilege('authenticated', 'public.users', 'UPDATE')").trim() === 't'
-    if (!hadUpdate) sqlExec('grant update on public.users to authenticated')
+    // has_any_column_privilege, not has_table_privilege: the chain grants
+    // UPDATE per column, so the table-level probe reports false on a database
+    // that is configured correctly — and the cleanup at the end of this script
+    // would then revoke the column grants this run never made.
+    hadUpdate = sqlExec("select has_any_column_privilege('authenticated', 'public.users', 'UPDATE')").trim() === 't'
+    // "UPDATE exists somewhere on the table" is not this check's precondition:
+    // the PATCH below writes section2_unlocked and section2_free_expires_at, and
+    // on a database the chain configured, the table grant is replaced by column
+    // grants that deliberately omit exactly those two. has_any_column_privilege
+    // is therefore true while the columns the check writes are not updatable, and
+    // the PATCH is refused one layer before the clamp — a FAIL that would read as
+    // being about the clamp while actually being about the grant. The two columns
+    // are made updatable for the length of this check only, and the finally block
+    // revokes exactly those two, which keeps the sole un-doing rule of this script
+    // (put back only what it granted, at the same granularity it granted it).
+    const columnsUpdatable = sqlExec(
+      "select has_column_privilege('authenticated', 'public.users', 'section2_unlocked', 'UPDATE')"
+    ).trim() === 't'
+    if (!hadUpdate) {
+      sqlExec('grant update on public.users to authenticated')
+      grantedUpdate = true
+    } else if (!columnsUpdatable) {
+      sqlExec('grant update (section2_unlocked, section2_free_expires_at) on public.users to authenticated')
+      grantedUpdate = true
+      grantedUpdateColumns = true
+    }
     clampTested = true
   } catch (e) {
     note(`clamp not tested directly: ${String(e.message || e).slice(0, 120)}`)
@@ -452,7 +483,13 @@ try {
     // if the checks above failed early: revoke only what this run granted, and
     // leave a database that already had UPDATE exactly as it was.
     try {
-      if (hadUpdate === false) sqlExec('revoke update on public.users from authenticated')
+      // Only the grant this run made is taken back. A table-level revoke here
+      // would also drop the column-level UPDATE grants the chain issues.
+      if (grantedUpdate) {
+        sqlExec(grantedUpdateColumns
+          ? 'revoke update (section2_unlocked, section2_free_expires_at) on public.users from authenticated'
+          : 'revoke update on public.users from authenticated')
+      }
     } catch { /* nothing to undo */ }
     for (const id of created) {
       const res = await asService(`/auth/v1/admin/users/${id}`, { method: 'DELETE' })

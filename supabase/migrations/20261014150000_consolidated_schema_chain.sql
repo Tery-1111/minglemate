@@ -2042,10 +2042,18 @@ grant select (
   profile_prompts, looking_for
 ) on public.users to anon, authenticated;
 
--- E1b: the write grants the app needs, by column. app-written INSERT columns:
--- Signup.jsx:48 (id, email, created_at) and ProfileSetup.jsx:81 (id, email,
--- full_name, age, gender, campus_id, residence_type, bio, phone,
--- whatsapp_number, display_phone, social_*). No entitlement column is granted:
+-- B: Home.jsx:64 reads this column on the caller's own row. Granted to
+-- authenticated only — anon has no path to another user's notification
+-- preference, so the public profile list above stays exactly as it was.
+grant select (notifications_enabled) on public.users to authenticated;
+
+-- E1b: the write grants the app needs, by column. INSERT columns: the profile
+-- row is created server-side by handle_new_user(), and no src/ call inserts it
+-- any more (Signup.jsx and ProfileSetup.jsx now update by id). The grant is
+-- kept for the client insert path RLS still permits (users_insert_own), shaped
+-- as the removed upserts sent it (id, email, created_at, full_name, age,
+-- gender, campus_id, residence_type, bio, phone, whatsapp_number,
+-- display_phone, social_*). No entitlement column is granted:
 -- section2_unlocked and section2_free_expires_at are absent below, so a client
 -- cannot write them by any route, and RLS cannot help — RLS is row-scoped.
 grant insert (
@@ -2054,14 +2062,21 @@ grant insert (
   social_instagram, social_x, social_tiktok
 ) on public.users to authenticated;
 
--- app-written UPDATE columns: Settings.jsx:59 (profile_status),
+-- app-written UPDATE columns: Signup.jsx:53 (created_at, written by the
+-- signup fallback's update-by-id), Settings.jsx:59 (profile_status),
 -- Settings.jsx:70 (notifications_enabled), Section1.jsx:103 (section1_*),
 -- Interests.jsx:71 (interests), Profile.jsx:173 (bio, residence_type,
 -- looking_for, interests, profile_prompts), Profile.jsx:207 (share_*,
--- social_*), supabaseClient.js:14 (onesignal_player_id), plus the columns the
--- two upserts update on conflict.
+-- social_*), supabaseClient.js:14 (onesignal_player_id), plus email,
+-- full_name, age, gender, campus_id, residence_type, bio, phone,
+-- whatsapp_number, display_phone and social_* which ProfileSetup.jsx:85 now
+-- updates by id (previously by upsert-on-conflict).
+-- created_at is in this list because Signup.jsx:53 writes it; without it the
+-- update-by-id is refused with 42501 (measured), since this grant's whole
+-- purpose is to match what src/ writes. It is the caller's own row's
+-- creation timestamp — not an entitlement and not another user's data.
 grant update (
-  id, email, full_name, age, gender, campus_id, residence_type, bio,
+  id, email, created_at, full_name, age, gender, campus_id, residence_type, bio,
   phone, whatsapp_number, display_phone,
   social_instagram, social_x, social_tiktok,
   profile_status, notifications_enabled,
