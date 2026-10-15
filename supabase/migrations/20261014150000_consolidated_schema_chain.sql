@@ -822,6 +822,50 @@ revoke all on table public.matches from anon;
 revoke insert, update, delete on table public.matches from authenticated;
 
 -- ------------------------------------------------------------
+-- 3b. match_history — D-2ii: the legacy weekly-engine table, which no
+--     committed file created. Three functions above read it
+--     (discover_candidates, users_are_paired, get_match_contact), the
+--     Matches / Home / MatchCelebration / MatchDetail / Messages pages
+--     read it, and match-generator writes it with the service role via
+--     .upsert(..., { onConflict: 'user_id,week_id' }). Until now it existed
+--     only as a precondition, so on a project without it every one of
+--     those reads fails and weekly delivery has nowhere to land.
+--
+--     Columns are exactly the ones the code touches: id, user_id,
+--     week_id, tier1_match_id, tier2_match_id, delivered_at. week_id is
+--     the `YYYY-Www` string built by getWeekId() on both sides, so it is
+--     text. user_id holds public.users.id (the match-generator sources it
+--     from .from('users'), and users_are_paired compares it to auth.uid()).
+--
+--     RLS on, read-own only, and NO write policy: delivery stays with the
+--     service role in match-generator.
+-- ------------------------------------------------------------
+create table if not exists public.match_history (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references public.users(id) on delete cascade,
+  week_id text,
+  tier1_match_id uuid,
+  tier2_match_id uuid,
+  delivered_at timestamptz
+);
+
+alter table public.match_history add column if not exists delivered_at timestamptz;
+
+create unique index if not exists match_history_user_week_uidx
+  on public.match_history (user_id, week_id);
+
+alter table public.match_history enable row level security;
+
+drop policy if exists "match_history_select_own" on public.match_history;
+create policy "match_history_select_own"
+  on public.match_history for select
+  to authenticated
+  using (user_id = auth.uid());
+
+revoke all on public.match_history from anon;
+revoke insert, update, delete on public.match_history from authenticated;
+
+-- ------------------------------------------------------------
 -- 4. connect_unlocks — one PAID contact unlock per buyer/seller.
 --    Contact values are SNAPSHOTTED at payment time: the owner
 --    changing sharing settings later never revokes paid access,
@@ -3471,6 +3515,69 @@ create policy "profile_photos_owner_delete"
 --   select policyname, cmd from pg_policies
 --   where schemaname = 'storage' and tablename = 'objects'
 --   and policyname like 'profile_photos%';
+--   → expect 4 rows (select/insert/update/delete)
+-- ============================================================
+
+-- ---------- D-2i: the bucket the app actually writes ----------
+
+-- ============================================================
+-- STORAGE RLS: user-photos bucket (D-2i — the app uploads here)
+--
+-- Every policy above names `profile_photos`. The app does not use
+-- that bucket: PhotoUpload.jsx and Photos.jsx upload to
+-- `${userId}/${slot...}.jpg` in `user-photos` (the userId is the
+-- first path segment, and the public URL comes from getPublicUrl,
+-- so the bucket stays public read). Without this block the bucket
+-- that is actually written carries no storage policy at all, which
+-- is the same BOLA gap A01 closed for `profile_photos`.
+--
+-- Identical shape, bucket name swapped: public read; insert,
+-- update and delete restricted to the object's owner folder.
+-- The profile_photos policies above are untouched.
+-- Idempotent; run in Supabase SQL Editor.
+-- ============================================================
+
+insert into storage.buckets (id, name, public)
+values ('user-photos', 'user-photos', true)
+on conflict (id) do nothing;
+
+drop policy if exists "profile_photos_public_read_user_photos" on storage.objects;
+create policy "profile_photos_public_read_user_photos"
+  on storage.objects for select
+  using (bucket_id = 'user-photos');
+
+drop policy if exists "profile_photos_owner_insert_user_photos" on storage.objects;
+create policy "profile_photos_owner_insert_user_photos"
+  on storage.objects for insert
+  to authenticated
+  with check (
+    bucket_id = 'user-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "profile_photos_owner_update_user_photos" on storage.objects;
+create policy "profile_photos_owner_update_user_photos"
+  on storage.objects for update
+  to authenticated
+  using (
+    bucket_id = 'user-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "profile_photos_owner_delete_user_photos" on storage.objects;
+create policy "profile_photos_owner_delete_user_photos"
+  on storage.objects for delete
+  to authenticated
+  using (
+    bucket_id = 'user-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+-- ============================================================
+-- VERIFY after running:
+--   select policyname, cmd from pg_policies
+--   where schemaname = 'storage' and tablename = 'objects'
+--   and policyname like '%_user_photos';
 --   → expect 4 rows (select/insert/update/delete)
 -- ============================================================
 

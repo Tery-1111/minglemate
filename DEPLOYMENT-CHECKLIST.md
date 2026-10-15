@@ -157,7 +157,8 @@ it). All of these are read-only rows, so this costs nothing to re-check.
 ## 2. Deploy edge functions (from `minglemate/`, requires `supabase login` + `supabase link --project-ref mhdjnhiqahsllbczbzpk`)
 
 - [ ] **2.1** `npx supabase functions deploy initiate-payment` (purpose-based pricing: section2 200 / force_connect 80 / connect_tier1 70 / connect_tier2 + connect_qrashe 50 — server-enforced)
-- [ ] **2.2** `npx supabase functions deploy payment-callback` (**required with 1.1**: the function now screens the ticket on the failure branch too, asks `payment_intent_expiry_state()` for the window verdict instead of reading `expires_at` itself, and records the verified unlock outcome) (dispatches by purpose: Qrashe creation + recipient push for force_connect; contact snapshot + conversation lock for connect_*)
+- [ ] **2.2** `npx supabase functions deploy payment-callback --no-verify-jwt` (**required with 1.1**: the function now screens the ticket on the failure branch too, asks `payment_intent_expiry_state()` for the window verdict instead of reading `expires_at` itself, and records the verified unlock outcome) (dispatches by purpose: Qrashe creation + recipient push for force_connect; contact snapshot + conversation lock for connect_*)
+  - payment-callback authenticates the Daraja callback itself with the per-intent key; the gateway JWT check must stay off for this function only.
 - [ ] **2.3** `npx supabase functions deploy send-notification`
 - [ ] **2.4** ~~`run-weekly-matching`~~ — **retired**: it read `section1_responses`, a table nothing writes, so it always produced zero matches; the live engine is `match-generator`. No cron or code calls it (verified repo-wide). **Undeploy:** `npx supabase functions delete run-weekly-matching`
 - [ ] **2.5** `npx supabase functions deploy match-generator`

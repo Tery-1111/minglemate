@@ -49,7 +49,6 @@ export default function Signup() {
           .upsert({
             id: authData.user.id,
             email: email,
-            section2_unlocked: false,
             created_at: new Date().toISOString(),
           });
 
