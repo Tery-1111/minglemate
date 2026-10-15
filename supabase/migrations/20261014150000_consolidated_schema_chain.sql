@@ -118,6 +118,20 @@
 -- Anyone logged in can read profiles (core matchmaking feature).
 -- NOTE: this exposes ALL columns incl. onesignal_player_id and
 -- payment fields. Consider a view with selected columns later.
+-- The live project carries seven policies on public.users (F3). The three
+-- below replace them, so the live names are dropped here — an apply that does
+-- not drop them leaves both sets in force and the widest one wins. RLS is
+-- switched on in the same place, because until now nothing in this chain
+-- enabled it on this table.
+alter table public.users enable row level security;
+drop policy if exists "Allow public read access for active profiles" on public.users;
+drop policy if exists "Users can read matched users profiles" on public.users;
+drop policy if exists "Users can read own profile" on public.users;
+drop policy if exists "Allow background system creation during signup" on public.users;
+drop policy if exists "Users can insert own profile" on public.users;
+drop policy if exists "Allow users to modify their own specific profile rows" on public.users;
+drop policy if exists "Users can update own profile" on public.users;
+
 drop policy if exists "users_select_authenticated" on public.users;
 create policy "users_select_authenticated"
   on public.users for select
@@ -372,11 +386,38 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  -- The same role test clamp_user_protected_columns uses, copied verbatim.
+  -- PostgREST exposes the request's role as `request.jwt.claim.role`
+  -- (legacy, per-claim) and inside the `request.jwt.claims` JSON.
+  v_role text := coalesce(
+    nullif(current_setting('request.jwt.claim.role', true), ''),
+    nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role',
+    ''
+  );
+  v_is_client boolean;
 begin
-  -- 14+ questions discussed => contacts unlocked; client input ignored.
-  -- The reveal is a grant, and the rule states its own reason: the recorder
-  -- would otherwise mark every unlock "no explicit reason recorded" — which is
-  -- true of a hand-granted campus flag and false of a threshold the product set.
+  -- A client write is one that carries a user JWT and is not the service
+  -- role. Server code and internal triggers carry no user JWT (auth.uid()
+  -- is null), so they pass through unchanged.
+  v_is_client := auth.uid() is not null and v_role <> 'service_role';
+
+  if v_is_client then
+    -- Contacts are opened by a payment and by nothing else (F1). The question
+    -- counter is not a reveal, so a client write can no longer set the flag:
+    -- an INSERT starts locked, an UPDATE keeps whatever the server wrote.
+    if tg_op = 'INSERT' then
+      new.contacts_unlocked := false;
+    else
+      new.contacts_unlocked := old.contacts_unlocked;
+    end if;
+    return new;
+  end if;
+
+  -- Server paths are unchanged. The reveal is a grant, and the rule states
+  -- its own reason: the recorder would otherwise mark every unlock "no
+  -- explicit reason recorded" — which is true of a hand-granted campus flag
+  -- and false of a threshold the product set.
   if coalesce(new.questions_discussed, 0) >= 14
      and not coalesce(new.contacts_unlocked, false) then
     perform public.set_entitlement_context(
@@ -1639,8 +1680,10 @@ revoke all on function public.complete_connect_unlock(uuid) from anon, public;
 grant execute on function public.complete_connect_unlock(uuid) to service_role;
 
 -- ------------------------------------------------------------
--- 8f. Contact reveal — legacy free path now applies the per-handle
---     toggles live (paid snapshot above already bakes them in).
+-- 8f. Contact reveal — PAID ONLY (F1). The free 14-question path is gone:
+--     the only reveal is the snapshot a verified payment wrote into
+--     connect_unlocks (complete_connect_unlock), and only to the buyer, and
+--     only while the two are still a pair.
 -- ------------------------------------------------------------
 create or replace function public.get_unlocked_contacts(other_user_id uuid)
 returns table (
@@ -1658,37 +1701,26 @@ as $$
 declare
   me uuid := auth.uid();
   unlocked record;
-  seller public.users;
 begin
   if me is null or other_user_id is null then
     return;
   end if;
 
-  -- 1) Paid snapshot: exactly what was enabled when they paid.
+  -- The caller must be in the match. A paid pair can no longer be unmatched
+  -- (unmatch_conversation refuses once connect_unlocks exists), so this
+  -- cannot revoke a reveal a payment already bought.
+  if not public.users_are_paired(me, other_user_id) then
+    return;
+  end if;
+
+  -- The only reveal: the snapshot a payment wrote for this buyer and this
+  -- match. Nothing here reads questions_discussed, section2_unlocked, or
+  -- section2_free_expires_at.
   select * into unlocked from public.connect_unlocks cu
   where cu.buyer_id = me and cu.seller_id = other_user_id;
   if found then
     return query select unlocked.phone, unlocked.whatsapp_number, unlocked.email,
       unlocked.social_instagram, unlocked.social_x, unlocked.social_tiktok;
-    return;
-  end if;
-
-  -- 2) Legacy free path: guided conversation reached 14 questions and
-  --    we are paired. Sharing flags applied live.
-  if exists (
-    select 1 from public.section2_chat_progress p
-    where ((p.user_id_a = me and p.user_id_b = other_user_id)
-        or (p.user_id_a = other_user_id and p.user_id_b = me))
-      and p.contacts_unlocked = true
-  ) and public.users_are_paired(me, other_user_id) then
-    select * into seller from public.users where id = other_user_id;
-    return query select
-      case when seller.share_phone then seller.phone end,
-      case when seller.share_whatsapp then seller.whatsapp_number end,
-      case when seller.share_email then seller.email end,
-      case when seller.share_social_instagram then seller.social_instagram end,
-      case when seller.share_social_x then seller.social_x end,
-      case when seller.share_social_tiktok then seller.social_tiktok end;
   end if;
 end;
 $$;
@@ -1728,8 +1760,9 @@ grant execute on function public.get_unlocked_contacts(uuid) to authenticated;
 --   4. get_match_contact() — SECURITY DEFINER paywall: returns a
 --      match's contact info ONLY if you're actually paired in
 --      match_history AND an unlock condition truly holds.
---   INSERT/UPDATE/DELETE grants stay table-wide; RLS policies
---   (supabase/sql/superseded/fix_rls.sql) gate them to own-row writes.
+--   INSERT/UPDATE/DELETE/REFERENCES grants are revoked and reissued per
+--   column by the composed profile block below; RLS policies
+--   (supabase/sql/superseded/fix_rls.sql) gate the row.
 -- ============================================================
 
 -- ------------------------------------------------------------
@@ -1780,7 +1813,6 @@ declare
   me public.users;
   target public.users;
   paired boolean;
-  now_ts timestamptz := now();
 begin
   select * into me from public.users where id = auth.uid();
   select * into target from public.users where id = match_user_id;
@@ -1802,11 +1834,20 @@ begin
     return;
   end if;
 
-  -- paywall: either side paid, or either side's free trial is live
-  if me.section2_unlocked
-     or target.section2_unlocked
-     or (me.section2_free_expires_at is not null and me.section2_free_expires_at > now_ts)
-     or (target.section2_free_expires_at is not null and target.section2_free_expires_at > now_ts) then
+  -- Paywall (F1): only a record a payment wrote for THIS caller and THIS
+  -- match opens it — the paid snapshot, or this caller's own succeeded
+  -- section2 intent. section2_unlocked and section2_free_expires_at are
+  -- deliberately gone from this condition: the flag is not evidence for a
+  -- specific match, and the trial is not a payment at all.
+  if exists (
+    select 1 from public.connect_unlocks cu
+    where cu.buyer_id = me.id and cu.seller_id = target.id
+  ) or exists (
+    select 1 from public.payment_intents pi
+    where pi.user_id = me.id
+      and pi.purpose = 'section2'
+      and pi.status = 'succeeded'
+  ) then
     return query
       select target.display_phone, target.phone, target.whatsapp_number, target.email;
   end if;
@@ -1984,6 +2025,15 @@ grant execute on function public.request_account_deletion() to authenticated;
 --     contact data is reachable only through get_unlocked_contacts() or the
 --     owner's own row.
 -- ------------------------------------------------------------
+-- E1: the live project's grants on public.users are TABLE-WIDE (F4), which
+-- is what made a column-scoped read impossible to express: a table grant that
+-- survives alongside a column grant is the wider of the two. Both blanket
+-- grants are therefore revoked here, immediately before the column grant that
+-- replaces them, and the write grants are reissued per column below — on the
+-- columns src/ actually inserts and updates, never on an entitlement.
+revoke all on table public.users from anon;
+revoke all on table public.users from authenticated;
+
 grant select (
   id, full_name, age, gender, bio, interests, campus_id,
   residence_type, profile_status,
@@ -1991,6 +2041,36 @@ grant select (
   section2_unlocked, section2_free_expires_at, created_at,
   profile_prompts, looking_for
 ) on public.users to anon, authenticated;
+
+-- E1b: the write grants the app needs, by column. app-written INSERT columns:
+-- Signup.jsx:48 (id, email, created_at) and ProfileSetup.jsx:81 (id, email,
+-- full_name, age, gender, campus_id, residence_type, bio, phone,
+-- whatsapp_number, display_phone, social_*). No entitlement column is granted:
+-- section2_unlocked and section2_free_expires_at are absent below, so a client
+-- cannot write them by any route, and RLS cannot help — RLS is row-scoped.
+grant insert (
+  id, email, created_at, full_name, age, gender, campus_id, residence_type,
+  bio, phone, whatsapp_number, display_phone,
+  social_instagram, social_x, social_tiktok
+) on public.users to authenticated;
+
+-- app-written UPDATE columns: Settings.jsx:59 (profile_status),
+-- Settings.jsx:70 (notifications_enabled), Section1.jsx:103 (section1_*),
+-- Interests.jsx:71 (interests), Profile.jsx:173 (bio, residence_type,
+-- looking_for, interests, profile_prompts), Profile.jsx:207 (share_*,
+-- social_*), supabaseClient.js:14 (onesignal_player_id), plus the columns the
+-- two upserts update on conflict.
+grant update (
+  id, email, full_name, age, gender, campus_id, residence_type, bio,
+  phone, whatsapp_number, display_phone,
+  social_instagram, social_x, social_tiktok,
+  profile_status, notifications_enabled,
+  section1_progress, section1_complete, section1_last_edited,
+  interests, looking_for, profile_prompts,
+  share_phone, share_whatsapp, share_email,
+  share_social_instagram, share_social_x, share_social_tiktok,
+  onesignal_player_id
+) on public.users to authenticated;
 
 create or replace view public.profiles_public
 with (security_invoker = on) as
