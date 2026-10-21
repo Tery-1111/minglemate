@@ -7,13 +7,13 @@
 > unchecked items are still unverified; five cannot pass as written. See
 > [docs/docs-reconciliation-2026-10-14.md](docs/docs-reconciliation-2026-10-14.md) §3.
 
-Work through these **in order**. Code changes are already in the repo; these steps activate them. There is exactly one SQL entrypoint (step 1.1) and it is idempotent, so re-running any of it is safe.
+Work through these **in order**. Code changes are already in the repo; these steps activate them. There is one schema entrypoint (step 1.1) plus two smaller migrations that must be applied after it (1.1b, 1.1c); all three are idempotent, so re-running any of them is safe.
 
 ---
 
 ## 1. SQL migrations (Supabase Dashboard → SQL Editor)
 
-Run **one file, once**:
+Run these in order, after the chain in each case:
 
 - [ ] **1.1** `supabase/migrations/20261014150000_consolidated_schema_chain.sql`
       — the whole schema, in dependency order, in one idempotent script. Paste it
@@ -81,6 +81,58 @@ Run **one file, once**:
       ENTITLEMENTS** of `inspect_state.sql` reports coverage, the unexplained
       grants and the live findings.
 
+- [ ] **1.1b** `supabase/migrations/20261015120000_rls_closure_precondition_tables.sql`
+      — apply this **as well** (same paste, or `supabase db push`). It is a
+      separate version on purpose: `supabase db push` never re-runs a migration
+      version it has already recorded in `supabase_migrations.schema_migrations`,
+      so folding this fix into the chain above would be a silent no-op on any
+      project that has already applied it — and a security change a routine push
+      skips is not a change. It brings the four precondition tables the chain
+      reads but never locks (`photos`, `notifications`, `token_purchases`,
+      `campuses`) under RLS, retires the legacy `"System can insert
+      notifications"` policy that let any client forge a match alert, keeps
+      photo writes owner-scoped, and leaves `token_purchases` server-only.
+      Idempotent and safe to re-run; a project missing one of the four tables
+      still applies the rest.
+
+      It deliberately does **not** drop the legacy `"Public can read campuses"`
+      read policy — whether an anonymous client should still read the campus
+      directory is an open product decision (audit 2026-10-15, proposal §7.2) —
+      and it leaves `users.campus_id` alone, for the same reason. Verify with
+      `node scripts/check-schema-chain.mjs`, which now asserts the closure and
+      fails if the file is missing.
+
+- [ ] **1.1c** `supabase/migrations/20261015160000_photos_unique_per_user_and_type.sql`
+      — apply this **as well, after 1.1b** (the closure is `20261015120000`, this
+      is `20261015160000`). Separate version for the same reason: `supabase db
+      push` never re-runs a version it has already recorded, so folding this into
+      the chain would be a silent no-op on every project that has applied it.
+
+      It adds the one thing the photo upload path was missing: a unique
+      constraint on `public.photos (user_id, photo_type)`. Both writers upsert
+      against that pair (`src/pages/Photos.jsx`, `src/pages/PhotoUpload.jsx`) and
+      PostgREST can only build `on conflict (user_id, photo_type)` from a unique
+      constraint or unique index on it, so every upload failed with `42P10` —
+      before RLS was consulted, which is why it also failed for the service role.
+      The rule is the existing product one (exactly two slots, a facial photo and
+      a full-body photo), so this states behaviour the app already assumed rather
+      than introducing any.
+
+      **It refuses to touch your data.** If the project already holds more than
+      one row for the same `(user_id, photo_type)`, the migration stops and names
+      the offending pairs; nothing is deleted or merged, because deciding which of
+      two photos of the same person survives is a product decision. Resolve those
+      rows by hand and re-apply. On a project with no duplicates it is a plain
+      schema change, and running it again is a no-op.
+
+      Verify with `node scripts/check-schema-chain.mjs`, which now asserts this
+      migration too: that the constraint is on those two columns, that the
+      duplicate check runs before it, that duplicates stop the file with the pairs
+      named, and that the file contains no `delete`/`update`/`insert` and no
+      policy, grant or revoke. Step 1.4 reports its state in section **07
+      SCRIPTS** of `inspect_state.sql`, read from the constraint in the catalog —
+      not from the file's presence.
+
 - [ ] **1.2** Give the scheduled ops tick a channel — **this is what makes a stuck unlock reach you.** The payment stage schedules `public.payment_ops_tick()` every five minutes: it expires abandoned M-Pesa pushes, raises one alert per paid-but-not-unlocked intent, raises the entitlement findings of step 1.1, and delivers them.
 
       a. Enable **pg_cron** and **pg_net** (Dashboard → Database → Extensions). Without pg_cron the chain still applied fine — it printed the `cron.schedule` statement for you — but nothing ticks, so nothing alerts.
@@ -123,7 +175,11 @@ Run **one file, once**:
           how many grants have neither a reason nor evidence, and one row per
           live finding from the verdict.
       Filter to what needs work with
-      `where status in ('MISSING','NOT APPLIED','PARTIAL','WARN')`.
+      `where status in ('MISSING','NOT APPLIED','PARTIAL','WARN','INDETERMINATE')`.
+      `INDETERMINATE` is the migration-history row in 07 SCRIPTS saying it could not
+      read `supabase_migrations.schema_migrations` — a project that has never been
+      CLI-pushed. It is listed here because it is the one status that needs a
+      human decision (apply with `db push`, or confirm the SQL ran another way).
 
 **Verify:** after 1.1, `inspect_state.sql` (1.4) must show the chain row
 `APPLIED` with `[n/n objects]` — anything less is a PARTIAL that names the

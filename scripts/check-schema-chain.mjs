@@ -369,5 +369,186 @@ check('the callable entitlement functions are service-role only',
   JSON.stringify(['raise_entitlement_anomaly_alerts', 'set_entitlement_context']
     .filter((fn) => !entSql.includes(`revoke all on function public.${fn}(`))))
 
+// --------------------------------------- security regressions (this round)
+// Each check below pins a defect that was found by measurement and repaired,
+// or a guard that had no static test at all. They are text-level proofs that
+// the repair is still in the file — the behavioural half (do the grants really
+// refuse, does the clamp really discard) lives in the SQL probes.
+
+// D-1 / P1: the contact reveal must not read anything a client can write. The
+// guarded pair is get_unlocked_contacts (the paid snapshot) and
+// get_match_contact (the paywall). questions_discussed, section2_unlocked and
+// section2_free_expires_at were all readable controls for that reveal once.
+const unlockContacts = fnBody(code, 'get_unlocked_contacts')
+const matchContact = fnBody(code, 'get_match_contact')
+check('the contact reveal is payment-only: no question counter, trial or unlock flag in either RPC',
+  unlockContacts.length > 0 && matchContact.length > 0 &&
+    [unlockContacts, matchContact].every((b) =>
+      !/questions_discussed|section2_free_expires_at|section2_unlocked/.test(b)) &&
+    /from public\.connect_unlocks/.test(unlockContacts) &&
+    /from public\.connect_unlocks/.test(matchContact),
+  'a reveal that reads a client-writable column is the P1 forgery again')
+const enforceContacts = fnBody(code, 'enforce_contacts_unlocked')
+check('a client write cannot raise contacts_unlocked through the question counter',
+  /v_is_client/.test(enforceContacts) &&
+    /new\.contacts_unlocked := false/.test(enforceContacts) &&
+    /new\.contacts_unlocked := old\.contacts_unlocked/.test(enforceContacts),
+  'the trigger must pin the flag for client INSERT and UPDATE')
+
+// Client write grants. created_at is server-owned (`default now()`), and the
+// entitlement/lifecycle columns must never appear in an INSERT or UPDATE grant.
+// profile_status is deliberately allowed (Settings' pause/resume) and is
+// guarded by the clamp instead — see the next check.
+const writeGrants = [...code.matchAll(/grant (?:insert|update) \(([^)]*)\) on public\.users/gi)].map((m) => m[1])
+check('no client write grant on public.users carries a server-owned column',
+  writeGrants.length === 2 && writeGrants.every((g) =>
+    !/\b(created_at|section2_unlocked|section2_free_expires_at|reg_number|reputation_score|status|contacts_unlocked)\b/.test(g)),
+  JSON.stringify(writeGrants.map((g) => g.replace(/\s+/g, ' ').trim().slice(0, 70))))
+const clampBody = fnBody(code, 'clamp_user_protected_columns')
+check('the clamp keeps client pause/resume but preserves a server-set pending_deletion',
+  /old\.profile_status = 'pending_deletion'/.test(clampBody) &&
+    /new\.profile_status := old\.profile_status/.test(clampBody) &&
+    !/new\.profile_status := 'active'/.test(clampBody),
+  'a client write must not move a queued account back into matching')
+
+// The admin RPCs that returned 42703 / permission denied for the enrolled admin.
+const adminOverview = fnBody(code, 'admin_overview')
+check('admin_overview does not depend on an undeclared campuses column',
+  adminOverview.length > 0 && /order by c\.name/.test(adminOverview) && !/c\.created_at/.test(adminOverview),
+  'campuses.created_at is declared by nothing in the repository')
+const adminDetail = fnBody(code, 'admin_user_detail')
+check('photos.display_order is converged before admin_user_detail reads it',
+  /alter table public\.photos add column if not exists display_order integer;/.test(code) &&
+    adminDetail.includes('p.display_order'),
+  'the function orders photos by it; public.photos is a precondition table')
+check('admin_set_maintenance_message is granted to authenticated and guarded inside',
+  /grant execute on function public\.admin_set_maintenance_message\(text\) to authenticated;/.test(code) &&
+    /public\.is_admin\(\)/.test(fnBody(code, 'admin_set_maintenance_message')),
+  'granted like the other admin_* RPCs, authorization enforced in the body')
+
+// D-2i: the storage policies must cover the bucket the app actually uploads to
+// (every storage.from() in src/ names `user-photos`), not only profile_photos.
+check('storage policies cover user-photos (the bucket src/ uploads to) as well as profile_photos',
+  /values \('user-photos', 'user-photos', true\)/.test(code) &&
+    /bucket_id = 'user-photos'/.test(code) &&
+    /bucket_id = 'profile_photos'/.test(code),
+  'a policy on the wrong bucket id is the BOLA gap A01/D-2i describes')
+
+// ------------------------------------------- RLS closure (audit C-15, 2026-10-15)
+// photos, notifications, token_purchases and campuses are PRECONDITIONS of the
+// chain: it reads them but never brings them under RLS (the campuses enablement
+// survives only as a comment at chain:3582), so a client with the anon key can
+// read and write rows it does not own. The closure cannot live in the chain
+// itself — `supabase db push` never re-runs a migration version already in
+// supabase_migrations.schema_migrations, so appending a stage to
+// 20261014150000 would be a silent no-op on every project that has run it. It
+// ships as its own timestamped migration; this is the guard that keeps that file
+// present and complete. Read as text, exactly like the chain.
+const RLS_CLOSURE = new URL(
+  '../supabase/migrations/20261015120000_rls_closure_precondition_tables.sql',
+  import.meta.url
+)
+let closure = ''
+try { closure = readFileSync(RLS_CLOSURE, 'utf8') } catch { /* reported below */ }
+const closureCode = closure.replace(/--[^\n]*/g, '')
+
+const REQUIRED_RLS = ['photos', 'notifications', 'token_purchases', 'campuses']
+const rlsEnabled = (t) => new RegExp(`alter table public\\.${t} enable row level security`, 'i').test(closureCode)
+// Every policy the closure creates: name, table, command.
+const closurePolicies = [...closureCode.matchAll(
+  /create policy "([a-z0-9_]+)"\s+on public\.([a-z0-9_]+) for (select|insert|update|delete|all)/gi
+)].map((m) => ({ name: m[1].toLowerCase(), table: m[2].toLowerCase(), cmd: m[3].toLowerCase() }))
+
+check('the RLS closure migration exists (audit C-15)',
+  closure.length > 0,
+  'supabase/migrations/20261015120000_rls_closure_precondition_tables.sql is missing')
+check('every precondition table is brought under RLS by the closure',
+  REQUIRED_RLS.every(rlsEnabled),
+  JSON.stringify(REQUIRED_RLS.filter((t) => !rlsEnabled(t))))
+check('the legacy permissive policies that let a client forge or read a trusted row are retired',
+  /drop policy if exists "System can insert notifications" on public\.notifications/i.test(closureCode) &&
+    !closurePolicies.some((p) => p.table === 'notifications' && p.cmd !== 'select'),
+  'notifications must keep no insert/update/delete policy — WITH CHECK (true) is the forgery')
+check('the closure keeps the reads the product needs',
+  ['photos_select_authenticated', 'notifications_select_own', 'campuses_select_authenticated']
+    .every((n) => closurePolicies.some((p) => p.name === n && p.cmd === 'select')),
+  JSON.stringify(closurePolicies.filter((p) => p.cmd === 'select').map((p) => p.name)))
+check('an owner-scoped notification read policy is what keeps the Home.jsx Realtime alert working',
+  /create policy "notifications_select_own"[\s\S]{0,200}?using \(user_id = auth\.uid\(\)\)/i.test(closureCode),
+  'Realtime applies RLS for the subscriber, so own-row SELECT is the delivery path')
+check('photo writes are confined to the owning user',
+  ['photos_insert_own', 'photos_update_own', 'photos_delete_own']
+    .every((n) => closurePolicies.some((p) => p.name === n && p.cmd !== 'select')) &&
+    (closureCode.match(/user_id = auth\.uid\(\)/g) || []).length >= 4,
+  JSON.stringify(closurePolicies.filter((p) => /photos_/.test(p.name))))
+check('campuses is read-only for clients in the closure (no client write policy)',
+  closure.length > 0 && !closurePolicies.some((p) => p.table === 'campuses' && p.cmd !== 'select'))
+check('the closure does not hand a client the payment table (RLS on, no policy, client privileges revoked)',
+  rlsEnabled('token_purchases') &&
+    !closurePolicies.some((p) => p.table === 'token_purchases') &&
+    /revoke all on public\.token_purchases from anon, authenticated/i.test(closureCode))
+check('client write privileges are revoked, not only filtered by RLS',
+  /revoke insert, update, delete on public\.notifications\s+from anon, authenticated/i.test(closureCode) &&
+    /revoke insert, update, delete on public\.campuses\s+from anon, authenticated/i.test(closureCode))
+check('the closure leaves users.campus_id alone (it needs a product decision)',
+  closure.length > 0 && !/campus_id/.test(closureCode) && !/grant (insert|update)[^;]*on public\.users/i.test(closureCode),
+  'the campus_id correction changes product behaviour and is out of scope for this security migration')
+
+// ------------------------------------------- photo uniqueness (2026-10-15)
+// The photo upsert defect: src/pages/Photos.jsx:112 and
+// src/pages/PhotoUpload.jsx:87 both upsert on (user_id, photo_type), and
+// PostgREST can only build `on conflict (user_id, photo_type)` from a unique
+// constraint or unique index on that pair. public.photos had only photos_pkey,
+// so both upserts failed with 42P10 before RLS was consulted — which is why it
+// reproduced for the service role too. The fix ships as its own timestamped
+// migration for the same reason the closure does: 20261014150000 is already
+// recorded in supabase_migrations.schema_migrations everywhere it has run, so a
+// stage appended there would never execute. What this section keeps true is
+// that the fix stays a schema change: it must look for duplicate pairs before
+// it adds anything, must not resolve them itself, and must not touch the
+// security layer the closure owns. Read as text, exactly like the chain.
+const PHOTO_UNIQUE = new URL(
+  '../supabase/migrations/20261015160000_photos_unique_per_user_and_type.sql',
+  import.meta.url
+)
+let photoFix = ''
+try { photoFix = readFileSync(PHOTO_UNIQUE, 'utf8') } catch { /* reported below */ }
+const photoCode = photoFix.replace(/--[^\n]*/g, '')
+
+const closureVersion = (RLS_CLOSURE.pathname.match(/(\d{14})_/) || [])[1] || ''
+const photoVersion = (PHOTO_UNIQUE.pathname.match(/(\d{14})_/) || [])[1] || ''
+
+check('the photo-uniqueness migration exists',
+  photoFix.length > 0,
+  'supabase/migrations/20261015160000_photos_unique_per_user_and_type.sql is missing')
+check('the photo migration sorts after the RLS closure, so a push applies it second',
+  closureVersion.length === 14 && photoVersion.length === 14 && photoVersion > closureVersion,
+  `${closureVersion} -> ${photoVersion}`)
+check('it adds the unique pair the app upserts against',
+  /alter\s+table\s+public\.photos\s+add\s+constraint\s+photos_user_id_photo_type_key\s+unique\s*\(\s*user_id\s*,\s*photo_type\s*\)/i.test(photoCode),
+  'expected: alter table public.photos add constraint photos_user_id_photo_type_key unique (user_id, photo_type)')
+const dupeCheckAt = photoCode.search(/having\s+count\(\*\)\s*>\s*1/i)
+const addAt = photoCode.search(/add\s+constraint\s+photos_user_id_photo_type_key/i)
+check('it looks for duplicate pairs before it creates the constraint',
+  dupeCheckAt > -1 && addAt > -1 && dupeCheckAt < addAt,
+  `duplicate check at offset ${dupeCheckAt}, constraint at offset ${addAt}`)
+check('duplicates stop the migration with the offending pairs named',
+  /raise\s+exception\s+'public\.photos holds duplicate/i.test(photoCode) &&
+    /string_agg\(format\(/i.test(photoCode),
+  'a bare 23505 from add constraint would not say which pairs are ambiguous, nor that nothing was changed')
+check('it never resolves duplicates itself: no delete, update, insert or truncate statement',
+  !/\bdelete\s+from\b|\binsert\s+into\b|\bupdate\s+public\s*\.|\btruncate\b/i.test(photoCode),
+  'deciding which of two photos of the same person survives is a product decision')
+check('it stays out of the security layer the closure owns',
+  !/row\s+level\s+security|create\s+policy|drop\s+policy|\bgrant\b|\brevoke\b/i.test(photoCode),
+  'this migration adds a constraint; policies and privileges are the closure\'s business')
+check('it is re-runnable: a second run finds the constraint and stops',
+  /from\s+pg_constraint/i.test(photoCode) && /pg_indexes/i.test(photoCode) &&
+    /already exists/i.test(photoCode),
+  'every other file in supabase/migrations is idempotent, and this one is applied by hand too')
+check('it does nothing on a project where the precondition table is absent',
+  /to_regclass\('public\.photos'\)\s+is\s+null/i.test(photoCode),
+  'photos is a precondition of the chain, so it may legitimately not exist')
+
 console.log(`\n${pass}/${pass + fail} checks passed`)
 process.exit(fail === 0 ? 0 : 1)

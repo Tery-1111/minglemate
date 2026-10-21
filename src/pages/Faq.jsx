@@ -16,11 +16,11 @@ const FAQS = [
   },
   {
     q: 'Is MingleMate free?',
-    a: 'Joining, completing the compatibility survey, and receiving weekly matches are free. There is a one-time payment to unlock contact details faster in chat, but matches unlock them after you answer 14 guided questions together either way.',
+    a: 'Joining, completing the compatibility survey, and receiving weekly matches are free. Contact details in chat stay hidden until you unlock them with a one-time payment — answering more questions alone does not reveal them.',
   },
   {
     q: 'How does MingleMate protect my privacy?',
-    a: 'Your contact details — phone, WhatsApp, email — are never shown to other users until you and your match unlock them together. They are also blurred in chat messages until then. Your questionnaire answers are used for matching and are not published on your profile. Full details are in our Privacy Policy.',
+    a: 'Your contact details — phone, WhatsApp, email — are never shown to another user unless they unlock them with a one-time payment, and only the details you have switched on are ever revealed. They are also blurred in chat messages until then. Your questionnaire answers are used for matching and are not published on your profile. Full details are in our Privacy Policy.',
   },
   {
     q: 'Can I choose who sees me?',

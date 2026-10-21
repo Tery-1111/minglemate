@@ -10,7 +10,8 @@
 --   04 POLICIES    every RLS policy on public + storage.objects
 --   05 TRIGGERS    every trigger on public + auth.users + storage.objects
 --   06 FUNCTIONS   every public function, its SECURITY/grants, plus missing RPCs
---   07 SCRIPTS     whether the single schema entrypoint is APPLIED, plus the
+--   07 SCRIPTS     whether the single schema entrypoint is APPLIED, whether the
+--                   RLS closure migration version is RECORDED, plus the
 --                   retired scripts kept under supabase/sql/superseded/
 --   08 CRON        whether a cron job runs the matcher, and what else is scheduled
 --   09 RLS GAPS    tables with RLS off, and tables with RLS on but no policy
@@ -25,14 +26,22 @@
 --   select * from (
 --     << paste the query below (everything after WITH) >>
 --   ) r
---   where status in ('MISSING','NOT APPLIED','PARTIAL','WARN');
+--   where status in ('MISSING','NOT APPLIED','PARTIAL','WARN','INDETERMINATE');
 --
--- Statuses: ok | MISSING | WARN | NOT APPLIED | PARTIAL | APPLIED | INFO
+-- Statuses: ok | MISSING | WARN | NOT APPLIED | PARTIAL | APPLIED | INDETERMINATE | INFO
 --
 -- What APPLIED means here: every object a script is responsible for is
 -- present in the database — NOT that the script's text ran without error.
 -- Those differ where a script is skipped or aborts on a statement whose end
 -- state another script already provides.
+--
+-- The migration-history row in 07 is the one exception, and it answers a
+-- different question on purpose: is the VERSION recorded. It reports APPLIED
+-- only when the migration ledger holds that version, NOT APPLIED when the
+-- ledger is readable and does not — and INDETERMINATE when there is no ledger
+-- to read, because "no row" and "nothing to look in" are different answers.
+-- It never infers application from the SQL file or from the policies it
+-- creates: a policy proves a statement ran, not that the version was recorded.
 --
 -- Notes on how it stays safe on a database that is only partly built:
 --   * Absent objects are reported, never assumed: every check is a catalog
@@ -41,6 +50,10 @@
 --   * cron.job is read through query_to_xml() so that pg_cron being
 --     absent (or the cron schema not being readable) yields "not
 --     installed" rows instead of failing the whole report.
+--   * supabase_migrations.schema_migrations is read the same way, through
+--     query_to_xml() behind a to_regclass() guard, so a project that has never
+--     been CLI-migrated (no supabase_migrations schema) reports
+--     INDETERMINATE instead of failing the whole report.
 --   * No object name is ever interpolated into SQL text: only
 --     query_to_xml() contains a query string and it is a constant.
 -- ============================================================
@@ -627,6 +640,71 @@ entitlement_summary as (
                 $q$, false, true, '')::text || '</r>')::xml
            end as doc
   ) d
+),
+
+-- ------------------------------------------------------------
+-- Is a migration VERSION recorded as applied? Read from the migration ledger,
+-- NOT from the effect of its statements: a policy that exists proves a
+-- statement ran, not that the version was recorded, and the Dashboard
+-- SQL-editor workflow — this repository's documented one for the schema chain —
+-- applies the SQL without recording anything at all. So the two questions are
+-- reported separately and neither is derived from the other.
+--
+-- Read through query_to_xml() and guarded by to_regclass() for the same reason
+-- cron.job is: a project that has never been CLI-migrated has no
+-- supabase_migrations schema, and a plain reference to a missing relation would
+-- fail the whole report. When the ledger is not there to read, the verdict is
+-- INDETERMINATE rather than a guess.
+-- ------------------------------------------------------------
+migration_doc as (
+  select case when to_regclass('supabase_migrations.schema_migrations') is null then null
+              else ('<r>' || query_to_xml($q$
+                select (select count(*) from supabase_migrations.schema_migrations
+                         where version = '20261015120000')::int as recorded,
+                       (select count(*) from supabase_migrations.schema_migrations
+                         where version = '20261015160000')::int as recorded_photos,
+                       (select count(*) from supabase_migrations.schema_migrations)::int as total,
+                       coalesce((select max(version) from supabase_migrations.schema_migrations),
+                                '(none)') as latest
+              $q$, false, true, '')::text || '</r>')::xml
+         end as doc
+),
+migration_ledger as (
+  select
+    to_regclass('supabase_migrations.schema_migrations') is not null as ledger_visible,
+    coalesce((xpath('//row/recorded/text()', d.doc))[1]::text::int, 0) as recorded,
+    coalesce((xpath('//row/recorded_photos/text()', d.doc))[1]::text::int, 0) as recorded_photos,
+    coalesce((xpath('//row/total/text()',    d.doc))[1]::text::int, 0) as total,
+    coalesce((xpath('//row/latest/text()',   d.doc))[1]::text, '(none)') as latest
+  from migration_doc d
+),
+-- The photo-uniqueness migration is reported from its EFFECT as well as from the
+-- ledger. The unique constraint on (user_id, photo_type) is what the app's
+-- upsert needs, and it is readable from the catalog whether or not any migration
+-- runner recorded a version — which is the point: a version whose SQL file
+-- exists but whose constraint does not is exactly the state that must not be
+-- called applied. No ::regclass cast on a literal string: that would fail the
+-- whole report on a project without the photos table, which is a legitimate
+-- state (photos is a precondition of the chain, not created by it).
+photo_unique_state as (
+  select exists (
+      select 1
+        from pg_constraint con
+        join pg_class c on c.oid = con.conrelid
+        join pg_namespace n on n.oid = c.relnamespace
+       where n.nspname = 'public'
+         and c.relname = 'photos'
+         and con.contype = 'u'
+         and pg_get_constraintdef(con.oid) = 'UNIQUE (user_id, photo_type)'
+    )
+    or exists (
+      select 1
+        from pg_indexes
+       where schemaname = 'public'
+         and tablename = 'photos'
+         and indexdef ilike '%unique%'
+         and indexdef ilike '%(user_id, photo_type)%'
+    ) as effect_present
 )
 
 -- ============================================================
@@ -772,6 +850,56 @@ select '07 SCRIPTS', 'seed_test_sessions.sql',
        'STAGING-ONLY data seed (auth.sessions/auth.refresh_tokens for the two liveness test users); '
        || 'not a schema change, so it is not verifiable from the schema — check for rows directly: '
        || 'select count(*) from auth.sessions where user_agent = ''liveness-seed-script'';', 'INFO'
+
+union all
+select '07 SCRIPTS', '20261015120000_rls_closure_precondition_tables.sql (migration history)',
+       case when not m.ledger_visible
+              then 'INDETERMINATE — supabase_migrations.schema_migrations is not present or not readable, '
+                || 'so whether this version was ever recorded cannot be established from here. Apply it with '
+                || '`supabase db push` so it is recorded, or read what its statements did in section 09 RLS GAPS.'
+            when m.recorded > 0
+              then 'APPLIED — version 20261015120000 is recorded in the migration history'
+                || ' (' || m.total || ' version(s) recorded, latest ' || m.latest || ')'
+            else 'NOT APPLIED — version 20261015120000 is absent from the migration history'
+                || ' (' || m.total || ' version(s) recorded, latest ' || m.latest || '). '
+                || 'This is the ledger''s answer, not a statement about the database: if the file was run from the '
+                || 'Dashboard editor nothing was recorded, so check whether RLS is on for the four tables in '
+                || 'section 09 RLS GAPS before concluding it did not run.' end,
+       case when not m.ledger_visible then 'INDETERMINATE'
+            when m.recorded > 0 then 'APPLIED'
+            else 'NOT APPLIED' end
+from migration_ledger m
+
+union all
+select '07 SCRIPTS', '20261015160000_photos_unique_per_user_and_type.sql (migration history)',
+       case
+         when p.effect_present and m.recorded_photos > 0
+           then 'APPLIED — public.photos carries the unique constraint on (user_id, photo_type), which is what the app''s photo upsert needs, and '
+             || 'version 20261015160000 is recorded in the migration history (' || m.total || ' version(s) recorded, latest ' || m.latest || ')'
+         when p.effect_present and not m.ledger_visible
+           then 'APPLIED (effect verified) — public.photos carries the unique constraint on (user_id, photo_type), which is what the app''s photo upsert needs. '
+             || 'Whether this version was ever recorded cannot be established from here: supabase_migrations.schema_migrations is not present or not readable.'
+         when p.effect_present
+           then 'APPLIED (effect verified) — public.photos carries the unique constraint on (user_id, photo_type), which is what the app''s photo upsert needs, '
+             || 'but version 20261015160000 is absent from the migration history (' || m.total || ' version(s) recorded, latest ' || m.latest || '). '
+             || 'The Dashboard SQL editor records nothing, so an effect present without a recorded version is the expected shape of that workflow. '
+             || 'Re-running the file is harmless: it notices the constraint and stops.'
+         when not m.ledger_visible
+           then 'INDETERMINATE — public.photos has no unique constraint on (user_id, photo_type), and supabase_migrations.schema_migrations is not present or not readable, '
+             || 'so whether this version was ever recorded cannot be established from here. The two questions are separate: without the constraint, the photo upload '
+             || 'upsert in PhotoUpload.jsx / Photos.jsx still fails with 42P10.'
+         when m.recorded_photos > 0
+           then 'LEDGER AND CATALOG DISAGREE — version 20261015160000 is recorded in the migration history, but public.photos has no unique constraint on (user_id, photo_type): '
+             || 'the ledger says it ran and the catalog says its effect is not there. Either the constraint was dropped by hand, or the version was recorded against a different database. Re-apply the file.'
+         else 'NOT APPLIED — version 20261015160000 is absent from the migration history (' || m.total || ' version(s) recorded, latest ' || m.latest || ') '
+           || 'and public.photos has no unique constraint on (user_id, photo_type), which is what the app''s photo upsert needs. Apply it after the RLS closure '
+           || '(its timestamp sorts later), with `supabase db push` or a paste into the SQL editor.'
+       end,
+       case when p.effect_present then 'APPLIED'
+            when not m.ledger_visible then 'INDETERMINATE'
+            when m.recorded_photos > 0 then 'WARN'
+            else 'NOT APPLIED' end
+from migration_ledger m, photo_unique_state p
 
 -- 08 CRON -----------------------------------------------------
 union all

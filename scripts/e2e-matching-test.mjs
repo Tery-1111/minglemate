@@ -29,9 +29,9 @@
 //   6. Prints cleanup SQL (never deletes on its own).
 // ============================================================
 
-import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import { SECTION1_DIMENSION_WEIGHTS } from '../supabase/functions/_shared/compatibilityEngine.ts'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -92,12 +92,14 @@ function legacySimilar(a, b) {
 }
 const exactSimilar = (a, b) => (a || '').trim().toLowerCase() === (b || '').trim().toLowerCase()
 
+// Question ranges only: the weights themselves come from the engine's single
+// shared definition so this expected-value replica cannot drift from it.
 const DIMENSIONS = [
-  { name: 'communication', from: 1, weight: 0.3 },
-  { name: 'conflict', from: 11, weight: 0.25 },
-  { name: 'emotional', from: 21, weight: 0.2 },
-  { name: 'expectations', from: 31, weight: 0.15 },
-  { name: 'values', from: 41, weight: 0.1 },
+  { name: 'communication', from: 1 },
+  { name: 'conflict', from: 11 },
+  { name: 'emotional', from: 21 },
+  { name: 'expectations', from: 31 },
+  { name: 'values', from: 41 },
 ]
 function expectedScore(similarFn, tagX, tagY) {
   let overall = 0
@@ -109,7 +111,7 @@ function expectedScore(similarFn, tagX, tagY) {
     }
     const pct = (match / 10) * 100
     dims[dim.name] = pct
-    overall += pct * dim.weight
+    overall += pct * SECTION1_DIMENSION_WEIGHTS[dim.name]
   }
   return { overall: Math.round(overall), dims }
 }

@@ -1,16 +1,12 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { calculateCompatibility, UserProfile } from '../_shared/compatibilityEngine.ts'
+import { areEligibleCandidates, pairKey } from '../_shared/matchingEligibility.ts'
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 )
-
-// Direction-agnostic pair key for block checks.
-function pairKey(a: string, b: string): string {
-  return a < b ? `${a}|${b}` : `${b}|${a}`
-}
 
 serve(async (req) => {
   // H5 fix: only admins or the cron/service may run the generator.
@@ -42,7 +38,7 @@ serve(async (req) => {
 
   const { data: users, error: usersError } = await supabase
     .from('users')
-    .select('id, gender')
+    .select('id, gender, campus_id')
     .eq('section1_complete', true)
     // Account states: paused/pending-deletion profiles leave matching
     .eq('profile_status', 'active')
@@ -95,11 +91,10 @@ serve(async (req) => {
       const firstUser = users[firstIndex]
       const secondUser = users[secondIndex]
 
-      if (firstUser.gender === secondUser.gender) continue
-
-      // Blocks are enforced here too: never pair blocked users,
-      // regardless of compatibility score.
-      if (blockedPairs.has(pairKey(firstUser.id, secondUser.id))) continue
+      // Campus equality is strict: matching-campus users and unaffiliated
+      // null/null users may pair, but no cross-campus or mixed-null pair can.
+      // Gender and block exclusions remain part of the same eligibility rule.
+      if (!areEligibleCandidates(firstUser, secondUser, blockedPairs)) continue
 
       const firstProfile = profiles.get(firstUser.id)
       const secondProfile = profiles.get(secondUser.id)

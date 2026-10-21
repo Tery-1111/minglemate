@@ -678,6 +678,13 @@ $$;
 
 revoke all on function public.admin_set_maintenance_message(text) from anon, authenticated, public;
 
+-- Reachable by the admins the body's is_admin() guard admits, and by nobody
+-- else: the same shape every other admin_* RPC uses (granted to authenticated,
+-- authorization enforced inside the function). Without it the banner can only
+-- be set from the SQL editor or by the service role, which leaves the Admin
+-- panel no path to it at all.
+grant execute on function public.admin_set_maintenance_message(text) to authenticated;
+
 -- ------------------------------------------------------------
 -- E. Reports review list for the Admin panel
 --    Reuses the EXISTING admin enforcement (is_admin()); no new
@@ -2051,32 +2058,37 @@ grant select (notifications_enabled) on public.users to authenticated;
 -- row is created server-side by handle_new_user(), and no src/ call inserts it
 -- any more (Signup.jsx and ProfileSetup.jsx now update by id). The grant is
 -- kept for the client insert path RLS still permits (users_insert_own), shaped
--- as the removed upserts sent it (id, email, created_at, full_name, age,
--- gender, campus_id, residence_type, bio, phone, whatsapp_number,
--- display_phone, social_*). No entitlement column is granted:
--- section2_unlocked and section2_free_expires_at are absent below, so a client
--- cannot write them by any route, and RLS cannot help — RLS is row-scoped.
+-- as the removed upserts sent it, minus created_at: that column is
+-- server-owned (its default is now()) and the only client write of it — the
+-- signup fallback's restamp — is gone, so it is in neither grant below.
+-- No entitlement column is granted either: section2_unlocked and
+-- section2_free_expires_at are absent, so a client cannot write them by any
+-- route — RLS cannot help, because RLS is row-scoped.
 grant insert (
-  id, email, created_at, full_name, age, gender, campus_id, residence_type,
+  id, email, full_name, age, gender, campus_id, residence_type,
   bio, phone, whatsapp_number, display_phone,
   social_instagram, social_x, social_tiktok
 ) on public.users to authenticated;
 
--- app-written UPDATE columns: Signup.jsx:53 (created_at, written by the
--- signup fallback's update-by-id), Settings.jsx:59 (profile_status),
--- Settings.jsx:70 (notifications_enabled), Section1.jsx:103 (section1_*),
--- Interests.jsx:71 (interests), Profile.jsx:173 (bio, residence_type,
--- looking_for, interests, profile_prompts), Profile.jsx:207 (share_*,
--- social_*), supabaseClient.js:14 (onesignal_player_id), plus email,
--- full_name, age, gender, campus_id, residence_type, bio, phone,
--- whatsapp_number, display_phone and social_* which ProfileSetup.jsx:85 now
--- updates by id (previously by upsert-on-conflict).
--- created_at is in this list because Signup.jsx:53 writes it; without it the
--- update-by-id is refused with 42501 (measured), since this grant's whole
--- purpose is to match what src/ writes. It is the caller's own row's
--- creation timestamp — not an entitlement and not another user's data.
+-- app-written UPDATE columns: Settings.jsx:59 (profile_status, the
+-- pause/resume toggle — its one server-owned value is protected by the clamp
+-- below), Settings.jsx:70 (notifications_enabled), Section1.jsx:103
+-- (section1_*), Interests.jsx:71 (interests), Profile.jsx:173 (bio,
+-- residence_type, looking_for, interests, profile_prompts), Profile.jsx:207
+-- (share_*, social_*), supabaseClient.js:14 (onesignal_player_id), plus the
+-- profile fields ProfileSetup.jsx:85 writes by id: full_name, age, gender,
+-- campus_id, residence_type, bio, phone, whatsapp_number, display_phone and
+-- social_* (previously written by its upsert-on-conflict).
+-- email appears in both write lists because the removed upserts sent it and
+-- the client insert path RLS still permits (users_insert_own) is shaped the
+-- same way; no src/ call writes it today, and it is the account address
+-- handle_new_user() sets from auth.users.
+-- created_at is deliberately in neither list: it is server-owned (default
+-- now()) and the only client write of it was Signup.jsx's fallback restamp,
+-- which this change removed. A grant whose whole purpose is to let a client
+-- rewrite its own creation timestamp is not a permission the app needs.
 grant update (
-  id, email, created_at, full_name, age, gender, campus_id, residence_type, bio,
+  id, email, full_name, age, gender, campus_id, residence_type, bio,
   phone, whatsapp_number, display_phone,
   social_instagram, social_x, social_tiktok,
   profile_status, notifications_enabled,
@@ -2187,9 +2199,10 @@ alter table public.users
 --    anonymous writes (RLS already blocks those). It rewrites only the
 --    server-owned columns — the two entitlements and the four legacy
 --    server-owned fields — so every other column a client legitimately
---    edits (bio, interests, profile_status, section1_*, share_*,
---    social_*, display_phone, onesignal_player_id, notifications_enabled,
---    ...) is untouched.
+--    edits (bio, interests, section1_*, share_*, social_*, display_phone,
+--    onesignal_player_id, notifications_enabled, ...) is untouched. The one
+--    exception is profile_status: it stays client-writable for Settings'
+--    pause/resume toggle, but a server-set 'pending_deletion' is preserved.
 -- ------------------------------------------------------------
 create or replace function public.clamp_user_protected_columns()
 returns trigger
@@ -2235,6 +2248,16 @@ begin
     new.reputation_score := old.reputation_score;
     new.status := old.status;
     new.section2_responses := old.section2_responses;
+    -- profile_status is client-writable, because Settings.jsx's pause/resume
+    -- toggle needs it ('active' <-> 'paused'), but its third value is
+    -- server-owned: request_account_deletion() sets 'pending_deletion', and
+    -- that value is what keeps a queued account out of discovery and matching
+    -- (discover_candidates filters profile_status = 'active'). A client write
+    -- may therefore not move a row out of it, or an account the server holds
+    -- as pending deletion could silently re-enter matching.
+    if old.profile_status = 'pending_deletion' then
+      new.profile_status := old.profile_status;
+    end if;
   end if;
 
   return new;
@@ -3080,8 +3103,14 @@ begin
   end if;
 
   select json_build_object(
+    -- Ordered by name, not by a creation timestamp: public.campuses is a table
+    -- this chain does not create, and neither src/ nor inspect_state.sql
+    -- declares campuses.created_at, so ordering by it made this whole RPC fail
+    -- with 42703 (measured locally) on a database whose campuses has no such
+    -- column. `name` is the campus identity column the chain itself inserts
+    -- into (admin_add_campus), so the dependency is one the repository declares.
     'campuses', (
-      select coalesce(json_agg(c order by c.created_at), '[]'::json)
+      select coalesce(json_agg(c order by c.name), '[]'::json)
       from public.campuses c
     ),
     'stats', (
@@ -3313,6 +3342,17 @@ grant execute on function public.admin_users_list(text, text, text, boolean, int
 --    p_categories: array subset of
 --      'profile','status','questionnaire','contacts','matches'
 -- ============================================================
+-- photos.display_order is read by the function below, by seven screens in src/
+-- (Discover, ForceConnect, MatchCelebration, MatchDetail, Matches, Messages,
+-- Profile) and written by two (PhotoUpload.jsx:86, Photos.jsx:111).
+-- public.photos is a precondition table this chain does not create, so on a
+-- database whose deployed copy predates the column the function failed with
+-- 42703 for the admin (measured: the local fixture still declares the stale
+-- `slot`, the name inspect_state.sql was corrected away from in 632447f).
+-- Added if missing — the same convergence pattern as the matches and
+-- conversations ALTERs — and a no-op where it is already there.
+alter table public.photos add column if not exists display_order integer;
+
 create or replace function public.admin_user_detail(
   p_user_id uuid,
   p_categories text[] default array['profile','status'],

@@ -27,7 +27,6 @@ const section2Questions = [
 ]
 
 const FREE_QUESTIONS = 4
-const UNLOCK_THRESHOLD = 14
 
 const CONTACT_PATTERNS = [
   /(\+?254|0)[17]\d{8}/g,
@@ -189,9 +188,10 @@ export default function Chat() {
       (matchData?.section2_free_expires_at && new Date(matchData.section2_free_expires_at) > now)
     setBothUnlocked(myAccess && matchAccess)
 
-    // Server-side contact reveal: paid snapshot first, then the
-    // guided-conversation free path. The RPC enforces pairing +
-    // unlock in the database — the client can never fake this.
+    // Server-side contact reveal: the RPC returns the paid snapshot only.
+    // The guided-conversation free path was removed — the reveal is
+    // payment-only — and the RPC enforces pairing and the unlock in the
+    // database, so the client can never fake this.
     const { data: contactRows } = await supabase
       .rpc('get_unlocked_contacts', { other_user_id: matchId })
     setMatchContact(contactRows?.[0] || null)
@@ -301,14 +301,17 @@ export default function Chat() {
     setMessages(updated)
 
     const sortedIds = [userId, recipientId].sort()
-    const shouldUnlock = questionNumber >= UNLOCK_THRESHOLD
 
     const { data: updatedProgress } = await supabase
       .from('section2_chat_progress')
       .update({
         last_question_sent: questionNumber,
         questions_discussed: questionNumber,
-        contacts_unlocked: shouldUnlock,
+        // The question count is not a reveal: contact details are opened by a
+        // verified payment and by nothing else (enforce_contacts_unlocked pins
+        // this flag for client writes), so the client sends the honest value
+        // and the server decides the real one.
+        contacts_unlocked: false,
         updated_at: new Date().toISOString()
       })
       .eq('user_id_a', sortedIds[0])
@@ -317,7 +320,6 @@ export default function Chat() {
       .single()
 
     setS2Progress(updatedProgress)
-    if (shouldUnlock) setContactsRevealed(true)
     setSendingBot(false)
   }
 
@@ -528,7 +530,7 @@ export default function Chat() {
     return (
       <div key={msg.id || index} className={`message msg-in ${isMe ? 'sent' : 'received'}`}>
         {shouldBlur && (
-          <p className="blur-warning">⚠️ Contact info hidden until 14 questions are discussed</p>
+          <p className="blur-warning">⚠️ Contact info stays hidden until it is unlocked</p>
         )}
         <p className="message-text">{displayContent}</p>
         {stateNote ? (
@@ -620,7 +622,7 @@ export default function Chat() {
       {contactsRevealed && matchUser && currentUserData && matchContact && (
         <div className="contact-reveal-card">
           <h3>Contact Details Unlocked</h3>
-          <p>You have discussed 14+ questions together.</p>
+          <p>Unlocked with a one-time payment.</p>
           <div className="contact-grid">
             <div className="contact-person">
               <p className="contact-name">{matchUser.full_name}</p>
