@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "verify": "node scripts/verify-section1-weights.mjs && node scripts/verify-matching-eligibility.mjs && node scripts/verify-weekly-generation-safety.mjs && node scripts/verify-payment-ticket.mjs"
+    "verify": "node scripts/verify-section1-weights.mjs && node scripts/verify-matching-eligibility.mjs && node scripts/verify-weekly-generation-safety.mjs && node scripts/verify-payment-ticket.mjs && node scripts/verify-section1-question-mapping.mjs"
   },
   "dependencies": {
     "@sentry/react": "^10.75.0",
