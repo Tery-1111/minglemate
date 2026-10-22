@@ -536,6 +536,6 @@ and without inventing entitlement.
 - EVIDENCE: the project's secret names are ADMIN_UUID, INTASEND_PUBLIC_KEY, INTASEND_SECRET_KEY, INTASEND_WEBHOOK_CHALLENGE, ONESIGNAL_API_KEY, ONESIGNAL_APP_ID, SERVICE_ROLE_KEY, SUPABASE_* — no `MPESA_*` and no `SUPABASE_FUNCTION_URL`. No digest or value is reproduced here. This is owner configuration, not a schema/code defect — PASS
 
 ### Gate 68: the change is delivered (branch, PR, merge)
-- CHECK: `git log --oneline origin/main -2`, `gh pr view <n> --json state,mergedAt`
+- CHECK: `git log --oneline origin/main -2`, `gh pr view 13 --json state,mergedAt`
 - EXPECT: PR MERGED and the migration present on `origin/main`
-- EVIDENCE: pending
+- EVIDENCE: PR #13 (commit c0cb260) merged at 2026-10-22T19:46:58Z as merge commit 580a476; `origin/main` contains the migration, the verifier, the doc and this ledger — PASS
