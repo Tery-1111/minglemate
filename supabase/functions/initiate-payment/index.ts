@@ -18,6 +18,13 @@ function corsFor(req: Request) {
   }
 }
 
+// Daraja base URL. Sandbox unless MPESA_ENV=production, the same switch
+// payment-callback already honours: posting a production shortcode's STK
+// request to the sandbox host can never succeed (F-45 / PAY-09).
+const MPESA_ENV = Deno.env.get('MPESA_ENV') === 'production'
+  ? 'https://api.safaricom.co.ke'
+  : 'https://sandbox.safaricom.co.ke'
+
 // Server-enforced product prices — the client can NEVER set these. (C2)
 // Section 2 is free (D1/D5): it has no price and no purchase path.
 const PRICES: Record<string, number> = {
@@ -75,6 +82,24 @@ serve(async (req) => {
     if (!PRICES[purpose]) {
       return new Response(JSON.stringify({ error: 'Unknown payment purpose' }), {
         headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
+      })
+    }
+
+    // Fail closed before creating an intent if Daraja is not configured:
+    // an unconfigured deployment must not record dead payment attempts.
+    const missingConfig = [
+      ['MPESA_CONSUMER_KEY', Deno.env.get('MPESA_CONSUMER_KEY')],
+      ['MPESA_CONSUMER_SECRET', Deno.env.get('MPESA_CONSUMER_SECRET')],
+      ['MPESA_SHORTCODE', Deno.env.get('MPESA_SHORTCODE')],
+      ['MPESA_PASSKEY', Deno.env.get('MPESA_PASSKEY')],
+      ['MPESA_CALLBACK_URL', Deno.env.get('MPESA_CALLBACK_URL')]
+    ].filter(([, value]) => !value).map(([name]) => name)
+    if (missingConfig.length > 0) {
+      console.error('M-Pesa is not configured for this project', { missing: missingConfig })
+      return new Response(JSON.stringify({
+        error: 'Payment is temporarily unavailable. Please try again later.'
+      }), {
+        headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 503
       })
     }
 
@@ -187,7 +212,7 @@ serve(async (req) => {
 
     const auth = btoa(`${consumerKey}:${consumerSecret}`)
     const tokenRes = await fetch(
-      'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials',
+      `${MPESA_ENV}/oauth/v1/generate?grant_type=client_credentials`,
       { headers: { Authorization: `Basic ${auth}` } }
     )
     const tokenData = await tokenRes.json()
@@ -211,7 +236,7 @@ serve(async (req) => {
     const callbackKey = crypto.randomUUID()
 
     const stkRes = await fetch(
-      'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest',
+      `${MPESA_ENV}/mpesa/stkpush/v1/processrequest`,
       {
         method: 'POST',
         headers: {

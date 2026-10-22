@@ -56,7 +56,8 @@ export default function MatchDetail() {
       .from('matches')
       .select('id')
       .or(`and(user_a_id.eq.${uid},user_b_id.eq.${matchId}),and(user_a_id.eq.${matchId},user_b_id.eq.${uid})`)
-      .eq('status', 'active')
+      // 'active' is the chain label; production stores the pair as 'matched'.
+      .in('status', ['active', 'matched'])
       .maybeSingle()
 
     let t = null

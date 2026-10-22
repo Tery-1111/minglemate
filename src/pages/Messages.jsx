@@ -35,7 +35,8 @@ export default function Messages() {
       .from('matches')
       .select('user_a_id, user_b_id, status')
       .or(`user_a_id.eq.${uid},user_b_id.eq.${uid}`)
-      .eq('status', 'active')
+      // Production stores the pair as 'matched'; 'active' is the chain label.
+      .in('status', ['active', 'matched'])
 
     // 2) Weekly tier matches (both directions, current week)
     const weekId = getWeekId()

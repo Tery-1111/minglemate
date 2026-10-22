@@ -40,7 +40,10 @@ export default function Matches() {
       .from('matches')
       .select('user_a_id, user_b_id')
       .or(`user_a_id.eq.${session.user.id},user_b_id.eq.${session.user.id}`)
-      .eq('status', 'active')
+      // 'active' is the chain label; the production schema stores every
+      // live pair as 'matched' (matches_status_check). Admit both so a
+      // Force Connect pair is recognised on either database.
+      .in('status', ['active', 'matched'])
 
     const qrasheIds = (qrasheRows || []).map(m =>
       m.user_a_id === session.user.id ? m.user_b_id : m.user_a_id

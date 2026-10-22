@@ -338,3 +338,125 @@ check below.
   before and after this turn; `git rev-list --left-right --count
   origin/main...HEAD` is `0  19`, so main does not contain `1e9b21f` — FAIL
   (blocked, merge deliberately not performed)
+## Production application and delivery (2026-10-22, resumed with production authorization)
+
+### Gate 41: the production target is identified and captured before any change
+- CHECK: read-only catalog and data reads against `minglemate`
+  (`mhdjnhiqahsllbczbzpk`), plus `list_edge_functions` and `list_secrets`
+  (names only)
+- EXPECT: legacy shape confirmed, no writes
+- EVIDENCE: 45 public tables; no `user_blocks`, `connect_unlocks`,
+  `payment_intents`, `conversations`, `processed_payment_callbacks`,
+  `profiles_public` or `my_profile`; no `users.share_*`; legacy
+  `matches(user_a_id,user_b_id,status∈pending|interested|discarded|matched|ghosted)`;
+  reveal triggers `trg_contacts_unlocked` + `trg_auto_contact_reveal` live;
+  `supabase_migrations` absent; `initiate-payment`/`payment-callback` not
+  deployed; no `MPESA_*` secret — PASS (captured in
+  `docs/PRODUCTION_SECTION2_MIGRATION.md`)
+
+### Gate 42: a production-compatible migration replaces blind chain replay
+- CHECK: two ordered files under `supabase/sql/production/` plus a fail-closed
+  replay guard, instead of applying the staging migrations
+- EXPECT: production-only location, preflight, idempotent, no destructive DDL
+- EVIDENCE: `20261022150000_production_baseline_objects.sql`,
+  `20261022160000_production_section2_contacts.sql`,
+  `supabase/migrations/20260901000000_production_chain_replay_guard.sql` — PASS
+
+### Gate 43: the baseline objects migration applied and recorded
+- CHECK: `SUPABASE_APPLY_A_MIGRATION` on `mhdjnhiqahsllbczbzpk`
+- EXPECT: success; objects, columns and privileges present
+- EVIDENCE: `Migration applied successfully`; `user_blocks`,
+  `payment_intents`, `processed_payment_callbacks`, `connect_unlocks`,
+  `conversations` (all RLS on), `profiles_public`, `my_profile()` present;
+  6 `users.share_*` columns — PASS
+
+### Gate 44: the Section 2 / contacts migration applied after one corrected failure
+- CHECK: `SUPABASE_APPLY_A_MIGRATION` of the second file
+- EXPECT: success only when its own post-conditions hold
+- EVIDENCE: first attempt aborted with
+  `P0001: contacts_unlocked is still true on a progress row` — the pin trigger
+  preserved OLD, so the corrective UPDATE was reverted; the migration is
+  transactional and rolled back completely (0 policies, 0 new functions, flag
+  still true). `pin_section2_contacts_flag()` was changed to force `false` on
+  INSERT and UPDATE, and the re-run returned
+  `Migration applied successfully` — PASS (failure and fix recorded, not hidden)
+
+### Gate 45: production migration history is reconciled, not suppressed
+- CHECK: `SUPABASE_LIST_MIGRATION_HISTORY` and the migration rows
+- EXPECT: executed versions match the repository filenames; adopted versions
+  only where the complete intended effect is verified
+- EVIDENCE: `20261022150000`, `20261022160000` (executed); `20261021120000`,
+  `20261021130000`, `20261022130000` recorded as ADOPTED with the verification
+  note; marker table `public.production_schema_baseline` present — PASS
+
+### Gate 46: no production data was lost
+- CHECK: row counts before vs after
+- EXPECT: identical
+- EVIDENCE: users 3→3, section2_responses 40→40, progress 1→1, matches 1→1,
+  match_history 1→1, payments 1→1, messages 6→6, token_purchases 0→0,
+  reports 2→2; new tables empty (0 rows) — PASS
+
+### Gate 47: Section 2 is free and partner-scoped, and blocking denies the read
+- CHECK: rollback-scoped `SET ROLE authenticated` reads and writes
+- EXPECT: own + matched partner only; unpaired denied; writes allowed; block
+  denies; pairing predicate unchanged by a block
+- EVIDENCE: user B saw own 0, partner A 20, unpaired C 0, progress 1; own
+  answer insert+update succeeded; after a block, partner rows 0,
+  `is_section2_partner` false, `users_are_paired` true — PASS
+
+### Gate 48: question progress and clients cannot reveal contacts
+- CHECK: rollback-scoped progress bump and client flag write; catalog check
+- EXPECT: `contacts_unlocked` stays false; reveal functions/triggers gone
+- EVIDENCE: `questions_discussed` raised (clamped to 14) → `still_unlocked=0`;
+  authenticated `UPDATE … contacts_unlocked = true` → `false`; 0 reveal
+  functions, 0 reveal triggers, 0 true flags — PASS
+
+### Gate 49: Connect requires a succeeded intent for that pair, and consent is live
+- CHECK: pending/succeeded/unpaired intents, duplicate callback, per-channel
+  consent toggles, unrelated caller
+- EXPECT: one snapshot only from a succeeded paired intent; duplicates no-op;
+  channel follows the owner's current flag; unrelated caller denied
+- EVIDENCE: pending → 0 unlocks; succeeded → 1 unlock, 1 conversation, 1
+  system message; second call → unchanged; unpaired → 0; email shared
+  `true → false → true` across the toggles; unrelated caller → 0 rows — PASS
+
+### Gate 50: Force Connect uses the live `matches` shape and is idempotent
+- CHECK: succeeded `force_connect` intent applied twice
+- EXPECT: one matched pair, one Qrashe conversation, one message/notification,
+  no contact reveal
+- EVIDENCE: `match_rows_for_pair=1`, `qrashe_conversations=1`,
+  `force_messages=1`, `force_notifications=1`, `matched_rows_total=2` (the
+  pre-existing pair plus the new one), channels after Force Connect `0`,
+  `users_are_paired` true — PASS
+
+### Gate 51: anonymous and direct-database callers cannot bypass the reveal
+- CHECK: function ACLs and a client `select` of a contact column
+- EXPECT: no `anon` EXECUTE on internal helpers; contact columns unreadable
+- EVIDENCE: `anon_exec=false` for `users_are_paired`, `is_section2_partner`,
+  `complete_connect_unlock`, `complete_force_connect`,
+  `get_unlocked_contacts`, `my_profile`; `select email from users` as
+  `authenticated` → `42501 permission denied` — PASS
+
+### Gate 52: the payment/contact Edge Functions are deployed and gated
+- CHECK: `supabase functions deploy … --project-ref mhdjnhiqahsllbczbzpk`,
+  `list_edge_functions`, HTTP smoke tests
+- EXPECT: both ACTIVE; `initiate-payment` JWT-gated; callback reachable
+- EVIDENCE: `initiate-payment` v1 `verify_jwt=true`, `payment-callback` v1
+  `verify_jwt=false`; no header → `401 UNAUTHORIZED_NO_AUTH_HEADER`, bad bearer
+  → `401 UNAUTHORIZED_INVALID_JWT_FORMAT`; unknown callback id → `200 ok` — PASS
+
+### Gate 53: the repository checks pass
+- CHECK: `verify-section2-contact-rules`, `verify-section2-isolation`,
+  `verify-force-connect-pairing`, `npm run verify`, `npm run build`
+- EXPECT: exit 0
+- EVIDENCE: `60/60`, isolation pass, `17/17`, `VERIFY_EXIT=0` (131 PASS),
+  `BUILD_EXIT=0` (`480 modules transformed`, `built in 7.15s`) — PASS
+
+### Gate 54: lint is a pre-existing failure, not caused by this change
+- CHECK: `npm run lint`
+- EXPECT: distinguish new from existing findings
+- EVIDENCE: `LINT_EXIT=1`, 44 problems (25 errors) — all
+  `react-hooks/immutability`, unused-variable and exhaustive-deps findings in
+  lines this change did not touch; `git diff` on the three edited screens is
+  limited to the `matches` status filter and its comment — FAIL (pre-existing,
+  reported as a limitation)
