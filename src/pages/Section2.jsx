@@ -33,7 +33,10 @@ export default function Section2() {
   const [currentAnswer, setCurrentAnswer] = useState('')
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState(null)
+  // Save-state machine: idle → saving → saved | error. 'error' keeps
+  // the user's text in the box (nothing is silently discarded) and
+  // offers Retry. 'saved' flashes briefly before advancing.
+  const [saveState, setSaveState] = useState('idle') // idle | saving | saved | error
   const [userId, setUserId] = useState(null)
 
   useEffect(() => {
@@ -71,37 +74,46 @@ export default function Section2() {
   }
 
   async function handleSave() {
-    if (!currentAnswer.trim()) return
+    if (!currentAnswer.trim() || saving) return // no duplicate submits
     setSaving(true)
+    setSaveState('saving')
 
     // onConflict mirrors the table's (user_id, question_number) unique
     // constraint: retakes re-answer existing questions, and without it
     // the upsert threw a duplicate-key error nobody surfaced.
+    const text = currentAnswer.trim()
     const { error: saveError } = await supabase.from('section2_responses').upsert({
       user_id: userId,
       question_number: current + 1,
-      answer_text: currentAnswer.trim()
+      answer_text: text
     }, { onConflict: 'user_id,question_number' })
 
     if (saveError) {
-      console.error('Section 2 save failed:', saveError)
-      setError("We couldn't save that answer. Check your connection and try again.")
+      // ROLLBACK: keep the user's text exactly as typed; say what
+      // happened; offer Retry. Never silently discard.
+      setSaveState('error')
       setSaving(false)
       return
     }
 
-    const newAnswers = { ...answers, [current + 1]: currentAnswer.trim() }
+    const newAnswers = { ...answers, [current + 1]: text }
     setAnswers(newAnswers)
+    setSaveState('saved')
+
+    // A beat of confirmation — the save visibly lands before the
+    // next question arrives.
+    await new Promise(r => setTimeout(r, 500))
 
     if (current < section2Questions.length - 1) {
       setCurrent(current + 1)
       setCurrentAnswer(newAnswers[current + 2] || '')
+      setSaveState('idle')
     } else {
-      await supabase
-        .from('users')
-        .update({ section2_unlocked: true })
-        .eq('id', userId)
-      // Onboarding complete → open Discover.
+      // Onboarding complete → open Discover. Section 2 answers are free
+      // and grant no entitlement: `section2_unlocked` is server-owned (set
+      // only by payment-callback after a verified KSh 200 payment), and any
+      // client write to it is discarded by the clamp_user_protected_columns
+      // trigger on public.users. Do not reintroduce a client update here.
       navigate('/discover')
     }
 
@@ -132,21 +144,25 @@ export default function Section2() {
       </div>
 
       <div className="s2-content">
-        <h2 className="s2-question">{section2Questions[current]}</h2>
+        <h2 key={current} className="s2-question s1-question-enter">{section2Questions[current]}</h2>
 
         <textarea
           className="s2-textarea"
           placeholder="Write your answer here... be honest and open."
           value={currentAnswer}
-          onChange={e => setCurrentAnswer(e.target.value)}
+          onChange={e => { setCurrentAnswer(e.target.value); if (saveState === 'error') setSaveState('idle') }}
           rows={6}
+          aria-invalid={saveState === 'error'}
         />
 
         <p className="s2-char-count">{currentAnswer.length} characters</p>
 
-        {error && (
-          <p style={{ color: 'var(--danger, #e5484d)', fontSize: 13, margin: '0 0 12px' }}>
-            {error}
+        {saveState === 'saved' && (
+          <p className="s2-save-note s2-save-note-ok" role="status">Saved ✓</p>
+        )}
+        {saveState === 'error' && (
+          <p className="s2-save-note s2-save-note-err" role="alert">
+            We couldn't save your answer — it's still here. Check your connection and try again.
           </p>
         )}
 
@@ -154,8 +170,15 @@ export default function Section2() {
           className="s2-btn"
           onClick={handleSave}
           disabled={!currentAnswer.trim() || saving}
+          aria-busy={saving}
         >
-          {saving ? 'Saving...' : current < section2Questions.length - 1 ? 'Next Question →' : 'Complete Section 2 ✓'}
+          {saving
+            ? 'Saving…'
+            : saveState === 'error'
+              ? 'Retry saving →'
+              : current < section2Questions.length - 1
+                ? 'Next Question →'
+                : 'Complete Section 2 ✓'}
         </button>
       </div>
     </div>

@@ -28,7 +28,7 @@ export default function Signup() {
       // 1. Create the credentials account in auth.users
       // 1. Create the credentials account in auth.users. The Turnstile
       // token rides along per Supabase's CAPTCHA protection setting.
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      const { error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: { captchaToken },
@@ -36,27 +36,15 @@ export default function Signup() {
 
       if (authError) throw authError;
 
-      if (authData?.user) {
-        // 2. Profile row: the DB trigger (fix_rls.sql) already creates it
-        // via SECURITY DEFINER. This upsert is a fallback for setups
-        // without the trigger — e.g. email-confirmation-disabled flows
-        // where the client DOES have a session here. Its failure must
-        // never block the code screen: the auth account and the email
-        // with the code already exist at this point, so the only correct
-        // next step is verification. Logged, not thrown.
-        const { error: profileError } = await supabase
-          .from('users')
-          .upsert({
-            id: authData.user.id,
-            email: email,
-            section2_unlocked: false,
-            created_at: new Date().toISOString(),
-          });
-
-        if (profileError) {
-          console.error('Profile fallback upsert failed:', profileError.message);
-        }
-      }
+      // 2. Profile row: handle_new_user() — the SECURITY DEFINER trigger on
+      // auth.users — creates the public.users row at signup, with the
+      // server's own created_at and the 14-day trial. Nothing is written from
+      // here any more: the old upsert, and the update-by-id restamp that
+      // replaced it (which only rewrote the row's own creation timestamp),
+      // are both gone, because created_at is server-owned and is no longer in
+      // the client's UPDATE grant. A failure here could never block the code
+      // screen anyway — the auth account and the emailed code already exist
+      // at this point — so there is nothing left to fall back to.
 
       // 3. Email confirmation flow: no session exists yet, so we do NOT
       // navigate into the app. The user verifies a 6-digit code next.

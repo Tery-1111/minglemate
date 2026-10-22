@@ -16,6 +16,39 @@ export interface CompatibilityScore {
 
 type Dimension = keyof CompatibilityScore['dimensions']
 
+// ---------------------------------------------------------------------------
+// Section 1 dimension weights
+//
+// MingleMate_Master_Product_Specification §5 lists the five dimensions in this
+// order — communication, conflict, emotional maturity, relationship
+// expectations, values/lifestyle — and weights them 3:3:2:2:1. The integers
+// below are the definition and the only place the weights live; the decimal a
+// dimension contributes to the overall score is derived by dividing its
+// integer by their total, so no fraction is rounded in code.
+// ---------------------------------------------------------------------------
+export const SECTION1_DIMENSION_WEIGHT_RATIOS: Record<Dimension, number> = {
+  communication: 3,
+  conflict: 3,
+  emotional: 2,
+  expectations: 2,
+  values: 1
+}
+
+export const SECTION1_WEIGHT_TOTAL: number = Object.values(SECTION1_DIMENSION_WEIGHT_RATIOS)
+  .reduce((sum, ratio) => sum + ratio, 0)
+
+function fractionOfWeightTotal(ratio: number): number {
+  return ratio / SECTION1_WEIGHT_TOTAL
+}
+
+export const SECTION1_DIMENSION_WEIGHTS: Record<Dimension, number> = {
+  communication: fractionOfWeightTotal(SECTION1_DIMENSION_WEIGHT_RATIOS.communication),
+  conflict: fractionOfWeightTotal(SECTION1_DIMENSION_WEIGHT_RATIOS.conflict),
+  emotional: fractionOfWeightTotal(SECTION1_DIMENSION_WEIGHT_RATIOS.emotional),
+  expectations: fractionOfWeightTotal(SECTION1_DIMENSION_WEIGHT_RATIOS.expectations),
+  values: fractionOfWeightTotal(SECTION1_DIMENSION_WEIGHT_RATIOS.values)
+}
+
 const dimensionQuestions: Record<Dimension, number[]> = {
   communication: Array.from({ length: 10 }, (_, index) => index + 1),
   conflict: Array.from({ length: 10 }, (_, index) => index + 11),
@@ -62,11 +95,11 @@ export function calculateCompatibility(userA: UserProfile, userB: UserProfile): 
   }
 
   const overall =
-    dimensions.communication * 0.3 +
-    dimensions.conflict * 0.25 +
-    dimensions.emotional * 0.2 +
-    dimensions.expectations * 0.15 +
-    dimensions.values * 0.1
+    dimensions.communication * SECTION1_DIMENSION_WEIGHTS.communication +
+    dimensions.conflict * SECTION1_DIMENSION_WEIGHTS.conflict +
+    dimensions.emotional * SECTION1_DIMENSION_WEIGHTS.emotional +
+    dimensions.expectations * SECTION1_DIMENSION_WEIGHTS.expectations +
+    dimensions.values * SECTION1_DIMENSION_WEIGHTS.values
 
   return {
     overall,

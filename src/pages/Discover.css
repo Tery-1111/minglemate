@@ -65,7 +65,13 @@
   background: var(--surface);
   border: 1px solid var(--border);
   cursor: pointer;
-  transition: border-color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+  transition: border-color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) ease;
+}
+
+/* REACTION: immediate press feedback on every device (hover is a
+   progressive enhancement only, never required). */
+.discover-card:active {
+  transform: scale(0.97);
 }
 
 .discover-card:hover {
@@ -78,10 +84,11 @@
   outline-offset: 2px;
 }
 
-/* Selected state — the one loud moment on the screen */
+/* Selected state — the one loud moment on the screen (Level 2 →
+   interest). Ring + soft halo, announced to AT via aria-pressed. */
 .discover-card.selected {
   border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 0 24px var(--accent-soft);
 }
 
 /* The photo IS the card */
@@ -232,6 +239,66 @@
 /* ------------------------------------------------------------
    States
    ------------------------------------------------------------ */
+
+/* Loading: the grid renders 5 real-shaped skeleton cards — photo
+   area plus the name/age scrim rows, matching final geometry. */
+.discover-card-skeleton {
+  cursor: default;
+  pointer-events: none;
+}
+
+.discover-skeleton-photo {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 0;
+}
+
+.discover-skeleton-scrim {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  padding: 40px 12px 10px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  background: none;
+}
+
+.discover-skeleton-name {
+  display: inline-block;
+  width: 55%;
+  height: 14px;
+}
+
+.discover-skeleton-age {
+  display: inline-block;
+  width: 24px;
+  height: 11px;
+}
+
+/* Error + retry: never looks like loading, always offers the way out. */
+.discover-error-block {
+  max-width: var(--content-w);
+  margin: 0 auto var(--space-4);
+  text-align: center;
+}
+
+.discover-error-block .discover-error {
+  margin-bottom: var(--space-3);
+}
+
+.discover-retry {
+  max-width: 200px;
+  margin: 0 auto;
+}
+
+/* Force Connect button busy state — press acknowledged before the
+   route change completes. */
+.discover-fc-btn.is-busy {
+  opacity: 0.75;
+}
+
 .discover-error {
   max-width: var(--content-w);
   margin: 0 auto var(--space-3);
@@ -253,7 +320,9 @@
 }
 
 .discover-empty-icon {
-  font-size: 40px;
+  display: flex;
+  justify-content: center;
+  color: var(--text-muted);
   margin-bottom: var(--space-3);
   opacity: 0.7;
 }

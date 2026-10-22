@@ -68,8 +68,9 @@ export default function HowItWorks() {
         <p>
           Matches open with a guided conversation — twenty deep questions you
           and your match answer in turn. It's designed to get past "hey" and
-          into actual conversation. After you've worked through 14 questions
-          together, contact details unlock so you can take things offline.
+          into actual conversation. Contact details stay hidden until you
+          unlock them with a one-time payment, so taking things offline is
+          always a deliberate step.
         </p>
 
         <h2>Built for campus life in Kenya</h2>

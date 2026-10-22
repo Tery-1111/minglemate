@@ -42,21 +42,47 @@ alter table public.payment_intents
   add column if not exists recipient_user_id uuid references public.users(id);
 
 -- ------------------------------------------------------------
--- 3. matches — Qrashe pairs created ONLY by the verified KSh 80
---    Force Connect payment (complete_force_connect RPC). Tier 1/2
---    keep living in match_history (weekly engine untouched).
+-- 3. matches — Qrashe pairs created ONLY by the verified Force
+--    Connect payment (complete_force_connect RPC). Weekly Tier 1/2
+--    live in match_history and the weekly engine must NOT write this
+--    table: the app reads every status='active' row here as a Qrashe
+--    match, so a weekly pair written here would be mislabelled.
 --    Pair stored ordered: user_a_id = least(id), user_b_id = greatest(id).
+--
+--    THIS IS THE CANONICAL SHAPE. On a database that already had the
+--    legacy weekly `matches` table, `create table if not exists` is a
+--    no-op and none of this applies — the matches-shape stage of the chain
+--    exists to bring such a table to exactly this shape. Change the
+--    two together.
 -- ------------------------------------------------------------
 create table if not exists public.matches (
   id uuid primary key default gen_random_uuid(),
   user_a_id uuid not null references public.users(id) on delete cascade,
   user_b_id uuid not null references public.users(id) on delete cascade,
-  tier text not null default 'qrashe' check (tier = 'qrashe'),
-  created_by uuid references public.users(id),
-  status text not null default 'active' check (status in ('active','unmatched')),
+  tier text default 'qrashe' check (tier is null or tier = 'qrashe'),
+  created_by uuid references public.users(id) on delete set null,
+  status text not null default 'active'
+    check (status in ('active','unmatched','pending','interested',
+                      'discarded','matched','ghosted')),
+  compatibility_score integer not null default 0,
   created_at timestamptz not null default now(),
-  unique (user_a_id, user_b_id)
+  -- Retained legacy weekly-engine columns: existing rows keep their
+  -- data, nothing writes them, and the chain's matches-shape stage does
+  -- not drop them. They go only on a deliberate retention decision.
+  is_visible boolean default false,
+  compatibility_drivers jsonb,
+  explanation jsonb,
+  success_probability double precision default 0.0,
+  last_interaction_at timestamptz default now(),
+  interested_at timestamptz,
+  discarded_at timestamptz,
+  constraint matches_unique_pair unique (user_a_id, user_b_id),
+  constraint matches_distinct_pair_check check (user_a_id <> user_b_id)
 );
+
+-- The client reads this table with `.or(user_a_id.eq.X,user_b_id.eq.X)`;
+-- the unique key covers the user_a_id side, this covers the other.
+create index if not exists idx_matches_user_b on public.matches (user_b_id);
 
 alter table public.matches enable row level security;
 
@@ -67,6 +93,12 @@ create policy "matches_select_participant"
   using (user_a_id = auth.uid() or user_b_id = auth.uid());
 -- No client insert/update/delete: creation happens only inside
 -- complete_force_connect (security definer, server-verified payment).
+-- The legacy table also granted ALL to anon/authenticated and carried a
+-- "Users can update their own matches" policy, which let a participant
+-- rewrite their own match row; both are revoked/dropped in
+-- supabase/sql/superseded/reconcile_matches_shape.sql.
+revoke all on table public.matches from anon;
+revoke insert, update, delete on table public.matches from authenticated;
 
 -- ------------------------------------------------------------
 -- 4. connect_unlocks — one PAID contact unlock per buyer/seller.

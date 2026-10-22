@@ -72,7 +72,7 @@
 .s2-question {
   font-size: 20px;
   font-weight: 700;
-  color: white;
+  color: var(--text-primary);
   line-height: 1.5;
   margin-bottom: 24px;
 }
@@ -119,6 +119,22 @@
 .s2-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Save-state notes: confirmation and failure are TEXT (role=status /
+   role=alert), never motion-only. */
+.s2-save-note {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+
+.s2-save-note-ok {
+  color: var(--positive);
+}
+
+.s2-save-note-err {
+  color: var(--danger);
 }
 
 .s2-locked-container {

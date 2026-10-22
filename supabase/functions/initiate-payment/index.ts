@@ -18,9 +18,16 @@ function corsFor(req: Request) {
   }
 }
 
+// Daraja base URL. Sandbox unless MPESA_ENV=production, the same switch
+// payment-callback already honours: posting a production shortcode's STK
+// request to the sandbox host can never succeed (F-45 / PAY-09).
+const MPESA_ENV = Deno.env.get('MPESA_ENV') === 'production'
+  ? 'https://api.safaricom.co.ke'
+  : 'https://sandbox.safaricom.co.ke'
+
 // Server-enforced product prices — the client can NEVER set these. (C2)
+// Section 2 is free (D1/D5): it has no price and no purchase path.
 const PRICES: Record<string, number> = {
-  section2: 200,
   force_connect: 80,
   connect_tier1: 70,
   connect_tier2: 50,
@@ -61,10 +68,38 @@ serve(async (req) => {
     // --- INPUT: phone + purpose + optional recipient. Prices are
     //     server constants; recipient is looked up server-side. (C2)
     const { phone: rawPhone, purpose: rawPurpose, recipientId: rawRecipient } = await req.json()
-    const purpose = String(rawPurpose || 'section2')
+    const purpose = String(rawPurpose || '')
+    // Section 2 is free: refuse the purchase explicitly, with a message the
+    // client can show. Old section2 intents are still settled by
+    // payment-callback; this only stops NEW ones being created.
+    if (purpose === 'section2') {
+      return new Response(JSON.stringify({
+        error: 'Section 2 is free — there is nothing to pay for. Contact details are unlocked with Connect.'
+      }), {
+        headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
+      })
+    }
     if (!PRICES[purpose]) {
       return new Response(JSON.stringify({ error: 'Unknown payment purpose' }), {
         headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
+      })
+    }
+
+    // Fail closed before creating an intent if Daraja is not configured:
+    // an unconfigured deployment must not record dead payment attempts.
+    const missingConfig = [
+      ['MPESA_CONSUMER_KEY', Deno.env.get('MPESA_CONSUMER_KEY')],
+      ['MPESA_CONSUMER_SECRET', Deno.env.get('MPESA_CONSUMER_SECRET')],
+      ['MPESA_SHORTCODE', Deno.env.get('MPESA_SHORTCODE')],
+      ['MPESA_PASSKEY', Deno.env.get('MPESA_PASSKEY')],
+      ['MPESA_CALLBACK_URL', Deno.env.get('MPESA_CALLBACK_URL')]
+    ].filter(([, value]) => !value).map(([name]) => name)
+    if (missingConfig.length > 0) {
+      console.error('M-Pesa is not configured for this project', { missing: missingConfig })
+      return new Response(JSON.stringify({
+        error: 'Payment is temporarily unavailable. Please try again later.'
+      }), {
+        headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 503
       })
     }
 
@@ -77,76 +112,62 @@ serve(async (req) => {
     const msisdn = phone.startsWith('0') ? `254${phone.slice(1)}` : phone.replace(/^\+/, '')
 
     // --- CONNECT PURPOSES: validate the recipient is a real profile.
+    //     Every remaining purpose is a Connect or Force Connect purchase,
+    //     so a recipient is always required.
     let recipientId: string | null = null
-    if (purpose !== 'section2') {
-      if (!rawRecipient || typeof rawRecipient !== 'string') {
-        return new Response(JSON.stringify({ error: 'Missing recipient' }), {
-          headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
-        })
-      }
-      const { data: recipient } = await admin
-        .from('users')
-        .select('id')
-        .eq('id', rawRecipient)
-        .maybeSingle()
-      if (!recipient) {
-        return new Response(JSON.stringify({ error: 'Recipient not found' }), {
-          headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
-        })
-      }
-      recipientId = recipient.id
+    if (!rawRecipient || typeof rawRecipient !== 'string') {
+      return new Response(JSON.stringify({ error: 'Missing recipient' }), {
+        headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
+      })
+    }
+    const { data: recipient } = await admin
+      .from('users')
+      .select('id')
+      .eq('id', rawRecipient)
+      .maybeSingle()
+    if (!recipient) {
+      return new Response(JSON.stringify({ error: 'Recipient not found' }), {
+        headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
+      })
+    }
+    recipientId = recipient.id
 
-      if (recipientId === userId) {
-        return new Response(JSON.stringify({ error: 'Cannot connect with yourself' }), {
-          headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
-        })
-      }
-
-      // Connect (paid contact unlock): requires an actual pair and no
-      // prior unlock. Force Connect must not already exist either.
-      if (purpose !== 'force_connect') {
-        const { data: paired } = await admin.rpc('users_are_paired', {
-          a: userId, b: recipientId
-        })
-        if (!paired) {
-          return new Response(JSON.stringify({ error: 'You are not matched with this user' }), {
-            headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
-          })
-        }
-        const { data: existing } = await admin
-          .from('connect_unlocks')
-          .select('id')
-          .eq('buyer_id', userId)
-          .eq('seller_id', recipientId)
-          .maybeSingle()
-        if (existing) {
-          return new Response(JSON.stringify({ error: 'Contact details already unlocked' }), {
-            headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
-          })
-        }
-      } else {
-        const { data: existingMatch } = await admin
-          .from('matches')
-          .select('id')
-          .or(`and(user_a_id.eq.${userId},user_b_id.eq.${recipientId}),and(user_a_id.eq.${recipientId},user_b_id.eq.${userId})`)
-          .maybeSingle()
-        if (existingMatch) {
-          return new Response(JSON.stringify({ error: 'You are already matched with this user' }), {
-            headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
-          })
-        }
-      }
+    if (recipientId === userId) {
+      return new Response(JSON.stringify({ error: 'Cannot connect with yourself' }), {
+        headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
+      })
     }
 
-    // --- SECTION2 short-circuit: already unlocked, don't charge again.
-    if (purpose === 'section2') {
-      const { data: profile } = await admin
-        .from('users')
-        .select('section2_unlocked')
-        .eq('id', userId)
-        .single()
-      if (profile?.section2_unlocked) {
-        return new Response(JSON.stringify({ error: 'Section 2 is already unlocked.' }), {
+    // Connect (paid contact unlock): requires an actual pair and no
+    // prior unlock. Force Connect must not already exist either.
+    if (purpose !== 'force_connect') {
+      const { data: paired } = await admin.rpc('users_are_paired', {
+        a: userId, b: recipientId
+      })
+      if (!paired) {
+        return new Response(JSON.stringify({ error: 'You are not matched with this user' }), {
+          headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
+        })
+      }
+      const { data: existing } = await admin
+        .from('connect_unlocks')
+        .select('id')
+        .eq('buyer_id', userId)
+        .eq('seller_id', recipientId)
+        .maybeSingle()
+      if (existing) {
+        return new Response(JSON.stringify({ error: 'Contact details already unlocked' }), {
+          headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
+        })
+      }
+    } else {
+      const { data: existingMatch } = await admin
+        .from('matches')
+        .select('id')
+        .or(`and(user_a_id.eq.${userId},user_b_id.eq.${recipientId}),and(user_a_id.eq.${recipientId},user_b_id.eq.${userId})`)
+        .maybeSingle()
+      if (existingMatch) {
+        return new Response(JSON.stringify({ error: 'You are already matched with this user' }), {
           headers: { ...corsFor(req), 'Content-Type': 'application/json' }, status: 400
         })
       }
@@ -191,7 +212,7 @@ serve(async (req) => {
 
     const auth = btoa(`${consumerKey}:${consumerSecret}`)
     const tokenRes = await fetch(
-      'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials',
+      `${MPESA_ENV}/oauth/v1/generate?grant_type=client_credentials`,
       { headers: { Authorization: `Basic ${auth}` } }
     )
     const tokenData = await tokenRes.json()
@@ -201,7 +222,6 @@ serve(async (req) => {
     const password = btoa(`${shortcode}${passkey}${timestamp}`)
 
     const descriptions: Record<string, string> = {
-      section2: 'Section 2 Unlock',
       force_connect: 'Force Connect',
       connect_tier1: 'Connect Tier 1',
       connect_tier2: 'Connect Tier 2',
@@ -216,7 +236,7 @@ serve(async (req) => {
     const callbackKey = crypto.randomUUID()
 
     const stkRes = await fetch(
-      'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest',
+      `${MPESA_ENV}/mpesa/stkpush/v1/processrequest`,
       {
         method: 'POST',
         headers: {

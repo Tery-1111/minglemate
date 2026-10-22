@@ -289,7 +289,45 @@
 .pay-waiticon {
   font-size: 40px;
   margin-bottom: var(--space-2);
+  display: flex;
+  justify-content: center;
+  color: var(--warning);
 }
+
+/* PENDING: explicitly not-success. Warm amber frame communicates
+   "still open" without pretending anything completed. */
+.pay-state-pending .pay-waiticon { color: var(--warning); }
+
+.pay-state-pending {
+  border: 1px solid rgba(217, 154, 61, 0.35);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+
+/* FAILED: unmistakably negative, actionable, context preserved. */
+.pay-state-failed {
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+
+.pay-failed-icon { color: var(--danger); }
+
+.pay-cancel-link {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-3);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: var(--fs-secondary);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.pay-cancel-link:hover { color: var(--text-secondary); }
 
 @media (max-width: 420px) {
   .payment-card {

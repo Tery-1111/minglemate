@@ -1,8 +1,15 @@
 # Admin Panel Remediation — Runbook & Status
 
+> **⚠️ Reconciliation 2026-10-14 — partly stale.** 5 claims here are false and 4
+> stale: the `admin_overview` receipt column (it does not exist, so the stats RPC
+> raises), the Tier 1/Tier 2 match filters (the table may only hold `qrashe`), the
+> campus-flag claim, "every RPC guards itself" (`admin_reports_list` does not and
+> is revoked from admins), and the runbook's file paths (superseded by the one
+> chain). See [docs/docs-reconciliation-2026-10-14.md](docs/docs-reconciliation-2026-10-14.md) §1.
+
 ## What was built (code-complete, `npm run build` ✓)
 
-### supabase/sql/admin_role.sql (v2 — rewritten)
+### supabase/sql/superseded/admin_role.sql (v2 — rewritten; the live copy is folded into the consolidated chain)
 | Finding | Fix |
 |---|---|
 | **P0 — authorization bypass** | All 3 campus mutation RPCs (`admin_add_campus`, `admin_set_campus_active`, `admin_set_campus_matching`) now verify `is_admin()` **inside the function body** and raise `Forbidden` otherwise. Verified per-function by static check — no reliance on hidden UI, route guards, or a prior `am_i_admin()` call. |
@@ -21,8 +28,8 @@
 Repointed to **`match-generator`** (the real 50-question engine that powers weekly Tier 1/Tier 2 delivery). It runs across all campuses — the per-campus `matching_enabled`/`is_active` flags govern the weekly cron schedule, not this manual run (note shown in the UI). `run-weekly-matching` has since been **retired and deleted** (dead engine — `section1_responses` is written by nothing; no cron or code callers found); remember to `npx supabase functions delete run-weekly-matching` so the deployed copy is removed too.
 
 ## Your steps (agent has no service key / dashboard access)
-1. **Order matters**: `payment_intents` must exist before `admin_role.sql` v2's overview works. If it's still missing, run `supabase/sql/remediation_bundle.sql` first, then:
-2. **Supabase Dashboard → SQL Editor** → run `supabase/sql/admin_role.sql`.
+1. **This runbook's SQL is superseded.** Everything described above is now folded into one idempotent file: `supabase/migrations/20261014150000_consolidated_schema_chain.sql`. `admin_role.sql`, `remediation_bundle.sql` and the other eight bundles are retired under `supabase/sql/superseded/` — **do not run them.**
+2. **Supabase Dashboard → SQL Editor** → run that one file, then `supabase/sql/inspect_state.sql` to confirm it applied (`DEPLOYMENT-CHECKLIST.md` §1.4).
 3. Insert your membership:
    ```sql
    insert into public.admin_users (user_id) values ('YOUR-AUTH-USER-UUID');

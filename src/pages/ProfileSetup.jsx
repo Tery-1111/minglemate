@@ -77,11 +77,12 @@ export default function ProfileSetup() {
 
     const { data: { session } } = await supabase.auth.getSession()
 
+    // update, not upsert: the row exists from the signup trigger, and an
+    // upsert's `on conflict (id) do update` reads the payload's email column,
+    // which the grants withhold (measured 42501). One row, matched by id.
     const { error: upsertError } = await supabase
       .from('users')
-      .upsert({
-        id: session.user.id,
-        email: session.user.email,
+      .update({
         full_name: form.full_name,
         age: parseInt(form.age),
         gender: form.gender,
@@ -94,8 +95,12 @@ export default function ProfileSetup() {
         social_instagram: form.social_instagram || null,
         social_x: form.social_x || null,
         social_tiktok: form.social_tiktok || null,
-        section2_free_expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+        // section2_free_expires_at is deliberately NOT sent by the client:
+        // the 14-day trial is granted server-side by handle_new_user() when
+        // the profile row is created, and clamp_user_protected_columns
+        // discards any client write to it or to section2_unlocked.
       })
+      .eq('id', session.user.id)
 
     if (upsertError) {
       setError(upsertError.message)

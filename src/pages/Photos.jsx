@@ -20,6 +20,10 @@ export default function Photos() {
   const navigate = useNavigate();
   const [photos, setPhotos] = useState({}); // { facial: url, full_body: url }
   const [uploadingSlot, setUploadingSlot] = useState(null);
+  // Per-slot upload state machine: null | 'uploading' | 'done' | 'failed'.
+  // Feedback happens ON the photo tile itself (spec §20) — never a
+  // separate global spinner.
+  const [slotStates, setSlotStates] = useState({});
   const [error, setError] = useState(null);
   const [userId, setUserId] = useState(null);
 
@@ -67,6 +71,7 @@ export default function Photos() {
     }
 
     setUploadingSlot(slot.key);
+    setSlotStates(prev => ({ ...prev, [slot.type]: 'uploading' }));
     setError(null);
 
     try {
@@ -108,8 +113,13 @@ export default function Photos() {
       if (dbError) throw dbError;
 
       setPhotos(prev => ({ ...prev, [slot.type]: publicUrl }));
+      setSlotStates(prev => ({ ...prev, [slot.type]: 'done' }));
+      setTimeout(() => setSlotStates(prev => ({ ...prev, [slot.type]: null })), 2500);
     } catch (err) {
+      // FAILED: the old photo stays exactly where it was; the tile
+      // itself reports the failure.
       setError(err.message || 'Upload failed. Please try a different image.');
+      setSlotStates(prev => ({ ...prev, [slot.type]: 'failed' }));
     } finally {
       setUploadingSlot(null);
     }
@@ -129,6 +139,7 @@ export default function Photos() {
           {SLOTS.map(slot => {
             const hasPhoto = !!photos[slot.type];
             const isUploading = uploadingSlot === slot.key;
+            const slotState = slotStates[slot.type];
             return (
               <div key={slot.key} style={styles.slotCard}>
                 <div style={styles.slotPreview}>
@@ -140,8 +151,18 @@ export default function Photos() {
                     </div>
                   )}
                   {isUploading && (
-                    <div style={styles.overlayLoader}>
-                      <span style={styles.spinnerIcon}>⏳</span>
+                    <div style={styles.overlayLoader} role="status" aria-label="Uploading photo">
+                      <span style={styles.uploadLabel}>Uploading…</span>
+                    </div>
+                  )}
+                  {slotState === 'done' && (
+                    <div style={styles.overlayDone} role="status">
+                      <span style={styles.uploadLabel}>Uploaded ✓</span>
+                    </div>
+                  )}
+                  {slotState === 'failed' && (
+                    <div style={styles.overlayFailed} role="alert">
+                      <span style={styles.uploadLabel}>Upload failed</span>
                     </div>
                   )}
                 </div>
@@ -230,6 +251,21 @@ const styles = {
     position: 'absolute', inset: 0,
     background: 'rgba(0,0,0,0.75)',
     display: 'flex', alignItems: 'center', justifyContent: 'center'
+  },
+  overlayDone: {
+    position: 'absolute', inset: 0,
+    background: 'rgba(14, 107, 81, 0.72)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center'
+  },
+  overlayFailed: {
+    position: 'absolute', inset: 0,
+    background: 'rgba(229, 72, 77, 0.72)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center'
+  },
+  uploadLabel: {
+    color: 'var(--text-on-accent)',
+    fontSize: '12px',
+    fontWeight: '700'
   },
   spinnerIcon: { fontSize: '20px' },
   slotMeta: {
