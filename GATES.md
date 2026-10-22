@@ -263,56 +263,78 @@ check below.
 ### Gate 30: the task set is identified and `supabase/.temp/cli-latest` is never staged
 - CHECK: `git status --porcelain` and `git diff --cached --name-only`
 - EXPECT: staged list holds only task files; `supabase/.temp/cli-latest` absent
-- EVIDENCE: pending
+- EVIDENCE: staged sixteen paths (`git diff --cached --name-status`), 16 files:
+  `A GATES.md`, three `docs/`, three `scripts/`, three
+  `supabase/migrations/`, `supabase/sql/capture_section2_contacts_state.sql`,
+  `M package.json`, `M src/pages/{Chat,Matches,Payment}.jsx`, `M
+  supabase/functions/initiate-payment/index.ts`. `grep -c 'supabase/.temp'`
+  on the staged list returned `0`; the file remains ` M` unstaged — PASS
 
 ### Gate 31: the contact-rule verifier passes
 - CHECK: `node scripts/verify-section2-contact-rules.mjs`
 - EXPECT: exit 0, `60/60 checks passed`
-- EVIDENCE: pending
+- EVIDENCE: `CONTACT_EXIT=0`, output ends `60/60 checks passed` with
+  `PASS both pending migrations declare the chain they must run after` — PASS
 
 ### Gate 32: the isolation verifier passes
 - CHECK: `node scripts/verify-section2-isolation.mjs`
 - EXPECT: exit 0
-- EVIDENCE: pending
+- EVIDENCE: `ISOLATION_EXIT=0`, `Section 2 isolation checks passed: 3
+  matching files, 9 Section 2 identifiers absent` — PASS
 
 ### Gate 33: the Force Connect / pairing verifier passes
 - CHECK: `node scripts/verify-force-connect-pairing.mjs`
 - EXPECT: exit 0, `17/17 checks passed`
-- EVIDENCE: pending
+- EVIDENCE: `FORCE_EXIT=0`, `17/17 checks passed` — PASS
 
 ### Gate 34: the whole verify chain passes
 - CHECK: `npm run verify`
 - EXPECT: exit 0
-- EVIDENCE: pending
+- EVIDENCE: `VERIFY_EXIT=0`, eight sub-suites, 131 `PASS` lines, ends
+  `17/17 checks passed` — PASS
 
 ### Gate 35: the app builds
 - CHECK: `npm run build`
 - EXPECT: exit 0
-- EVIDENCE: pending
+- EVIDENCE: `BUILD_EXIT=0`, `✓ 480 modules transformed`, `✓ built in 1.67s`
+  (the 500 kB chunk-size notice is pre-existing advice, not an error) — PASS
 
 ### Gate 36: the commit is on the feature branch and carries only task files
 - CHECK: `git show --stat --oneline HEAD` on the new commit
 - EXPECT: parent `29491e3`, only task paths
-- EVIDENCE: pending
+- EVIDENCE: `1e9b21f Section 2 is free; contacts need Connect plus owner
+  consent`, parent `29491e3`, `16 files changed, 3878 insertions(+), 184
+  deletions(-)`; no `supabase/.temp/cli-latest` — PASS
 
 ### Gate 37: the feature branch is pushed and matches the local commit
 - CHECK: `git rev-parse HEAD` vs `git rev-parse origin/wip/prd-compliance-2026-10-21`
 - EXPECT: identical SHAs
-- EVIDENCE: pending
+- EVIDENCE: local `HEAD` and `origin/wip/prd-compliance-2026-10-21` both
+  `1e9b21f3ca71c18ae93a51e224fda3e8a0341e4d`; push was
+  `29491e3..1e9b21f` (fast-forward, no force) — PASS
 
 ### Gate 38: a pull request targets `main`
 - CHECK: `gh pr list --json number,baseRefName,headRefName,state`
 - EXPECT: an OPEN PR with base `main`, head the feature branch
-- EVIDENCE: pending
+- EVIDENCE: PR #12, base `main`, head `wip/prd-compliance-2026-10-21`,
+  `mergeable=MERGEABLE`, `mergeStateStatus=CLEAN` — PASS
 
 ### Gate 39: merging to `main` triggers a production deployment (boundary check)
 - CHECK: `gh api repos/Tery-1111/minglemate/deployments` plus the status of the
   deployment at `origin/main`
 - EXPECT: if `main` maps to a Vercel Production environment, the merge is
   blocked by §4 of the brief
-- EVIDENCE: pending
+- EVIDENCE: `dae7e30` (main tip) carries `Production – minglemate-ax7f`,
+  `state=success`, `environment_url`
+  `https://minglemate-ax7f-mfpwux9su-tery-1111s-projects.vercel.app`; branch
+  pushes get `Preview – minglemate` / `Preview – minglemate-ax7f` instead.
+  `DEPLOYMENT-CHECKLIST.md:234` documents "Merge/push this branch — Vercel
+  auto-deploys", so merging starts a production release — BLOCKED
 
 ### Gate 40: the merged state is not claimed
 - CHECK: `git rev-parse origin/main` and `git log --oneline origin/main -1`
 - EXPECT: `origin/main` is still `dae7e30`; the task commit is absent
-- EVIDENCE: pending
+- EVIDENCE: `origin/main` is `dae7e30022803926473efc65f176e47b9f98bf44`
+  before and after this turn; `git rev-list --left-right --count
+  origin/main...HEAD` is `0  19`, so main does not contain `1e9b21f` — FAIL
+  (blocked, merge deliberately not performed)
