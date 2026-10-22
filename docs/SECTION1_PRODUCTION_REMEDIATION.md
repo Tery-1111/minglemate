@@ -35,6 +35,16 @@ permissive policy wins there as well. Both environments accept client-asserted
 completion, and in staging that has already produced eleven completed profiles
 with no stored answers.
 
+Two adjacent production facts the migration depends on were also checked:
+`authenticated` has **no table-level SELECT** on `public.users`; Section 1
+reads and writes `section1_progress`, `section1_complete` and
+`section1_last_edited` through column-level grants, which are present, so the
+screen's own-row update path survives RLS. The `users` clamp trigger
+(`clamp_user_protected_columns`) returns early for `postgres`, `service_role`
+and `supabase_admin` and only preserves the two Section 2 entitlement columns,
+so the migration's reset runs as the file owner and the app's Section 1 writes
+are not blocked.
+
 ## 2. Files changed
 
 | File | Change |
