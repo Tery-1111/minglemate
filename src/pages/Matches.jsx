@@ -49,7 +49,7 @@ export default function Matches() {
     async function hydrate(id) {
       const { data: u } = await supabase
         .from('profiles_public')
-        .select('id, full_name, age, bio, interests, gender, section2_unlocked')
+        .select('id, full_name, age, bio, interests, gender')
         .eq('id', id)
         .single()
       if (!u) return null

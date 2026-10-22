@@ -26,8 +26,6 @@ const section2Questions = [
   "If we were to become closer, what's one thing you think I should understand about you to build a stronger connection?"
 ]
 
-const FREE_QUESTIONS = 4
-
 const CONTACT_PATTERNS = [
   /(\+?254|0)[17]\d{8}/g,
   /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
@@ -82,7 +80,6 @@ export default function Chat() {
   const [meetupConfirmed, setMeetupConfirmed] = useState(false)
   const [sendError, setSendError] = useState('')
   const [s2Progress, setS2Progress] = useState(null)
-  const [bothUnlocked, setBothUnlocked] = useState(false)
   const [contactsRevealed, setContactsRevealed] = useState(false)
   const [matchContact, setMatchContact] = useState(null)
   const [sendingBot, setSendingBot] = useState(false)
@@ -139,7 +136,7 @@ export default function Chat() {
     // Match row via hardened view: no sensitive columns exist here
     const { data: matchData } = await supabase
       .from('profiles_public')
-      .select('id, full_name, interests, section2_unlocked, section2_free_expires_at')
+      .select('id, full_name, interests')
       .eq('id', matchId)
       .single()
     setMatchUser(matchData)
@@ -181,20 +178,23 @@ export default function Chat() {
       .maybeSingle()
     setUnlockInfo(unlockRow || null)
 
-    const now = new Date()
-    const myAccess = meData?.section2_unlocked ||
-      (meData?.section2_free_expires_at && new Date(meData.section2_free_expires_at) > now)
-    const matchAccess = matchData?.section2_unlocked ||
-      (matchData?.section2_free_expires_at && new Date(matchData.section2_free_expires_at) > now)
-    setBothUnlocked(myAccess && matchAccess)
+    // Section 2 is free: the guided conversation and the answer set are
+    // not gated by a purchase, a trial, a question count or an unlock
+    // flag, so nothing here reads section2_unlocked, the trial expiry or
+    // section2_chat_progress.contacts_unlocked.
 
-    // Server-side contact reveal: the RPC returns the paid snapshot only.
-    // The guided-conversation free path was removed — the reveal is
-    // payment-only — and the RPC enforces pairing and the unlock in the
-    // database, so the client can never fake this.
+    // Server-side contact reveal: the RPC returns the paid snapshot only,
+    // and only when the owner currently shares that channel. Connect is
+    // the sole contact path; Section 2 never reveals a contact.
     const { data: contactRows } = await supabase
       .rpc('get_unlocked_contacts', { other_user_id: matchId })
-    setMatchContact(contactRows?.[0] || null)
+    // The RPC returns one row whenever the Connect purchase exists, with
+    // every channel nulled out unless the owner currently shares it. An
+    // all-null row is "nothing shared", so it must not lift the contact
+    // blur or open a contact card with no details in it.
+    const sharedContact = Object.values(contactRows?.[0] || {})
+      .some((value) => value !== null && value !== '')
+    setMatchContact(sharedContact ? contactRows[0] : null)
 
     const msgs = await reloadMessages(session.user.id, matchId)
     setMessages(msgs)
@@ -229,7 +229,7 @@ export default function Chat() {
     }
 
     setS2Progress(currentProgress)
-    setContactsRevealed(currentProgress?.contacts_unlocked || !!contactRows?.[0])
+    setContactsRevealed(sharedContact)
 
     const weekId = getWeekId()
     const { data: engagement } = await supabase
@@ -307,11 +307,6 @@ export default function Chat() {
       .update({
         last_question_sent: questionNumber,
         questions_discussed: questionNumber,
-        // The question count is not a reveal: contact details are opened by a
-        // verified payment and by nothing else (enforce_contacts_unlocked pins
-        // this flag for client writes), so the client sends the honest value
-        // and the server decides the real one.
-        contacts_unlocked: false,
         updated_at: new Date().toISOString()
       })
       .eq('user_id_a', sortedIds[0])
@@ -439,13 +434,13 @@ export default function Chat() {
     // Check if we should send next question
     if (s2Progress && !sendingBot) {
       const nextQ = (s2Progress.last_question_sent || 0) + 1
-      const isFreeQ = nextQ <= FREE_QUESTIONS
       const lastBotIdx = messages.map(m => m.is_bot).lastIndexOf(true)
       const msgsSinceBot = lastBotIdx === -1
         ? messages.filter(m => !m.is_bot).length
         : messages.slice(lastBotIdx + 1).filter(m => !m.is_bot).length
 
-      if ((isFreeQ || bothUnlocked) && msgsSinceBot >= 1) {
+      // All 20 questions are free to ask and answer; nothing gates this.
+      if (msgsSinceBot >= 1) {
         setTimeout(() => {
           sendBotQuestion(nextQ, s2Progress, currentUser, matchId)
         }, 1000)
@@ -486,31 +481,12 @@ export default function Chat() {
     const isBot = msg.is_bot
 
     if (isBot) {
-      const qNum = s2Progress?.last_question_sent || 0
-      const isPaywallPoint = qNum >= FREE_QUESTIONS && !bothUnlocked
-
       return (
         <div key={msg.id || index} className="bot-message">
-          {isPaywallPoint ? (
-            <div className="paywall-card">
-              <p className="paywall-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="5" y="11" width="14" height="9" rx="2" />
-                  <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-                </svg>
-              </p>
-              <h3>Unlock Section 2 to continue</h3>
-              <p>You have completed the 4 free questions. Both users must unlock Section 2 to continue.</p>
-              <button className="paywall-btn" onClick={() => navigate('/payment')}>
-                Unlock with M-Pesa
-              </button>
-            </div>
-          ) : (
-            <div className="bot-bubble">
-              <span className="bot-tag">MingleMate</span>
-              <p>{msg.content}</p>
-            </div>
-          )}
+          <div className="bot-bubble">
+            <span className="bot-tag">MingleMate</span>
+            <p>{msg.content}</p>
+          </div>
         </div>
       )
     }
@@ -530,7 +506,7 @@ export default function Chat() {
     return (
       <div key={msg.id || index} className={`message msg-in ${isMe ? 'sent' : 'received'}`}>
         {shouldBlur && (
-          <p className="blur-warning">⚠️ Contact info stays hidden until it is unlocked</p>
+          <p className="blur-warning">⚠️ Contact info stays hidden until you Connect with them</p>
         )}
         <p className="message-text">{displayContent}</p>
         {stateNote ? (
