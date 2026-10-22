@@ -460,3 +460,82 @@ check below.
   lines this change did not touch; `git diff` on the three edited screens is
   limited to the `matches` status filter and its comment — FAIL (pre-existing,
   reported as a limitation)
+
+---
+
+# GATES — production payment-intent lifecycle compatibility (2026-10-22)
+
+Scope: make the deployed `payment-callback`'s expiry check and bookkeeping
+writes work against the production schema (`mhdjnhiqahsllbczbzpk`), without
+touching the completed Section 2 / Force Connect work, without a real charge,
+and without inventing entitlement.
+
+### Gate 55: the callback's database contract is enumerated from the code, not memory
+- CHECK: `for c in expires_at ticket_state status_reason verification_requested_at verification_conversation_id verification_state verification_detail verified_at unlock_state unlock_applied_at unlock_error late_callback_at; do grep -q "$c" supabase/functions/payment-callback/index.ts && echo "column:$c"; done; grep -o 'payment_intent_expiry_state' supabase/functions/payment-callback/index.ts | head -1; grep -o 'processed_payment_callbacks' supabase/functions/payment-callback/index.ts | head -1; grep -o 'complete_connect_unlock\|complete_force_connect' supabase/functions/payment-callback/index.ts | sort -u`
+- EXPECT: 12 `column:` lines, one RPC name, one cache table, both unlock RPCs
+- EVIDENCE: 12 `column:` lines (expires_at, ticket_state, status_reason, verification_requested_at, verification_conversation_id, verification_state, verification_detail, verified_at, unlock_state, unlock_applied_at, unlock_error, late_callback_at), `payment_intent_expiry_state`, `processed_payment_callbacks`, `complete_connect_unlock`, `complete_force_connect`, EXIT=0 — PASS
+
+### Gate 56: production is measured before any change (columns, constraint, function, data)
+- CHECK: MANUAL — read-only `information_schema` / `pg_constraint` / `pg_proc` and row counts on `mhdjnhiqahsllbczbzpk`
+- EXPECT: 11 `payment_intents` columns and no `expires_at`; status CHECK admits only pending/succeeded/failed; no `payment_intent_expiry_state`; baseline counts recorded
+- EVIDENCE: 11 columns (amount, callback_key, checkout_request_id, created_at, id, mpesa_transaction_id, phone, purpose, recipient_user_id, status, user_id); `payment_intents_status_check = pending|succeeded|failed`; `payment_intent_expiry_state` absent; `processed_payment_callbacks` present with RLS on; baseline users 3, section2_responses 40, progress 1, matches 1, match_history 1, payments 1, messages 6, token_purchases 0, reports 2, payment_intents 0, processed_payment_callbacks 0, connect_unlocks 0, conversations 0, user_blocks 0 — PASS
+
+### Gate 57: the follow-up migration exists, is ordered after 20261022160000, and covers the whole contract
+- CHECK: `node scripts/verify-production-payment-schema.mjs`
+- EXPECT: exit 0, `N/N checks passed`
+- EVIDENCE: `45/45 checks passed`, EXIT=0 (two verifier assumptions corrected: the contract spans index.ts AND ticket.ts, and `expires_at` is intentionally absent from both as code) — PASS
+
+### Gate 58: rollback-scoped exercises prove the migration's behaviour on production before it is applied
+- CHECK: MANUAL — one `execute_sql` transaction ending in `ROLLBACK`
+- EXPECT: expiry verdicts `live` / `expired` / `no_window` / `no_intent`; `status='expired'` accepted; a bookkeeping patch accepted; bad `unlock_state` rejected; `anon` cannot execute the expiry RPC; zero residue
+- EVIDENCE: the first rehearsal reported `late: "live"` because the column default is `now() + window` and backdating `created_at` alone does not move `expires_at`; the stale row was reconstructed with an explicit past `expires_at` and the rehearsal re-run. `REHEARSAL_RESULT {columns:23, live:"live", late:"expired", pinned_live:"live", pinned_future:"expired", no_intent:"no_intent", late_status:"expired", late_ticket:"verified", late_unlock:"no_effect", late_reason_present:true, bad_state:"rejected", default_expr:"(now() + payment_intent_window())", anon_exec:false, service_exec:true}`; afterwards residue columns 0, function absent, intents 0 — PASS. `no_window` is unreachable after `SET NOT NULL`; its branch is asserted statically by the verifier instead.
+
+### Gate 59: the migration is applied to production exactly once and recorded
+- CHECK: MANUAL — run `supabase/sql/production/20261022170000_production_payment_intent_lifecycle.sql`, then insert its version into `supabase_migrations.schema_migrations`
+- EXPECT: no error; exactly one row `version = 20261022170000`
+- EVIDENCE: `execute_sql` returned `[]` (success); the file's own post-check ran inside the same transaction; `schema_migrations` holds one row `20261022170000 | 20261022170000_production_payment_intent_lifecycle`; `notify pgrst, 'reload schema'` issued in the same transaction — PASS
+
+### Gate 60: production postconditions match the migration
+- CHECK: MANUAL — catalog query (`information_schema.columns`, `pg_constraint`, `pg_proc`, `has_function_privilege`) plus expiry verdicts
+- EXPECT: 23 columns; `expires_at` default names `payment_intent_window()`; status CHECK includes `expired`; three state CHECKs; expiry function and window exist; `service_role` only
+- EVIDENCE: 23 columns; the 12 new columns listed; `expires_at` NOT NULL with `(now() + payment_intent_window())`; status CHECK `pending|succeeded|failed|expired`; `payment_intents_ticket_state_check`, `payment_intents_unlock_state_check`, `payment_intents_verification_state_check`; `payment_intent_expiry_state(p_intent_id uuid, p_at timestamptz)` `secdef=false`, `volatility=s`, ACL `{postgres=X/postgres,service_role=X/postgres}`; `payment_intent_window()` immutable; verdicts `no_intent` for unknown ids — PASS
+
+### Gate 61: the deployed callback no longer falls back to `unavailable`, and its bookkeeping writes land
+- CHECK: MANUAL — HTTP POST of two synthetic callbacks (late genuine; live no-effect), read the rows, delete both test intents and their cache row
+- EXPECT: `200 ok`; `ticket_state='verified'`; late row `status='expired'` + `status_reason` + `late_callback_at`, no entitlement; live row `status='succeeded'` + `unlock_state='no_effect'` + missing Daraja config named; no user/match/contact rows changed; test rows removed
+- EVIDENCE: both `HTTP 200`, body `ok`. Late: `status=expired`, `ticket_state=verified`, `status_reason="genuine callback after expiry — recorded for reconciliation, not unlocked"`, `late_callback_at` set, `mpesa_transaction_id` null, unlock fields null. Live: `status=succeeded`, `ticket_state=verified`, `verification_requested_at` set, `verification_state=unavailable`, `verification_detail="not requested — missing MPESA_INITIATOR, MPESA_SECURITY_CREDENTIAL, MPESA_SHORTCODE, MPESA_CONSUMER_KEY/MPESA_CONSUMER_SECRET, SUPABASE_FUNCTION_URL"`, `unlock_state=no_effect`, `unlock_error="intent has no recipient"`, receipt `TESTLIVE01`. Reaching `status=expired` proves the RPC answered: a failed verdict would have taken the success path. Cleanup left intents 0, cache 0 — PASS
+
+### Gate 62: the contact-rule and isolation guards still pass
+- CHECK: `node scripts/verify-section2-contact-rules.mjs && node scripts/verify-section2-isolation.mjs`
+- EXPECT: exit 0
+- EVIDENCE: `60/60 checks passed` (CONTACT_EXIT=0); `Section 2 isolation checks passed: 3 matching files, 9 Section 2 identifiers absent` (ISOLATION_EXIT=0) — PASS
+
+### Gate 63: the Force Connect / pairing guard still passes
+- CHECK: `node scripts/verify-force-connect-pairing.mjs`
+- EXPECT: exit 0, `17/17`
+- EVIDENCE: `17/17 checks passed`, FORCE_EXIT=0 — PASS
+
+### Gate 64: the whole repository verification suite passes
+- CHECK: `npm run verify`
+- EXPECT: exit 0
+- EVIDENCE: `VERIFY_EXIT=0`; 54/54 payment-ticket, 60/60 contact-rules, 17/17 Force Connect, 45/45 production payment schema, Section 1 weights/mapping, matching eligibility, weekly-generation safety, Section 2 isolation all green — PASS
+
+### Gate 65: the production build passes
+- CHECK: `npm run build`
+- EXPECT: exit 0
+- EVIDENCE: `BUILD_EXIT=0`, `480 modules transformed`, `built in 1.71s` (pre-existing >500 kB chunk warning only) — PASS
+
+### Gate 66: no production row was created, changed or lost by this work
+- CHECK: MANUAL — the Gate 56 count query after the migration and the Gate 61 cleanup
+- EXPECT: identical to the Gate 56 baseline
+- EVIDENCE: users 3, section2_responses 40, progress 1, matches 1, match_history 1, payments 1, messages 6, token_purchases 0, reports 2, payment_intents 0, processed_payment_callbacks 0, connect_unlocks 0, conversations 0, user_blocks 0, notifications 0 — identical to baseline — PASS
+
+### Gate 67: missing external configuration is reported separately from code/schema readiness
+- CHECK: MANUAL — `supabase secrets list` (names only) and the deployed function's observed `unavailable` detail
+- EXPECT: `MPESA_*` presence reported as names; no secret value printed
+- EVIDENCE: the project's secret names are ADMIN_UUID, INTASEND_PUBLIC_KEY, INTASEND_SECRET_KEY, INTASEND_WEBHOOK_CHALLENGE, ONESIGNAL_API_KEY, ONESIGNAL_APP_ID, SERVICE_ROLE_KEY, SUPABASE_* — no `MPESA_*` and no `SUPABASE_FUNCTION_URL`. No digest or value is reproduced here. This is owner configuration, not a schema/code defect — PASS
+
+### Gate 68: the change is delivered (branch, PR, merge)
+- CHECK: `git log --oneline origin/main -2`, `gh pr view <n> --json state,mergedAt`
+- EXPECT: PR MERGED and the migration present on `origin/main`
+- EVIDENCE: pending
