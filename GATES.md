@@ -483,7 +483,7 @@ and without inventing entitlement.
 ### Gate 57: the follow-up migration exists, is ordered after 20261022160000, and covers the whole contract
 - CHECK: `node scripts/verify-production-payment-schema.mjs`
 - EXPECT: exit 0, `N/N checks passed`
-- EVIDENCE: `45/45 checks passed`, EXIT=0 (two verifier assumptions corrected: the contract spans index.ts AND ticket.ts, and `expires_at` is intentionally absent from both as code) — PASS
+- EVIDENCE: `45/45 checks passed`, EXIT=0 (two verifier assumptions corrected: the contract spans index.ts AND ticket.ts, and `expires_at` is intentionally absent from both as code). A later CRLF checkout exposed a third: JavaScript's `.` does not match `\r`, so the SQL comment stripper left `--` lines visible and the DROP check failed 44/45. The stripper now drops the trailing `\r` first; re-run `45/45`, EXIT=0 on the merged tree — PASS
 
 ### Gate 58: rollback-scoped exercises prove the migration's behaviour on production before it is applied
 - CHECK: MANUAL — one `execute_sql` transaction ending in `ROLLBACK`

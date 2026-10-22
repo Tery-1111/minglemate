@@ -34,11 +34,13 @@ const repoRoot = new URL('../', import.meta.url)
 const read = (relativePath) => readFileSync(new URL(relativePath, repoRoot), 'utf8')
 
 // Strip line comments so the checks assert on SQL, not on prose that names
-// the columns and the removed mechanisms.
+// the columns and the removed mechanisms. Trailing \r is removed first:
+// JavaScript's `.` does not match it, so a CRLF checkout would otherwise
+// leave every `--` comment line looking like SQL.
 function sqlCode(text) {
   return text
     .split('\n')
-    .map((line) => line.replace(/--.*$/, ''))
+    .map((line) => line.replace(/\r$/, '').replace(/--.*$/, ''))
     .join('\n')
 }
 
