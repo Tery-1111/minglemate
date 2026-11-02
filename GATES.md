@@ -539,3 +539,165 @@ and without inventing entitlement.
 - CHECK: `git log --oneline origin/main -2`, `gh pr view 13 --json state,mergedAt`
 - EXPECT: PR MERGED and the migration present on `origin/main`
 - EVIDENCE: PR #13 (commit c0cb260) merged at 2026-10-22T19:46:58Z as merge commit 580a476; `origin/main` contains the migration, the verifier, the doc and this ledger — PASS
+
+## Review findings 2026-10-23 (four corrections)
+
+Scope: the four review findings on the reviewed diff. No commit, no push, no hosted database, migration stays unapplied.
+
+### Gate 69: the preflight checks effective column privileges on the Section 1 user columns
+- CHECK: grep -c "has_column_privilege" scripts/preflight-section1-migration.mjs
+- EXPECT: exit 0 and a count of at least 3 (probe + decision wiring)
+- EVIDENCE: grep -c has_column_privilege -> 4 (two probes, the decision-wiring comment, the render note). Probes: 6 column privileges on public.users (id SELECT, section1_complete/progress SELECT, section1_complete/progress/last_edited UPDATE) and 9 on public.user_responses (user_id/responses_array/updated_at SELECT/INSERT/UPDATE), all read-only has_column_privilege() — PASS
+
+### Gate 70: the preflight classifies a missing column privilege as a stop, not MATCHES
+- CHECK: grep -n "missing_column_priv" scripts/test-preflight-section1.mjs plus the suite run in Gate 72
+- EXPECT: a scenario named missing_column_priv* exists whose expected category is a STOP_* category and whose expected exit is nonzero
+- EVIDENCE: grep "name: 'missing_" -> 3 (missing_column_priv, missing_response_column_priv, plus the older missing_authority). Suite run: missing_column_priv exit 3 STOP_INCONSISTENT_OR_PARTIALLY_MIGRATED, missing_response_column_priv exit 3 same. The revoke is column-level (revoke update on public.users, then grant update on two of the three columns), so a table-level check could not have caught it — PASS
+
+### Gate 71: the migration flags numeric legacy arrays even when they contain NULLs
+- CHECK: grep -n "value is not null and value ~" supabase/sql/production/20261022180000_production_section1_responses.sql
+- EXPECT: exit 0, the predicate flags a row with at least one numeric non-NULL element and no nonnumeric non-NULL element
+- EVIDENCE: grep -c 'value is not null and value ~' -> 1; the paired not-exists uses 'value is not null and value !~'. Predicate: >=1 numeric non-NULL AND no nonnumeric non-NULL. Executed evidence: migration suite 15b refused ['0',null,'1',null,'3'] under a marker, refusal naming the signature; 15c/15d prove option-text-with-NULLs and all-NULL are NOT flagged — PASS
+
+### Gate 72: the preflight scan uses the same NULL-tolerant predicate
+- CHECK: grep -n "numeric.*NULL|nonnumeric" scripts/preflight-section1-migration.mjs
+- EXPECT: exit 0, the scan query matches at least one numeric non-NULL element and excludes rows with any nonnumeric non-NULL element
+- EVIDENCE: grep -c nonnumeric -> 1 (comment) and the scan query uses the same exists/not-exists pair as the migration. Scenario converted_legacy_with_nulls: exit 3, '1 answer row(s) hold only numeric values (NULL elements allowed)'; legit_partial_with_nulls: exit 5 STOP_ALREADY_MIGRATED with numeric-only answer rows 0 — PASS
+
+### Gate 73: regression tests cover numeric-plus-NULL detection, legitimate partial data, and no-modification
+- CHECK: grep -n "null_mixed|partial_with_nulls|untouched" scripts/test-section1-production-migration.mjs scripts/test-preflight-section1.mjs
+- EXPECT: exit 0 and matches in both suites for (a) numeric strings mixed with NULLs refused, (b) valid option text with NULLs permitted, (c) refused state leaves answers/user state/schema/marker unchanged
+- EVIDENCE: migration suite 15b (numeric+NULL refused; answers/users/type/marker deep-equal before vs after), 15c (option text + NULLs survives rerun unchanged), 15d (all-NULL not flagged). preflight suite converted_legacy_with_nulls + legit_partial_with_nulls. npm run test:section1-db exit 0, 160 assertions (was 151). First-run and legitimate-rerun tests unchanged and still green in the same run — PASS
+
+### Gate 74: the documented manual decision query works when the marker table is absent
+- CHECK: run the documented decision-query variants against a disposable database WITHOUT section1_legacy_cutover, then WITH it
+- EXPECT: both variants return rows without error; the absent-table variant returns marker_rows 0
+- EVIDENCE: node gate74-decision-query.mjs (temp harness, disposable 17.10): ABSENT -> Variant A {column_type: integer[], marker_table_present: false, response_rows: 0}; Variant B errors by construction (relation does not exist). PRESENT -> Variant A {column_type: text[], marker_table_present: true}; Variant B {marker_rows: 1}. EXIT=0 — PASS
+
+### Gate 75: the report labels the executable preflight authoritative and the manual query conditional
+- CHECK: grep -n "authoritative|conditional" docs/SECTION1_PRODUCTION_REMEDIATION.md
+- EXPECT: exit 0 with matches near the decision-query instructions
+- EVIDENCE: grep -c 'authoritative|conditional' -> 2: 'The executable preflight in §7.8 is the authoritative record' and 'conditional manual fallback'. The decision query is split into Variant A (always safe) and Variant B (only when marker_table_present = true), and the interpretation table carries marker_table_present — PASS
+
+### Gate 76: rollback and ambiguous-commit outcomes are distinguished in the recovery docs
+- CHECK: grep -n "ambiguous|uncertain|fresh connection" docs/SECTION1_PRODUCTION_REMEDIATION.md
+- EXPECT: exit 0 with a distinct ambiguous-commit subsection requiring a fresh connection and read-only state inspection before any retry
+- EVIDENCE: grep -c 'ambiguous|fresh connection|9.1a' -> 4. New §9.1a distinguishes statement failure (§9.1: psql printed ERROR -> server rolled back) from lost connection / no acknowledgement, requires a FRESH connection plus read-only state inspection, and maps the three observed states to retry / complete / stop — PASS
+
+### Gate 77: no doc path recommends blindly rerunning the migration after an uncertain commit
+- CHECK: grep -n "rerun|re-run" docs/SECTION1_PRODUCTION_REMEDIATION.md
+- EXPECT: exit 0 and no instruction to re-run without first establishing the committed state (manual gate on wording, checked against Gate 76 text)
+- EVIDENCE: grep 'rerun|re-run|retry' -> 18 hits, all reviewed manually. 715-716 (lock timeout: rollback already confirmed by the error), 770 (completed migration: no-op; the two disagreement messages route to stop-and-inspect), 786 (retry only after §9.1 confirmed rollback), 820-830 (§9.1a: retry authorised only after the fresh-connection inspection returns the first answer), 832-842 (explicit 'Never re-run the destructive file just to see what happens' plus auto-rerunning supervisors must be disabled). No blind-rerun path exists — PASS
+
+### Gate 78: the whole migration suite passes with the new regression tests
+- CHECK: npm run test:section1-db
+- EXPECT: exit 0, assertion count greater than 151
+- EVIDENCE: npm run test:section1-db -> EXIT=0, 160 assertions on PostgreSQL 18.6 (PGlite 0.5.11); +9 assertions from 15b/15c/15d — PASS
+
+### Gate 79: the preflight scenario suite passes on disposable PostgreSQL 17.10
+- CHECK: SECTION1_PREFLIGHT_TEST_ADMIN_URL=<loopback disposable> node scripts/test-preflight-section1.mjs
+- EXPECT: exit 0, scenario count greater than 14 and assertion count greater than 104, printed server version 17.10
+- EVIDENCE: SECTION1_PREFLIGHT_TEST_ADMIN_URL=<loopback 127.0.0.1:55932> node scripts/test-preflight-section1.mjs -> EXIT=0, printed 'disposable PostgreSQL 17.10', 18 scenarios (was 14), 137 assertions (was 104). Also node scripts/test-section1-staging-pg17.mjs -> EXIT=0, 91 assertions on the same 17.10 cluster — PASS
+
+### Gate 80: questionnaire verifier, full verify and build all pass
+- CHECK: node scripts/verify-section1-questionnaire.mjs, then npm run verify, then npm run build
+- EXPECT: each exits 0
+- EVIDENCE: node scripts/verify-section1-questionnaire.mjs -> EXIT=0 (718 assertions); npm run verify -> EXIT=0 (54/54, 60/60, 17/17, 45/45); npm run build -> EXIT=0 (built in 20.62s, one pre-existing large-chunk warning) — PASS
+
+### Gate 81: lint and syntax checks pass on all four scripts
+- CHECK: npx eslint scripts/test-section1-production-migration.mjs scripts/test-section1-staging-pg17.mjs scripts/preflight-section1-migration.mjs scripts/test-preflight-section1.mjs and node --check on each
+- EXPECT: eslint exit 0 with no findings; each node --check exit 0
+- EVIDENCE: npx eslint on all four scripts -> EXIT=0, no findings; node --check on all four -> each EXIT=0 ('check ok' x4) — PASS
+
+### Gate 82: git diff is whitespace-clean and the working tree holds only the intended changes
+- CHECK: git diff --check and git status --short
+- EXPECT: diff --check exit 0; status shows the same file set as before this task plus the intended edits; supabase/.temp/cli-latest and the two stray root files untouched
+- EVIDENCE: git diff --check -> EXIT=0. git status --short shows exactly: docs/SECTION1_PRODUCTION_REMEDIATION.md, scripts/test-section1-production-migration.mjs, scripts/test-section1-staging-pg17.mjs, supabase/.temp/cli-latest, supabase/sql/production/20261022180000_production_section1_responses.sql, GATES.md (edited this task), scripts/preflight-section1-migration.mjs, scripts/test-preflight-section1.mjs, plus the two pre-existing stray root files. supabase/.temp/cli-latest and the stray files untouched by this task — PASS
+
+### Gate 83: the migration file itself is unchanged apart from the predicate fix, and no commit was made
+- CHECK: sha256sum supabase/sql/production/20261022180000_production_section1_responses.sql and git log --oneline -1
+- EXPECT: the hash is recorded; HEAD is still 0ea99ce64454298d203de3135d73f43ed2a41760
+- EVIDENCE: sha256sum -> 0abd556601826e56b9b4b9e9c3146d88cb655057841b00664ba64300d4a88425 (re-checked after both mutation runs restored it). git rev-parse HEAD -> 0ea99ce64454298d203de3135d73f43ed2a41760, git log -1 -> 0ea99ce: nothing committed. The only migration change in this task is the NULL-tolerant legacy signature predicate and its comment (§7.9); the two mutation re-runs against the final bytes both exited 1 — PASS
+
+## Review findings round 2 (2026-10-23): marker NULL counts and FORCE RLS
+
+Scope: the two outstanding review issues plus the GATES.md scope question. No commit, no push, no hosted database, migration stays unapplied.
+
+### Gate 84: the migration rejects NULL marker counts in both the cutover branch and the post-check
+- CHECK: grep -c "deleted_response_rows is null" supabase/sql/production/20261022180000_production_section1_responses.sql
+- EXPECT: exit 0 and a count of 2 (cutover branch + post-check), each paired with reset_user_profiles is null
+- EVIDENCE: 2026-10-23: grep -c "deleted_response_rows is null" → 2 and "reset_user_profiles is null" → 2 — one pair in the cutover branch (before the < 0 tests) and one in the post-check
+
+### Gate 85: the migration refuses a marker table whose columns are the right names but wrong type or nullability
+- CHECK: the shape-check DO block reports type/nullability mismatches, and the 15e/15f suite tests pass
+- EXPECT: grep finds a refusal naming the column, its type and its nullability; npm run test:section1-db passes both tests
+- EVIDENCE: 2026-10-23: the migration contains the marker structure DO block ("does not match the marker structure", grep 1); suite 15e/15f pass — npm run test:section1-db exit 0, 180 assertions; mutation M2 (block disabled) exits 1 at "the refusal must name the marker structure mismatch"
+
+### Gate 86: the preflight rejects NULL marker counts and checks marker column types and nullability
+- CHECK: grep -n "Number.isInteger" scripts/preflight-section1-migration.mjs and grep -n "not_null" on the marker shape probe
+- EXPECT: markerRowOk uses Number.isInteger (Number(null) is 0, so >= 0 alone accepted NULL) and the shape probe reads format_type + attnotnull for the marker columns
+- EVIDENCE: 2026-10-23: markerRowOk uses Number.isInteger for both counts (grep 2) and the marker probe reads format_type + attnotnull ("not_null" grep 8); preflight suite exit 0 with the new scenarios
+
+### Gate 87: a marker table with nullable counts and a NULL row is refused by the migration with everything unchanged
+- CHECK: npm run test:section1-db (new 15e/15f tests)
+- EXPECT: exit 0; the tests assert refusal, and deep-equal that column type, answer rows, profile flags and the marker row are untouched
+- EVIDENCE: 2026-10-23: npm run test:section1-db exit 0, 180 assertions — 15e: nullable-count marker table with a NULL row refused with the structure message; answers/users/column type/marker row deep-equal before vs after. 15f: wrong-type marker (timestamp/bigint) refused, legacy row and column untouched
+
+### Gate 88: the preflight classifies the same NULL-count marker state as a stop, not already-migrated
+- CHECK: node scripts/test-preflight-section1.mjs (new marker_null_counts scenario) on the disposable 17.10 cluster
+- EXPECT: exit 0 for the suite; the scenario exits 3 STOP_INCONSISTENT_OR_PARTIALLY_MIGRATED
+- EVIDENCE: 2026-10-23: preflight suite on disposable 17.10 — marker_null_counts: exit 3 STOP_INCONSISTENT_OR_PARTIALLY_MIGRATED; output matches "the cutover marker table has the wrong shape", "the cutover marker row is malformed", "deleted_response_rows integer (nullable)"
+
+### Gate 89: the migration sets row_security = off inside its required transaction
+- CHECK: grep -n "set local row_security" supabase/sql/production/20261022180000_production_section1_responses.sql
+- EXPECT: exit 0, exactly one occurrence before the destructive statements, with a comment explaining that it makes RLS-filtered operations raise rather than silently affect a subset
+- EVIDENCE: 2026-10-23: grep "^set local row_security = off;" → 1 (line 170, after the transaction guard and before the locks and every destructive statement); the inline comment states it fails closed under FORCE RLS and does not bypass; suites green
+
+### Gate 90: the preflight decision blocks on FORCE RLS when the executing role cannot bypass it
+- CHECK: grep -n "force_rls" scripts/preflight-section1-migration.mjs in the decision function, plus the force_rls_no_bypass scenario
+- EXPECT: the decision stops when a table has FORCE RLS and the role is neither superuser nor BYPASSRLS; the scenario exits 3
+- EVIDENCE: 2026-10-23: evaluate() stops on force_rls when the role is neither superuser nor BYPASSRLS (grep 1 in the preflight, 1 in its scenario); force_rls_no_bypass: exit 3 STOP_INCONSISTENT_OR_PARTIALLY_MIGRATED with "FORCE ROW LEVEL SECURITY and the executing role is neither superuser nor BYPASSRLS" and "rls=yes (FORCE)"; mutation M3 (decision removed) exits 1 at "force_rls_no_bypass: exit 4, expected 3"
+
+### Gate 91: under FORCE RLS and a non-BYPASSRLS owner role the migration fails transactionally and deletes nothing
+- CHECK: npm run test:section1-db (new 16b test)
+- EXPECT: exit 0; the test asserts an RLS error and that column type, legacy rows, profile flags and the marker are unchanged
+- EVIDENCE: 2026-10-23: test 16b — a non-superuser, non-BYPASSRLS owner of FORCE-RLS tables applies the file and gets "query would be affected by row-level security policy"; column still integer[], 1 answer row intact, flags unchanged, no marker/bank/guards; suite exit 0, 180 assertions; mutation M1 (row_security line removed) exits 1 at "a FORCE RLS run by a non-BYPASSRLS role must fail, not partially succeed"
+
+### Gate 92: existing valid tests are preserved (first run, rerun, backdated answer, numeric+NULL signature)
+- CHECK: grep -c "backdated\|15b\|afterSecond\|first run" scripts/test-section1-production-migration.mjs
+- EXPECT: exit 0 with all four test groups still present, and the suite passes
+- EVIDENCE: 2026-10-23: grep "backdated" 17, "15b." 1, "afterSecond" 6 — the first-run, normal rerun, backdated-answer and numeric+NULL-signature tests are all still present, and the suite exercising them exits 0
+
+### Gate 93: the whole migration suite passes with the new tests
+- CHECK: npm run test:section1-db
+- EXPECT: exit 0, assertion count greater than 160
+- EVIDENCE: 2026-10-23: npm run test:section1-db exit 0 — "Section 1 production migration checks passed: 180 assertions" (PostgreSQL 18.6 via PGlite)
+
+### Gate 94: the preflight scenario suite passes on disposable PostgreSQL 17.10
+- CHECK: SECTION1_PREFLIGHT_TEST_ADMIN_URL=<loopback disposable> node scripts/test-preflight-section1.mjs
+- EXPECT: exit 0, scenario count greater than 18 and assertion count greater than 137, printed server version 17.10
+- EVIDENCE: 2026-10-23: SECTION1_PREFLIGHT_TEST_ADMIN_URL=<loopback disposable 17.10> node scripts/test-preflight-section1.mjs — exit 0, "disposable PostgreSQL 17.10", 20 scenario checks (16 named + 4 refusals), "preflight scenarios passed: 157 assertions"
+
+### Gate 95: questionnaire verifier, full verify and build all pass
+- CHECK: node scripts/verify-section1-questionnaire.mjs, then npm run verify, then npm run build
+- EXPECT: each exits 0
+- EVIDENCE: 2026-10-23: verify-section1-questionnaire exit 0 (718 assertions), npm run verify exit 0 (final block 45/45), npm run build exit 0 (built in 28.40 s, one pre-existing chunk warning)
+
+### Gate 96: lint and syntax checks pass on all four scripts
+- CHECK: npx eslint on the four Section 1 scripts and node --check on each
+- EXPECT: eslint exit 0 with no findings; each node --check exit 0
+- EVIDENCE: 2026-10-23: npx eslint on the four scripts exit 0 with no findings; node --check on each of the four scripts exit 0
+
+### Gate 97: git diff is whitespace-clean, HEAD is unchanged and the migration SHA is recorded
+- CHECK: git diff --check, git rev-parse HEAD and sha256sum of the migration
+- EXPECT: diff --check exit 0; HEAD still 0ea99ce64454298d203de3135d73f43ed2a41760; hash recorded
+- EVIDENCE: 2026-10-23: git diff --check exit 0; git rev-parse HEAD → 0ea99ce64454298d203de3135d73f43ed2a41760 (unchanged); sha256sum of the migration → 56ab3fc791a1b40a0e9e7a712497e96fa1d0779cf985770a500e5cfae85568c6 (1088 lines); nothing committed
+
+### Gate 98: the GATES.md scope question is resolved and documented
+- CHECK: MANUAL — the appended gate sections are kept and explicitly documented as a deliverable in docs/SECTION1_PRODUCTION_REMEDIATION.md section 13 and in the final report; the historical content (gates 1-68) is preserved byte-for-byte
+- EVIDENCE: 2026-10-23: kept and documented — docs/SECTION1_PRODUCTION_REMEDIATION.md §13 records GATES.md as a tracked deliverable (gates 69–99 appended by the review workflow, gates 1–68 preserved byte-for-byte) and the final report repeats it; the diff of GATES.md is append-only
+
+### Gate 99: the disposable PostgreSQL 17.10 staging suite passes with the new 2c and 6b tests
+- CHECK: SECTION1_STAGING_DB_URL from mm-pg17-deps/run.mjs (self-managed disposable 17.10 cluster) node scripts/test-section1-staging-pg17.mjs
+- EXPECT: exit 0, printed server version 17.10, "Section 1 staging checks passed" with an assertion count above 100, including the FORCE RLS refusal and the NULL-count marker refusal
+- EVIDENCE: 2026-10-23: mm-pg17-deps/run.mjs (disposable PostgreSQL 17.10) — "staging PostgreSQL 17.10", "Section 1 staging checks passed: 104 assertions", child status=0, pipeline exit 0; test 2c (FORCE RLS refusal) and test 6b (NULL-count marker refusal) included
