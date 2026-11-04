@@ -1198,6 +1198,157 @@ equal((await cutoverState(wrongTypeMarkerDb)).type, 'integer[]',
 await wrongTypeMarkerDb.close()
 
 // ---------------------------------------------------------------------------
+// 15g. Singleton has no default: dropping the default must be refused
+// ---------------------------------------------------------------------------
+const noDefaultDb = await createMinimalLegacyDb()
+await noDefaultDb.exec(`
+  create table public.section1_legacy_cutover (
+    singleton boolean,
+    executed_at timestamptz default now(),
+    deleted_response_rows integer not null,
+    reset_user_profiles integer not null
+  );
+  insert into public.section1_legacy_cutover (deleted_response_rows, reset_user_profiles)
+       values (1, 2);
+`)
+let noDefaultError = null
+try {
+  await noDefaultDb.exec(migration)
+} catch (caught) {
+  noDefaultError = caught
+}
+ok(noDefaultError !== null,
+  'a marker table with no singleton default must be refused')
+ok(/does not match the marker structure/.test(String(noDefaultError?.message)),
+  `the refusal must name the marker structure mismatch, got "${noDefaultError?.message}"`)
+const noDefaultState = await cutoverState(noDefaultDb)
+equal(noDefaultState.response_rows, 1,
+  'the refused run must leave the legacy answer intact')
+equal(noDefaultState.type, 'integer[]',
+  'the refused run must not convert the column')
+equal(noDefaultState.a_complete, true,
+  'the refused run must not reset completion')
+equal(noDefaultState.a_progress, 39,
+  'the refused run must not reset the pointer')
+ok((await noDefaultDb.query(
+  'select singleton, executed_at from public.section1_legacy_cutover'
+)).rows[0].singleton === true || (await noDefaultDb.query(
+  'select singleton, executed_at from public.section1_legacy_cutover'
+)).rows[0].singleton === null,
+  'the refused run must not rewrite the marker row singleton')
+await noDefaultDb.close()
+
+// ---------------------------------------------------------------------------
+// 15h. No primary key: dropping the primary key constraint must be refused
+// ---------------------------------------------------------------------------
+const noPkDb = await createMinimalLegacyDb()
+await noPkDb.exec(`
+  create table public.section1_legacy_cutover (
+    singleton boolean default true,
+    executed_at timestamptz default now(),
+    deleted_response_rows integer not null,
+    reset_user_profiles integer not null
+  );
+`)
+let noPkError = null
+try {
+  await noPkDb.exec(migration)
+} catch (caught) {
+  noPkError = caught
+}
+ok(noPkError !== null,
+  'a marker table with no primary key must be refused')
+ok(/does not match the marker structure/.test(String(noPkError?.message)),
+  `the refusal must name the marker structure mismatch, got "${noPkError?.message}"`)
+const noPkState = await cutoverState(noPkDb)
+equal(noPkState.response_rows, 1,
+  'the refused run must leave the legacy answer intact')
+equal(noPkState.type, 'integer[]',
+  'the refused run must not convert the column')
+equal(noPkState.a_complete, true,
+  'the refused run must not reset completion')
+equal(noPkState.a_progress, 39,
+  'the refused run must not reset the pointer')
+await noPkDb.close()
+
+// ---------------------------------------------------------------------------
+// 15i. No CHECK (singleton) constraint: dropping the check constraint must be refused
+// ---------------------------------------------------------------------------
+const noCheckDb = await createMinimalLegacyDb()
+await noCheckDb.exec(`
+  create table public.section1_legacy_cutover (
+    singleton boolean primary key default true,
+    executed_at timestamptz default now(),
+    deleted_response_rows integer not null,
+    reset_user_profiles integer not null
+  );
+`)
+let noCheckError = null
+try {
+  await noCheckDb.exec(migration)
+} catch (caught) {
+  noCheckError = caught
+}
+ok(noCheckError !== null,
+  'a marker table with no CHECK (singleton) constraint must be refused')
+ok(/does not match the marker structure/.test(String(noCheckError?.message)),
+  `the refusal must name the marker structure mismatch, got "${noCheckError?.message}"`)
+const noCheckState = await cutoverState(noCheckDb)
+equal(noCheckState.response_rows, 1,
+  'the refused run must leave the legacy answer intact')
+equal(noCheckState.type, 'integer[]',
+  'the refused run must not convert the column')
+equal(noCheckState.a_complete, true,
+  'the refused run must not reset completion')
+equal(noCheckState.a_progress, 39,
+  'the refused run must not reset the pointer')
+await noCheckDb.close()
+
+// ---------------------------------------------------------------------------
+// 15j. Extra nullable column "note text": adding a non-marker column must be refused
+// ---------------------------------------------------------------------------
+const extraColumnDb = await createMinimalLegacyDb()
+await extraColumnDb.exec(`
+  create table public.section1_legacy_cutover (
+    singleton boolean primary key default true,
+    executed_at timestamptz default now(),
+    deleted_response_rows integer not null,
+    reset_user_profiles integer not null,
+    note text
+  );
+  insert into public.section1_legacy_cutover (deleted_response_rows, reset_user_profiles)
+       values (1, 2);
+`)
+let extraColumnError = null
+try {
+  await extraColumnDb.exec(migration)
+} catch (caught) {
+  extraColumnError = caught
+}
+ok(extraColumnError !== null,
+  'a marker table with an extra nullable column must be refused')
+ok(/does not match the marker structure/.test(String(extraColumnError?.message)),
+  `the refusal must name the marker structure mismatch, got "${extraColumnError?.message}"`)
+const extraColumnState = await cutoverState(extraColumnDb)
+equal(extraColumnState.response_rows, 1,
+  'the refused run must leave the legacy answer intact')
+equal(extraColumnState.type, 'integer[]',
+  'the refused run must not convert the column')
+equal(extraColumnState.a_complete, true,
+  'the refused run must not reset completion')
+equal(extraColumnState.a_progress, 39,
+  'the refused run must not reset the pointer')
+ok((await extraColumnDb.query(
+  'select singleton, note from public.section1_legacy_cutover'
+)).rows[0].singleton === true && (await extraColumnDb.query(
+  'select singleton, note from public.section1_legacy_cutover'
+)).rows[0].note === null || (await extraColumnDb.query(
+  'select singleton, note from public.section1_legacy_cutover'
+)).rows[0].note === 'any string',
+  'the refused run must not rewrite the marker row note')
+await extraColumnDb.close()
+
+// ---------------------------------------------------------------------------
 // 16. Lock strategy: the file takes the intended lock modes and a short
 //     lock_timeout inside its transaction
 // ---------------------------------------------------------------------------

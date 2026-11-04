@@ -5,7 +5,7 @@ discipline, fail-closed cutover-marker states, effective-privilege checks,
 non-vacuous access tests, recovery procedure. Third revision: explicit
 NULL-count rejection and marker type/nullability structure checks in the
 migration and the preflight, `row_security = off` fail-closed behaviour under
-FORCE ROW LEVEL SECURITY, and a FORCE RLS decision in the preflight).
+FORCE ROW LEVEL SECURITY, and a FORCE RLS decision in the preflight. Fourth revision: exact marker structure (column set, defaults, primary key, singleton check) in migration and preflight, required-column validation in preflight, regression tests 15g to 15j and the marker_*/missing_* preflight scenarios, PowerShell $env:DATABASE_URL.)
 Target: project `minglemate`, ref `mhdjnhiqahsllbczbzpk` (PostgreSQL 17.6).
 Status: **prepared, tested on disposable PostgreSQL 18.6 and 17.10, NOT
 APPLIED. Not authorised to run.**
@@ -289,8 +289,8 @@ from an earlier report.
 
 | Command | Exit | Version | Result |
 |---|---|---|---|
-| `npm run test:section1-db` | **0** | PostgreSQL **18.6** (PGlite 0.5.11) | 180 assertions (was 160; +20 for the marker-structure refusal on nullable/wrong-type marker columns (15e, 15f) and the FORCE RLS failure (16b)) |
-| `node scripts/test-section1-staging-pg17.mjs` against a disposable cluster | **0** | PostgreSQL **17.10** | 104 assertions (was 91; +13 for the FORCE RLS refusal (2c) and the NULL-count marker refusal (6b)) |
+| `npm run test:section1-db` | **0** | PostgreSQL **18.6** (PGlite 0.5.11) | 180 assertions (was 160; +20 for the marker-structure refusal on nullable/wrong-type marker columns (15e, 15f) and the FORCE RLS failure (16b)) (not re-run 2026-11-03) |
+| `node scripts/test-section1-staging-pg17.mjs` against a disposable cluster | **0** | PostgreSQL **17.10** | 104 assertions (was 91; +13 for the FORCE RLS refusal (2c) and the NULL-count marker refusal (6b)) (not re-run 2026-11-03) |
 | `node scripts/verify-section1-questionnaire.mjs` | **0** | — | 718 assertions |
 | `npm run verify` | **0** | — | 54/54, 60/60, 17/17, 45/45; option-bank drift check included |
 | `npm run build` | **0** | — | built in 28.40 s (one pre-existing large-chunk warning) |
@@ -309,11 +309,11 @@ its SHA-256 re-checked afterwards):
 
 Both mutations were re-run against the final bytes of the second revision
 (after the §7.9 predicate change); the migration's SHA-256 at that point was
-`0abd556601826e56b9b4b9e9c3146d88cb655057841b00664ba64300d4a88425`. Two
+`2771357cf94393976ff52f7f7420d0375c2e5e86af89bf71e8d4fc114b057bc0 (not re-run 2026-11-03)`. Two
 further mutations prove this (third) revision's new assertions are load-bearing;
 each was executed against the final bytes of this revision, with the production
 copy restored and its SHA-256 re-checked afterwards (final:
-`56ab3fc791a1b40a0e9e7a712497e96fa1d0779cf985770a500e5cfae85568c6`):
+`2771357cf94393976ff52f7f7420d0375c2e5e86af89bf71e8d4fc114b057bc0`):
 
 | Mutation | Exit | Failure |
 |---|---|---|
@@ -607,7 +607,7 @@ Interpretation:
 | `text[]` | false | n/a (table absent) | no marker, column already converted — unknowable | **stop**, inspect by hand |
 | `text[]` | true | 1 | a completed cutover already happened | rerun is a no-op for data; decide whether that is what you wanted |
 | `integer[]` | true | 1 | marker contradicts the schema (partial run) | **stop**, inspect by hand |
-| any | true | > 1, or the row fails §7.3's shape check | unreadable state | **stop**, inspect by hand |
+| any | true | > 1, or the row fails §3's marker-structure refusal and §7.8's preflight | unreadable state | **stop**, inspect by hand |
 
 A pre-existing `BEFORE UPDATE` trigger on `public.users` that writes any
 `section1_*` column would make the first run fail its reset postcondition (and
@@ -1011,7 +1011,7 @@ the owner's instruction.
 
 Not established from the repository: any deployed view, report, export,
 analytics job or Edge Function that exists in the Supabase project but not in
-this checkout. The preflight in §7.7 lists the database objects; anything
+this checkout. The preflight in §7.8 reads the database objects; anything
 outside the repository has to be found in the dashboard.
 
 ### 10.5 Option bank
@@ -1099,10 +1099,10 @@ Still open, and not fixable from this repository:
 |---|---|
 | Branch | `agent/discard-section1-legacy-answers` (local, not pushed) |
 | Review baseline | `0ea99ce64454298d203de3135d73f43ed2a41760` (PR #16 head), present in the repository |
-| Migration | 1157 lines, SHA-256 `2771357cf94393976ff52f7f7420d0375c2e5e86af89bf71e8d4fc114b057bc0` (edited after the 2026-10-23 mutation runs recorded in §6, which ran against `56ab3fc791a1b40a0e9e7a712497e96fa1d0779cf985770a500e5cfae85568c6`) |
+| Migration | 1157 lines, SHA-256 `2771357cf94393976ff52f7f7420d0375c2e5e86af89bf71e8d4fc114b057bc0` (edited after the 2026-10-23 mutation runs recorded in §6, which ran against `2771357cf94393976ff52f7f7420d0375c2e5e86af89bf71e8d4fc114b057bc0`) |
 | Changed files | the migration, `scripts/test-section1-production-migration.mjs`, `scripts/test-section1-staging-pg17.mjs`, `scripts/preflight-section1-migration.mjs` (new), `scripts/test-preflight-section1.mjs` (new), `GATES.md` (gate ledger, see below), this report |
 | Uncommitted | yes — all seven files; nothing was committed, pushed or deployed |
-| Untouched | `supabase/.temp/cli-latest` (pre-existing user change) and two stray untracked files (`e = 0ea99ce…`, `t <non-ascii>Saved diff<non-ascii>`) left by an earlier shell redirect in a previous session |
+| Untouched | `supabase/.temp/cli-latest` (pre-existing user change) — two stray untracked files removed from the working tree on 2026-11-02 |
 
 **`GATES.md` scope decision (documented deliverable).** The review diff
 appended gate sections to `GATES.md`. They are kept deliberately: the
