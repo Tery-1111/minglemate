@@ -2,7 +2,102 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import FadeImage from '../components/FadeImage'
+import { section2Questions } from '../data/section2Questions'
 import './MatchDetail.css'
+
+// Shows a matched partner's Section 2 answers. Who may read them is decided
+// by the database policy section2_responses_select_own_or_partner, so this
+// component only asks for them and shows whatever the database returns.
+function PartnerSection2({ partnerId, myId }) {
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [partnerAnswers, setPartnerAnswers] = useState({})
+
+  useEffect(() => {
+    if (!partnerId || !myId || partnerId === myId) {
+      setLoading(false)
+      return
+    }
+
+    let cancelled = false
+
+    async function loadPartnerAnswers() {
+      setLoading(true)
+      setError(null)
+      try {
+        const { data, error: loadError } = await supabase
+          .from('section2_responses')
+          .select('question_number, answer_text')
+          .eq('user_id', partnerId)
+
+        if (cancelled) return
+
+        if (loadError) {
+          setError('Could not load their answers.')
+          setPartnerAnswers({})
+        } else {
+          const answersByNumber = {}
+          ;(data || []).forEach(row => {
+            answersByNumber[row.question_number] = row.answer_text
+          })
+          setPartnerAnswers(answersByNumber)
+        }
+      } catch {
+        if (cancelled) return
+        setError('Could not load their answers.')
+        setPartnerAnswers({})
+      }
+      setLoading(false)
+    }
+
+    loadPartnerAnswers()
+
+    return () => {
+      cancelled = true
+    }
+  }, [partnerId, myId])
+
+  if (!partnerId || !myId || partnerId === myId) return null
+
+  if (loading) {
+    return <p className="md-partner-note">Loading their answers…</p>
+  }
+
+  if (error) {
+    return (
+      <div className="md-partner-section">
+        <p className="md-partner-note" role="alert">{error}</p>
+      </div>
+    )
+  }
+
+  const answeredCount = Object.keys(partnerAnswers).length
+
+  return (
+    <div className="md-partner-section">
+      <h3 className="md-partner-section-heading">Getting to Know Them</h3>
+      {answeredCount === 0 ? (
+        <p className="md-partner-note">They haven't answered these questions yet.</p>
+      ) : (
+        <div className="md-partner-questions">
+          {section2Questions.map(question => {
+            const answerText = partnerAnswers[question.id]
+            return (
+              <div key={question.id} className="md-partner-question-row">
+                <span className="md-partner-question-text">{question.text}</span>
+                {answerText ? (
+                  <span className="md-partner-answer-text">{answerText}</span>
+                ) : (
+                  <span className="md-partner-answer-none">Not answered yet</span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
 
 // OPEN MATCH: same experience for Tier 1 / Tier 2 / Qrashe.
 // Full-body photo first, then bio, conversation access, connect
@@ -208,6 +303,11 @@ export default function MatchDetail() {
             ))}
           </div>
         )}
+
+        <PartnerSection2
+          partnerId={matchId}
+          myId={myId}
+        />
 
         {!unlock && (
           <div className="md-cta-block rise-in" style={{ animationDelay: '180ms' }}>
