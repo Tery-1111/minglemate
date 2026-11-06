@@ -8,12 +8,37 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 )
 
+// verify_jwt is enabled for this function, so the gateway has already verified
+// the signature of the Authorization bearer token before this code runs. Here
+// we only read its role claim to recognise the cron/service caller.
+function bearerRole(authHeader: string): string | null {
+  try {
+    const token = authHeader.replace('Bearer ', '').trim()
+    const segment = token.split('.')[1]
+    if (!segment) return null
+    const padded = segment.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(segment.length / 4) * 4, '=')
+    return JSON.parse(atob(padded))?.role ?? null
+  } catch {
+    return null
+  }
+}
+
+// Weekly release time: matches generated at 17:30 UTC are released at 18:00 UTC
+// the same day. match_history RLS only exposes rows whose delivered_at <= now(),
+// so stamping delivered_at is what releases them. A run after 18:00 UTC (for
+// example a manual re-run) releases immediately.
+function releaseTimestamp(now = new Date()): string {
+  const release = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 18, 0, 0, 0))
+  return (now.getTime() < release.getTime() ? release : now).toISOString()
+}
+
 serve(async (req) => {
   // H5 fix: only admins or the cron/service may run the generator.
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   const presentedKey = req.headers.get('apikey') || ''
-  if (presentedKey !== serviceKey) {
-    const authHeader = req.headers.get('Authorization') || ''
+  const authHeader = req.headers.get('Authorization') || ''
+  const isService = (serviceKey !== '' && presentedKey === serviceKey) || bearerRole(authHeader) === 'service_role'
+  if (!isService) {
     const token = authHeader.replace('Bearer ', '').trim()
     let authorized = false
     if (token) {
@@ -139,7 +164,7 @@ serve(async (req) => {
     }
   }
 
-  const deliveredAt = new Date().toISOString()
+  const deliveredAt = releaseTimestamp()
   const historyRows = []
   for (const user of users || []) {
     const ranked = (byUser[user.id] || [])
@@ -168,7 +193,7 @@ serve(async (req) => {
     }
   }
 
-  return new Response(JSON.stringify({ success: true, matchesProcessed: pairs.length, usersDelivered: historyRows.length }), { status: 200 })
+  return new Response(JSON.stringify({ success: true, matchesProcessed: pairs.length, usersDelivered: historyRows.length, deliveredAt }), { status: 200 })
 })
 
 function getWeekId(date = new Date()): string {
