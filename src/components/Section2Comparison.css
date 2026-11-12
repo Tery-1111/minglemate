@@ -1,0 +1,181 @@
+/* SECTION 2 COMPARISON - the accepted conversation design.
+   Every colour is defined on .s2c itself, so nothing here touches the
+   app-wide design tokens or any other screen. */
+
+.s2c {
+  --bg: #0b0a0c;
+  --surface: #151316;
+  --surface-raised: #1d1a1f;
+  --text: #f4f1f4;
+  --secondary: #c4bbc5;
+  --muted: #a8a2ad;
+  --accent: #e8416b;
+  --accent-strong: #d23359;
+  --you: #67c6bd;
+  --border: #ffffff24;
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --ease: cubic-bezier(.22, 1, .36, 1);
+
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  /* Break out of the narrow match-page column so the photo spans the whole
+     screen. --s2c-vw is the page width without the scrollbar, set by the
+     component; 100vw is only the fallback. */
+  width: var(--s2c-vw, 100vw);
+  margin: 24px 0 24px calc(50% - var(--s2c-vw, 100vw) / 2);
+  border-radius: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.55 var(--font-body);
+  overflow: hidden;
+  overflow: clip;
+}
+
+/* The photo and its dark overlay stay in place while the questions scroll
+   past, and are clipped to this section so they never show on other
+   parts of the page. */
+.s2c-bg {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  margin-bottom: -100vh;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(8, 7, 10, .68) 0%, rgba(8, 7, 10, .54) 28%, rgba(8, 7, 10, .76) 62%, rgba(8, 7, 10, .94) 100%),
+    linear-gradient(90deg, rgba(8, 7, 10, .26), rgba(8, 7, 10, .05) 50%, rgba(8, 7, 10, .26)),
+    url('/images/section2-comparison-bg.webp') center 42% / cover no-repeat;
+}
+
+.s2c-inner {
+  position: relative;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 18px 0 42px;
+}
+
+@media (min-width: 900px) {
+  .s2c-title { font-size: 30px; }
+  .s2c-qtext { font-size: 22px; }
+  .s2c-answer { font-size: 15px; }
+  .s2c-bubble { max-width: 78%; }
+}
+
+.s2c-title-block { padding: 0 16px; }
+.s2c-title {
+  margin: 0;
+  font: 600 24px/1.1 var(--font-display);
+  letter-spacing: -.02em;
+  color: var(--text);
+}
+.s2c-subtitle { margin: 3px 0 0; color: #d0c6d0; font-size: 12px; }
+
+.s2c-summary {
+  margin: 18px 14px 0;
+  padding: 17px 18px 15px;
+  border: 1px solid #ffffff28;
+  border-radius: 18px;
+  background: rgba(15, 12, 17, .76);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 14px 40px #0005;
+}
+.s2c-kicker { font-size: 10px; font-weight: 750; letter-spacing: .13em; text-transform: uppercase; color: #f2a0b4; }
+.s2c-score { font: 600 30px/1.15 var(--font-display); margin-top: 4px; }
+.s2c-score strong { color: #ff7395; font-weight: 600; }
+.s2c-copy { margin: 6px 0 0; color: #d5cbd4; font-size: 13px; }
+
+.s2c-filters { display: flex; gap: 6px; padding: 4px; margin-top: 14px; border-radius: 999px; background: #ffffff0c; }
+.s2c-filters button {
+  flex: 1;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 8px 6px;
+  color: #e0d7df;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.s2c-filters button[aria-pressed="true"] { background: #e8416b25; border-color: #e8416b75; color: #ff91aa; }
+.s2c-filters button:focus-visible { outline: 2px solid white; outline-offset: 3px; }
+.s2c-filters small { opacity: .8; margin-left: 3px; }
+
+.s2c-chat { padding: 0 14px; }
+
+.s2c-question {
+  margin-top: 24px;
+  opacity: 0;
+  transform: translateY(9px);
+  transition: opacity .35s var(--ease), transform .35s var(--ease);
+}
+.s2c-question.s2c-visible { opacity: 1; transform: none; }
+
+.s2c-qhead { display: flex; align-items: center; gap: 8px; margin: 0 3px 10px; }
+.s2c-qnum { color: #ff8ba5; font-size: 10px; font-weight: 800; letter-spacing: .1em; }
+.s2c-category { color: #f0d7df; font-size: 10px; font-weight: 750; letter-spacing: .11em; text-transform: uppercase; }
+.s2c-qtext { margin: 0 3px 12px; color: #fff; font: 600 19px/1.3 var(--font-display); text-shadow: 0 2px 12px #000a; }
+
+.s2c-row { display: flex; margin: 8px 0; align-items: flex-end; gap: 8px; }
+.s2c-row.s2c-partner { justify-content: flex-end; }
+.s2c-avatar {
+  flex: none;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 800;
+  color: #151316;
+  background: #9bd7d1;
+}
+.s2c-partner .s2c-avatar { order: 2; background: #f38aa4; color: #32101a; }
+
+.s2c-bubble {
+  max-width: 84%;
+  padding: 10px 13px 11px;
+  border: 1px solid;
+  border-radius: 16px;
+  background: rgba(17, 17, 20, .91);
+  backdrop-filter: blur(13px);
+  box-shadow: 0 7px 20px #0005;
+}
+.s2c-you .s2c-bubble { border-color: #67c6bd9c; border-bottom-left-radius: 5px; }
+.s2c-partner .s2c-bubble { border-color: #e8416bba; border-bottom-right-radius: 5px; background: rgba(38, 15, 25, .92); }
+
+.s2c-who { font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; margin-bottom: 3px; color: #8ddbd2; }
+.s2c-partner .s2c-who { color: #ff8ba5; }
+.s2c-answer { font-size: 14px; line-height: 1.48; color: #fff; overflow-wrap: anywhere; }
+.s2c-pending { color: #d0c6d0; font-style: italic; }
+
+.s2c-same { display: flex; justify-content: center; margin: 8px 0 0; }
+.s2c-same span {
+  padding: 3px 9px;
+  border-radius: 99px;
+  background: #e8416b29;
+  border: 1px solid #e8416b70;
+  color: #ffb1c2;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.s2c-emoji-row { display: flex; gap: 5px; margin-top: 6px; }
+.s2c-emoji {
+  display: inline-grid;
+  place-items: center;
+  width: 25px;
+  height: 23px;
+  border-radius: 99px;
+  background: #ffffff12;
+  border: 1px solid #ffffff24;
+  font-size: 13px;
+}
+
+.s2c-footer { margin: 34px 16px 0; text-align: center; color: #d0c6d0; font-size: 11px; text-shadow: 0 2px 8px #000; }
+
+@media (prefers-reduced-motion: reduce) {
+  .s2c-question { opacity: 1; transform: none; transition-duration: .01ms !important; }
+}
