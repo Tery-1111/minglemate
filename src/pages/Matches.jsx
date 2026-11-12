@@ -9,6 +9,7 @@ export default function Matches() {
   const [matches, setMatches] = useState(null)
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState(null)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     loadMatches()
@@ -22,6 +23,7 @@ export default function Matches() {
   }
 
   async function loadMatches() {
+    setError('')
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { navigate('/'); return }
     setUserId(session.user.id)
@@ -49,6 +51,33 @@ export default function Matches() {
       m.user_a_id === session.user.id ? m.user_b_id : m.user_a_id
     )
 
+    // Hide unmatched and blocked people
+    const { data: endedRows, error: endedError } = await supabase
+      .from('conversations')
+      .select('user_a_id, user_b_id')
+      .eq('status', 'unmatched')
+      .or(`user_a_id.eq.${session.user.id},user_b_id.eq.${session.user.id}`)
+    const { data: blockedRows, error: blockedError } = await supabase
+      .from('user_blocks')
+      .select('blocker_id, blocked_id')
+      .or(`blocker_id.eq.${session.user.id},blocked_id.eq.${session.user.id}`)
+
+    // FAIL CLOSED: if either filter could not be read we cannot prove a
+    // person is unmatched/blocked, so we show no potentially hidden
+    // partner rather than silently treating the failed query as empty.
+    if (endedError || blockedError) {
+      console.error('Matches filter error:', endedError || blockedError)
+      setMatches(null)
+      setError('Could not load your matches. Please try again.')
+      setLoading(false)
+      return
+    }
+
+    const hidden = new Set([
+      ...(endedRows || []).map(r => (r.user_a_id === session.user.id ? r.user_b_id : r.user_a_id)),
+      ...(blockedRows || []).map(r => (r.blocker_id === session.user.id ? r.blocked_id : r.blocker_id))
+    ])
+
     async function hydrate(id) {
       const { data: u } = await supabase
         .from('profiles_public')
@@ -67,11 +96,12 @@ export default function Matches() {
     let tier1 = null
     let tier2 = null
 
-    if (matchHistory?.tier1_match_id) tier1 = await hydrate(matchHistory.tier1_match_id)
-    if (matchHistory?.tier2_match_id) tier2 = await hydrate(matchHistory.tier2_match_id)
+    if (matchHistory?.tier1_match_id && !hidden.has(matchHistory.tier1_match_id)) tier1 = await hydrate(matchHistory.tier1_match_id)
+    if (matchHistory?.tier2_match_id && !hidden.has(matchHistory.tier2_match_id)) tier2 = await hydrate(matchHistory.tier2_match_id)
 
     const qrashe = []
     for (const id of qrasheIds) {
+      if (hidden.has(id)) continue
       const q = await hydrate(id)
       if (q) qrashe.push(q)
     }
@@ -101,6 +131,25 @@ export default function Matches() {
   }
 
   const hasAny = matches && (matches.tier1 || matches.tier2 || (matches.qrashe && matches.qrashe.length > 0))
+
+  if (error) {
+    return (
+      <div className="matches-page">
+        <div className="matches-empty">
+          <div className="brand-roundel">M</div>
+          <h2 className="matches-empty-title display">Couldn't load matches</h2>
+          <p role="alert">{error}</p>
+          <button
+            className="btn-accent matches-cta"
+            onClick={() => { setError(''); setLoading(true); loadMatches() }}
+          >
+            Try again
+          </button>
+        </div>
+        <BottomNav />
+      </div>
+    )
+  }
 
   if (!hasAny) {
     return (

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import FadeImage from '../components/FadeImage'
+import Section2Comparison from '../components/Section2Comparison'
 import './MatchDetail.css'
 
 // OPEN MATCH: same experience for Tier 1 / Tier 2 / Qrashe.
@@ -24,12 +25,22 @@ export default function MatchDetail() {
   // The clicked button enters a visible busy state immediately (no
   // frozen click, no double submit) and reports its outcome in text.
   const [busyAction, setBusyAction] = useState(null) // null | 'unmatch' | 'block' | 'report'
+  const [convStatus, setConvStatus] = useState('')
+  // The conversation status gate decides whether Unmatch may be offered.
+  // Until the query actually succeeds we do NOT know the status, so the
+  // action stays hidden (fail closed) instead of assuming "no status".
+  const [convStatusKnown, setConvStatusKnown] = useState(false)
 
   useEffect(() => {
     load()
   }, [matchId])
 
   async function load() {
+    // Navigating between matches must not carry the previous match's
+    // conversation status across while this load is in flight.
+    setConvStatus('')
+    setConvStatusKnown(false)
+
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { navigate('/'); return }
     const uid = session.user.id
@@ -104,6 +115,25 @@ export default function MatchDetail() {
     if (unlockRow) {
       const { data: c } = await supabase.rpc('get_unlocked_contacts', { other_user_id: matchId })
       setContacts(c?.[0] || null)
+    }
+
+    // Read conversation status (sorted pair, same orientation as Chat)
+    const first = uid < matchId ? uid : matchId
+    const second = uid < matchId ? matchId : uid
+    const { data: convRow, error: convError } = await supabase
+      .from('conversations')
+      .select('status')
+      .eq('user_a_id', first)
+      .eq('user_b_id', second)
+      .maybeSingle()
+    if (convError) {
+      // Unknown status: leave the status empty and keep the gate closed.
+      // A subsequent successful load can still open it.
+      setConvStatus('')
+      setConvStatusKnown(false)
+    } else {
+      setConvStatus(convRow?.status || '')
+      setConvStatusKnown(true)
     }
 
     setLoading(false)
@@ -194,86 +224,92 @@ export default function MatchDetail() {
         ) : (
           <div className="md-photo md-photo-empty" aria-hidden="true">{firstName.charAt(0).toUpperCase()}</div>
         )}
-
-        <div className="md-id rise-in">
-          <h1 className="md-name display">{profile.full_name}, {profile.age}</h1>
-        </div>
-
-        {profile.bio && <p className="md-bio rise-in" style={{ animationDelay: '80ms' }}>{profile.bio}</p>}
-
-        {profile.interests && profile.interests.length > 0 && (
-          <div className="md-interests rise-in" style={{ animationDelay: '140ms' }}>
-            {profile.interests.slice(0, 6).map(tag => (
-              <span key={tag} className="md-tag">{tag}</span>
-            ))}
+        <div className="md-info">
+          <div className="md-id rise-in">
+            <h1 className="md-name display">{profile.full_name}, {profile.age}</h1>
           </div>
-        )}
 
-        {!unlock && (
-          <div className="md-cta-block rise-in" style={{ animationDelay: '180ms' }}>
-            <button className="btn-accent md-btn" onClick={() => navigate(`/chat/${matchId}`)}>
-              Start Conversation
-            </button>
-            <button className="btn-ghost md-btn md-btn-connect" onClick={goConnect}>
-              Connect with {firstName} · {price}
-            </button>
-            <p className="md-connect-note">
-              Connect unlocks their contact details according to their sharing choices.
-            </p>
-          </div>
-        )}
+          {profile.bio && <p className="md-bio rise-in" style={{ animationDelay: '80ms' }}>{profile.bio}</p>}
 
-        {unlock && (
-          <div className="md-unlocked">
-            <p className="md-unlocked-label">Connected</p>
-            {contacts && (
-              <div className="md-contacts">
-                {contacts.phone && (
-                  <div className="md-contact-row"><span className="md-contact-kind">Phone</span><span className="md-contact-val">{contacts.phone}</span></div>
-                )}
-                {contacts.whatsapp_number && (
-                  <div className="md-contact-row"><span className="md-contact-kind">WhatsApp</span><span className="md-contact-val">{contacts.whatsapp_number}</span></div>
-                )}
-                {contacts.email && (
-                  <div className="md-contact-row"><span className="md-contact-kind">Email</span><span className="md-contact-val">{contacts.email}</span></div>
-                )}
-                {contacts.social_instagram && (
-                  <div className="md-contact-row"><span className="md-contact-kind">Instagram</span><span className="md-contact-val">@{contacts.social_instagram}</span></div>
-                )}
-                {contacts.social_x && (
-                  <div className="md-contact-row"><span className="md-contact-kind">X</span><span className="md-contact-val">@{contacts.social_x}</span></div>
-                )}
-                {contacts.social_tiktok && (
-                  <div className="md-contact-row"><span className="md-contact-kind">TikTok</span><span className="md-contact-val">@{contacts.social_tiktok}</span></div>
-                )}
-                {!contacts.phone && !contacts.whatsapp_number && !contacts.email &&
-                  !contacts.social_instagram && !contacts.social_x && !contacts.social_tiktok && (
-                    <p className="md-contacts-none">They haven't enabled any contact sharing yet.</p>
-                  )}
-              </div>
-            )}
-            <button className="btn-ghost md-btn" onClick={() => navigate(`/chat/${matchId}`)}>
-              Open Conversation
-            </button>
-            <p className="md-connect-note">The conversation is read-only now that you're connected.</p>
-          </div>
-        )}
-
-        <div className="md-actions">
-          {!unlock && (
-            <button className="md-action md-action-warn" onClick={handleUnmatch} disabled={!!busyAction} aria-busy={busyAction === 'unmatch'}>
-              {busyAction === 'unmatch' ? 'Unmatching…' : 'Unmatch'}
-            </button>
+          {profile.interests && profile.interests.length > 0 && (
+            <div className="md-interests rise-in" style={{ animationDelay: '140ms' }}>
+              {profile.interests.slice(0, 6).map(tag => (
+                <span key={tag} className="md-tag">{tag}</span>
+              ))}
+            </div>
           )}
-          <button className="md-action" onClick={handleBlock} disabled={!!busyAction} aria-busy={busyAction === 'block'}>
-            {busyAction === 'block' ? 'Blocking…' : 'Block'}
-          </button>
-          <button className="md-action" onClick={handleReport} disabled={!!busyAction} aria-busy={busyAction === 'report'}>
-            {busyAction === 'report' ? 'Sending…' : 'Report'}
-          </button>
-        </div>
 
-        {actionMsg && <p className="md-action-msg" role="status">{actionMsg}</p>}
+        </div>
+        <Section2Comparison
+          partnerId={matchId}
+          myId={myId}
+          partnerName={firstName}
+        />
+        <div className="md-side">
+
+          {!unlock && (
+            <div className="md-cta-block rise-in" style={{ animationDelay: '180ms' }}>
+              <button className="btn-ghost md-btn md-btn-connect" onClick={goConnect}>
+                Connect with {firstName} · {price}
+              </button>
+              <p className="md-connect-note">
+                Connect unlocks their contact details according to their sharing choices.
+              </p>
+            </div>
+          )}
+
+          {unlock && (
+            <div className="md-unlocked">
+              <p className="md-unlocked-label">Connected</p>
+              {contacts && (
+                <div className="md-contacts">
+                  {contacts.phone && (
+                    <div className="md-contact-row"><span className="md-contact-kind">Phone</span><span className="md-contact-val">{contacts.phone}</span></div>
+                  )}
+                  {contacts.whatsapp_number && (
+                    <div className="md-contact-row"><span className="md-contact-kind">WhatsApp</span><span className="md-contact-val">{contacts.whatsapp_number}</span></div>
+                  )}
+                  {contacts.email && (
+                    <div className="md-contact-row"><span className="md-contact-kind">Email</span><span className="md-contact-val">{contacts.email}</span></div>
+                  )}
+                  {contacts.social_instagram && (
+                    <div className="md-contact-row"><span className="md-contact-kind">Instagram</span><span className="md-contact-val">@{contacts.social_instagram}</span></div>
+                  )}
+                  {contacts.social_x && (
+                    <div className="md-contact-row"><span className="md-contact-kind">X</span><span className="md-contact-val">@{contacts.social_x}</span></div>
+                  )}
+                  {contacts.social_tiktok && (
+                    <div className="md-contact-row"><span className="md-contact-kind">TikTok</span><span className="md-contact-val">@{contacts.social_tiktok}</span></div>
+                  )}
+                  {!contacts.phone && !contacts.whatsapp_number && !contacts.email &&
+                    !contacts.social_instagram && !contacts.social_x && !contacts.social_tiktok && (
+                      <p className="md-contacts-none">They haven't enabled any contact sharing yet.</p>
+                    )}
+                </div>
+              )}
+              <button className="btn-ghost md-btn" onClick={() => navigate(`/chat/${matchId}`)}>
+                Open Conversation
+              </button>
+              <p className="md-connect-note">The conversation is read-only now that you're connected.</p>
+            </div>
+          )}
+
+          <div className="md-actions">
+            {!unlock && convStatusKnown && convStatus !== 'locked' && convStatus !== 'unmatched' && (
+              <button className="md-action md-action-warn" onClick={handleUnmatch} disabled={!!busyAction} aria-busy={busyAction === 'unmatch'}>
+                {busyAction === 'unmatch' ? 'Unmatching…' : 'Unmatch'}
+              </button>
+            )}
+            <button className="md-action" onClick={handleBlock} disabled={!!busyAction} aria-busy={busyAction === 'block'}>
+              {busyAction === 'block' ? 'Blocking…' : 'Block'}
+            </button>
+            <button className="md-action" onClick={handleReport} disabled={!!busyAction} aria-busy={busyAction === 'report'}>
+              {busyAction === 'report' ? 'Sending…' : 'Report'}
+            </button>
+          </div>
+
+          {actionMsg && <p className="md-action-msg" role="status">{actionMsg}</p>}
+        </div>
       </div>
     </div>
   )

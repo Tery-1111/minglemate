@@ -12,6 +12,7 @@ export default function Messages() {
   const [items, setItems] = useState(null)
   const [loading, setLoading] = useState(true)
   const [myId, setMyId] = useState(null)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     load()
@@ -25,6 +26,7 @@ export default function Messages() {
   }
 
   async function load() {
+    setError('')
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { navigate('/'); return }
     const uid = session.user.id
@@ -52,7 +54,7 @@ export default function Messages() {
       .or(`tier1_match_id.eq.${uid},tier2_match_id.eq.${uid}`)
       .eq('week_id', weekId)
 
-    const pairs = []
+    let pairs = []
     const seen = new Set()
 
     for (const m of qrasheRows || []) {
@@ -79,6 +81,34 @@ export default function Messages() {
         pairs.push({ id: otherId, tier: r.tier1_match_id === uid ? 'tier1' : 'tier2' })
       }
     }
+
+    // Hide unmatched and blocked people
+    const { data: endedRows, error: endedError } = await supabase
+      .from('conversations')
+      .select('user_a_id, user_b_id')
+      .eq('status', 'unmatched')
+      .or(`user_a_id.eq.${uid},user_b_id.eq.${uid}`)
+    const { data: blockedRows, error: blockedError } = await supabase
+      .from('user_blocks')
+      .select('blocker_id, blocked_id')
+      .or(`blocker_id.eq.${uid},blocked_id.eq.${uid}`)
+
+    // FAIL CLOSED: when the filters cannot be read we cannot prove a
+    // conversation is still legitimate, so show nothing rather than
+    // risk listing a blocked or unmatched partner.
+    if (endedError || blockedError) {
+      console.error('Messages filter error:', endedError || blockedError)
+      setItems([])
+      setError('Could not load your conversations. Please try again.')
+      setLoading(false)
+      return
+    }
+
+    const hidden = new Set([
+      ...(endedRows || []).map(r => (r.user_a_id === uid ? r.user_b_id : r.user_a_id)),
+      ...(blockedRows || []).map(r => (r.blocker_id === uid ? r.blocked_id : r.blocker_id))
+    ])
+    pairs = pairs.filter(p => !hidden.has(p.id))
 
     if (pairs.length === 0) {
       setItems([])
@@ -162,7 +192,25 @@ export default function Messages() {
         <h1 className="messages-title">Messages</h1>
       </header>
 
-      {items && items.length === 0 && (
+      {error && (
+        <div className="messages-empty">
+          <div className="empty-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12a8 8 0 0 1-8 8H5.5L3 21.5V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z" />
+            </svg>
+          </div>
+          <h2>Couldn't load conversations</h2>
+          <p role="alert">{error}</p>
+          <button
+            className="btn-ghost"
+            onClick={() => { setError(''); setLoading(true); load() }}
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
+      {items && items.length === 0 && !error && (
         <div className="messages-empty">
           <div className="empty-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -175,7 +223,7 @@ export default function Messages() {
       )}
 
       <div className="messages-list">
-        {(items || []).map(item => (
+        {!error && (items || []).map(item => (
           <button
             key={item.id}
             className="message-row"

@@ -78,22 +78,46 @@
 }
 
 .s2-textarea {
-  width: 100%;
-  padding: 16px;
-  background: var(--surface-raised);
-  border: 2px solid var(--border-strong);
-  border-radius: 12px;
-  color: white;
-  font-size: 15px;
-  font-family: Arial, sans-serif;
-  resize: none;
-  outline: none;
-  transition: border 0.2s;
-  margin-bottom: 8px;
+  display: none;
 }
 
-.s2-textarea:focus {
-  border-color: var(--accent);
+.s2-char-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: right;
+  margin-bottom: 24px;
+}
+
+.s2-option-label {
+  display: block;
+  margin-bottom: 8px;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  border: 2px solid var(--border-strong);
+}
+
+.s2-option-label:hover {
+  background: var(--accent);
+  color: white;
+}
+
+.s2-option-label input[type="radio"] {
+  display: none;
+}
+
+.s2-option-label.selected {
+  background: var(--accent);
+  color: white;
+}
+
+.s2-selected-answer {
+  color: var(--accent);
+  margin-bottom: 16px;
+  font-weight: 500;
 }
 
 .s2-char-count {

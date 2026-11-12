@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { section1Questions as CAMPUS_QUESTIONS } from '../data/section1Questions';
+import { normalizeStoredAnswers } from '../lib/section1';
 
 export default function Section1() {
   const navigate = useNavigate();
@@ -15,6 +16,10 @@ export default function Section1() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
   const [userId, setUserId] = useState(null);
+  // Whether the row was already complete when the screen opened. A retake
+  // edits an existing full answer set; saving one changed answer must not
+  // drop the profile out of the matching pool until it reaches the end again.
+  const [wasComplete, setWasComplete] = useState(false);
 
   useEffect(() => {
     async function restoreSurveyProgress() {
@@ -35,31 +40,36 @@ export default function Section1() {
 
         if (profileError) throw profileError;
 
+        setWasComplete(Boolean(profile?.section1_complete));
+
         if (profile?.section1_complete && !isRetake) {
           // Already completed: continue to Discover per the app flow.
           navigate('/discover');
           return;
         }
 
-        // 🚨 THE FIX: Map progress using absolute 0-indexed scale pointers to prevent item skipping
-        const progressPointer = profile?.section1_progress || 0;
-        setCurrent(progressPointer);
-
-        // Restore previously recorded matrix vectors if any exist
+        // Answers are stored by position: slot i is question i + 1, and the
+        // scoring engine reads the same positions. Project whatever row is
+        // stored onto a full 50-slot array so a short row cannot shift an
+        // answer onto a neighbouring question, and so legacy integer values
+        // (now text such as '0') are not mistaken for real answers.
         const { data: responseRow } = await supabase
           .from('user_responses')
           .select('responses_array')
           .eq('user_id', user.id)
           .maybeSingle();
 
-        if (responseRow?.responses_array) {
-          // Legacy rows from the old integer[] column may hold numeric
-          // indices; map them to null IN PLACE (filtering would shift
-          // answer positions). Fresh answers are always option text.
-          setAnswers(responseRow.responses_array.map(a => (typeof a === 'string' ? a : null)));
-        } else {
-          setAnswers(new Array(CAMPUS_QUESTIONS.length).fill(null));
-        }
+        setAnswers(normalizeStoredAnswers(responseRow?.responses_array, CAMPUS_QUESTIONS));
+
+        // Resume at the saved pointer, clamped to a real question so a legacy
+        // out-of-range value cannot render a blank card. A retake always
+        // starts at question 1: its purpose is reviewing the answers, and a
+        // completed row's pointer is the LAST question.
+        const savedPointer = Number(profile?.section1_progress ?? 0);
+        const resumeAt = isRetake
+          ? 0
+          : Math.min(Math.max(savedPointer, 0), CAMPUS_QUESTIONS.length - 1);
+        setCurrent(resumeAt);
       } catch (err) {
         console.error("Survey sync disruption:", err);
         setError("We couldn't load your questionnaire. Please try again.");
@@ -68,7 +78,7 @@ export default function Section1() {
       }
     }
     restoreSurveyProgress();
-  }, [navigate]);
+  }, [navigate, isRetake]);
 
   const handleSelectOption = async (optionIndex) => {
     if (isSaving) return;
@@ -102,8 +112,11 @@ export default function Section1() {
       const { error: userUpdateError } = await supabase
         .from('users')
         .update({
-          section1_progress: isSurveyFinished ? current : nextStepIndex,
-          section1_complete: isSurveyFinished,
+          // 50 (not the last index) once every question has been saved, so the
+          // pointer means "questions answered" and a resume never lands on a
+          // finished questionnaire's final card.
+          section1_progress: isSurveyFinished ? CAMPUS_QUESTIONS.length : nextStepIndex,
+          section1_complete: isSurveyFinished || (isRetake && wasComplete),
           section1_last_edited: new Date().toISOString()
         })
         .eq('id', userId);
@@ -115,8 +128,9 @@ export default function Section1() {
       // 3. Routing navigation pipeline logic
       if (isSurveyFinished) {
         // Onboarding order: Algorithm Questionnaire → Guided-Question
-        // Questionnaire (Section 2) → Discover.
-        navigate('/section2');
+        // Questionnaire (Section 2) → Discover. A retake is an edit started
+        // from Profile, so it returns there instead of re-entering onboarding.
+        navigate(isRetake ? '/profile' : '/section2');
       } else {
         // TRANSFORMATION: advance after the save is confirmed — the
         // selected option visibly holds its state through the save,
