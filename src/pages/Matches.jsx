@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import { signPhotoUrls } from '../lib/photoUrls'
 import BottomNav from '../components/BottomNav'
 import './Matches.css'
 
@@ -90,7 +91,14 @@ export default function Matches() {
         .select('photo_url, photo_type')
         .eq('user_id', id)
         .order('display_order')
-      return { ...u, photos: photos || [] }
+      const photoRows = photos || []
+      const signed = await signPhotoUrls(photoRows.map(p => p.photo_url))
+      return {
+        ...u,
+        photos: photoRows
+          .map(p => ({ ...p, photo_url: signed.get(p.photo_url) ?? null }))
+          .filter(p => p.photo_url)
+      }
     }
 
     let tier1 = null

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import { signPhotoUrls } from '../lib/photoUrls'
 import BottomNav from '../components/BottomNav'
 import {
   BIO_MAX,
@@ -79,7 +80,13 @@ export default function Profile() {
       .order('display_order')
 
     setUser(userData)
-    setPhotos(photoData || [])
+    const photoRows = photoData || []
+    const signedProfile = await signPhotoUrls(photoRows.map(p => p.photo_url))
+    setPhotos(
+      photoRows
+        .map(p => ({ ...p, photo_url: signedProfile.get(p.photo_url) ?? null }))
+        .filter(p => p.photo_url)
+    )
     const prompts = Array.isArray(userData?.profile_prompts)
       ? userData.profile_prompts
       : []

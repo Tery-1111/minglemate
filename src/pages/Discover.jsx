@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import { signPhotoUrls } from '../lib/photoUrls'
 import BottomNav from '../components/BottomNav'
 import FadeImage from '../components/FadeImage'
 import './Discover.css'
@@ -37,7 +38,12 @@ export default function Discover() {
         const parsed = JSON.parse(cached)
         if (Array.isArray(parsed.candidates) && parsed.candidates.length > 0) {
           setCandidates(parsed.candidates)
-          setPhotos(parsed.photos || {})
+          // Cached values are stored addresses; links expire, so sign them again.
+          signPhotoUrls(Object.values(parsed.photos || {})).then(signed => {
+            const shown = {}
+            for (const [id, url] of Object.entries(parsed.photos || {})) shown[id] = signed.get(url) ?? null
+            setPhotos(shown)
+          })
           setLoading(false)
         }
       }
@@ -88,7 +94,10 @@ export default function Discover() {
       for (const p of photoRows || []) {
         if (!map[p.user_id]) map[p.user_id] = p.photo_url
       }
-      setPhotos(map)
+      const signed = await signPhotoUrls(Object.values(map))
+      const shown = {}
+      for (const [id, url] of Object.entries(map)) shown[id] = signed.get(url) ?? null
+      setPhotos(shown)
     }
 
     try {
