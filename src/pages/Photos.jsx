@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import { signPhotoUrl, signPhotoUrls } from '../lib/photoUrls';
 import { resizeImage } from '../utils/imageResize';
 
 // PHOTO SLOTS: exactly two — 1) Facial photo (cards/discover),
@@ -19,6 +20,7 @@ async function sniffMagic(file, bytes, offset = 0) {
 export default function Photos() {
   const navigate = useNavigate();
   const [photos, setPhotos] = useState({}); // { facial: url, full_body: url }
+  const [photoDisplay, setPhotoDisplay] = useState({}); // temporary links used to show the photos
   const [uploadingSlot, setUploadingSlot] = useState(null);
   // Per-slot upload state machine: null | 'uploading' | 'done' | 'failed'.
   // Feedback happens ON the photo tile itself (spec §20) — never a
@@ -48,6 +50,10 @@ export default function Photos() {
       const photoMap = {};
       data.forEach(item => { photoMap[item.photo_type] = item.photo_url; });
       setPhotos(photoMap);
+      const signed = await signPhotoUrls(Object.values(photoMap));
+      const display = {};
+      for (const [type, url] of Object.entries(photoMap)) display[type] = signed.get(url) ?? null;
+      setPhotoDisplay(display);
     }
   }
 
@@ -113,6 +119,8 @@ export default function Photos() {
       if (dbError) throw dbError;
 
       setPhotos(prev => ({ ...prev, [slot.type]: publicUrl }));
+      const signedNew = await signPhotoUrl(publicUrl);
+      setPhotoDisplay(prev => ({ ...prev, [slot.type]: signedNew }));
       setSlotStates(prev => ({ ...prev, [slot.type]: 'done' }));
       setTimeout(() => setSlotStates(prev => ({ ...prev, [slot.type]: null })), 2500);
     } catch (err) {
@@ -137,14 +145,14 @@ export default function Photos() {
 
         <div style={styles.slotList}>
           {SLOTS.map(slot => {
-            const hasPhoto = !!photos[slot.type];
+            const hasPhoto = !!photoDisplay[slot.type];
             const isUploading = uploadingSlot === slot.key;
             const slotState = slotStates[slot.type];
             return (
               <div key={slot.key} style={styles.slotCard}>
                 <div style={styles.slotPreview}>
                   {hasPhoto ? (
-                    <img src={photos[slot.type]} alt={slot.label} style={styles.previewImage} />
+                    <img src={photoDisplay[slot.type]} alt={slot.label} style={styles.previewImage} />
                   ) : (
                     <div style={styles.emptyPlaceholder}>
                       <span style={styles.slotIndicator}>{slot.hint}</span>

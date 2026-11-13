@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import { signPhotoUrl } from '../lib/photoUrls'
 import './Payment.css'
 
 // CONNECT PAYMENT: one screen serving every paid action. The
@@ -72,7 +73,7 @@ export default function Payment() {
           .eq('photo_type', 'facial')
           .limit(1)
           .maybeSingle()
-        setRecipient({ name: person.full_name, photo: photo?.photo_url || null })
+        setRecipient({ name: person.full_name, photo: await signPhotoUrl(photo?.photo_url) })
       }
     }
   }

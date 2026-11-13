@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import { signPhotoUrls } from '../lib/photoUrls'
 import FadeImage from '../components/FadeImage'
 import Section2Comparison from '../components/Section2Comparison'
 import './MatchDetail.css'
@@ -59,8 +60,14 @@ export default function MatchDetail() {
       .select('photo_url, photo_type')
       .eq('user_id', matchId)
       .order('display_order')
-    setBodyPhoto((photos || []).find(p => p.photo_type === 'full_body')?.photo_url || null)
-    setFacePhoto((photos || []).find(p => p.photo_type === 'facial')?.photo_url || null)
+    const photoRows = photos || []
+    const signedPhotos = await signPhotoUrls(photoRows.map(p => p.photo_url))
+    const signedFor = type => {
+      const row = photoRows.find(p => p.photo_type === type)
+      return row ? (signedPhotos.get(row.photo_url) ?? null) : null
+    }
+    setBodyPhoto(signedFor('full_body'))
+    setFacePhoto(signedFor('facial'))
 
     // Tier: Qrashe pair (matches) or weekly tier (match_history, both directions)
     const { data: qrashe } = await supabase
