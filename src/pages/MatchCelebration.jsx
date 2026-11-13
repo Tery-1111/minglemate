@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import { signPhotoUrl } from '../lib/photoUrls'
 import './MatchCelebration.css'
 
 // MATCH CELEBRATION — emotional LEVEL 3 (peak): calm → anticipation →
@@ -65,7 +66,7 @@ export default function MatchCelebration() {
         .eq('user_id', id)
         .order('display_order')
       const face = (photos || []).find(p => p.photo_type === 'facial')
-      return { ...u, face: face?.photo_url || null }
+      return { ...u, face: await signPhotoUrl(face?.photo_url) }
     }
 
     setTier1(await hydrate(row?.tier1_match_id))

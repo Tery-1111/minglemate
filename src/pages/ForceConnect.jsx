@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import { signPhotoUrl } from '../lib/photoUrls'
 import './ForceConnect.css'
 
 // FORCE CONNECT: confirmation for the KSh 80 payment that creates a
@@ -37,7 +38,7 @@ export default function ForceConnect() {
         .eq('photo_type', 'facial')
         .order('display_order')
         .limit(1)
-      setFace(photos?.[0]?.photo_url || null)
+      setFace(await signPhotoUrl(photos?.[0]?.photo_url))
     }
     setLoading(false)
   }

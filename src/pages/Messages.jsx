@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import { signPhotoUrls } from '../lib/photoUrls'
 import BottomNav from '../components/BottomNav'
 import './Messages.css'
 
@@ -157,6 +158,10 @@ export default function Messages() {
     const photoMap = {}
     for (const p of photos || []) {
       if (!photoMap[p.user_id]) photoMap[p.user_id] = p.photo_url
+    }
+    const signedPhotos = await signPhotoUrls(Object.values(photoMap))
+    for (const id of Object.keys(photoMap)) {
+      photoMap[id] = signedPhotos.get(photoMap[id]) ?? null
     }
 
     const hydrated = pairs.map(p => ({
