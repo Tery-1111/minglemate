@@ -32,13 +32,21 @@ export default function Section1() {
         setUserId(user.id);
 
         // Fetch current questionnaire status profiles
-        const { data: profile, error: profileError } = await supabase
-          .from('users')
-          .select('section1_progress, section1_complete')
-          .eq('id', user.id)
-          .single();
+        // Fetch the authenticated user's own profile through the
+        // SECURITY DEFINER RPC. Direct SELECT access to these columns
+        // was intentionally revoked by the F-04 security migration.
+        const { data: profiles, error: profileError } = await supabase
+          .rpc('my_profile');
 
         if (profileError) throw profileError;
+
+        const profile = Array.isArray(profiles)
+          ? profiles[0] ?? null
+          : profiles;
+
+        if (!profile) {
+          throw new Error('Could not retrieve the authenticated user profile.');
+        }
 
         setWasComplete(Boolean(profile?.section1_complete));
 
