@@ -86,18 +86,6 @@ export default function Photos() {
 
       const storageFilePath = `${userId}/${slot.type}_${Date.now()}.jpg`;
 
-      // Best-effort cleanup of the replaced object in the same slot
-      if (photos[slot.type]) {
-        try {
-          const urlParts = photos[slot.type].split('/user-photos/');
-          if (urlParts.length > 1) {
-            await supabase.storage.from('user-photos').remove([urlParts[1]]);
-          }
-        } catch {
-          // Old-photo cleanup is best-effort; upload still proceeds.
-        }
-      }
-
       const { error: uploadError } = await supabase.storage
         .from('user-photos')
         .upload(storageFilePath, resized, { cacheControl: '3600', upsert: true, contentType: 'image/jpeg' });
@@ -116,7 +104,28 @@ export default function Photos() {
           photo_url: publicUrl,
           display_order: slot.type === 'facial' ? 1 : 2,
         }, { onConflict: 'user_id,photo_type' });
-      if (dbError) throw dbError;
+      if (dbError) {
+        // The row was not saved, so the file just uploaded is unused; the old photo stays untouched.
+        try {
+          await supabase.storage.from('user-photos').remove([storageFilePath]);
+        } catch {
+          // Cleanup of the unused new file is best-effort.
+        }
+        throw dbError;
+      }
+
+      // Delete the old file only after the new one is saved, so a failure never loses the photo.
+      const previousUrl = photos[slot.type];
+      if (previousUrl) {
+        try {
+          const previousPath = previousUrl.split('/user-photos/')[1];
+          if (previousPath) {
+            await supabase.storage.from('user-photos').remove([previousPath.split('?')[0]]);
+          }
+        } catch {
+          // Old-photo cleanup is best-effort.
+        }
+      }
 
       setPhotos(prev => ({ ...prev, [slot.type]: publicUrl }));
       const signedNew = await signPhotoUrl(publicUrl);
