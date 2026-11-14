@@ -906,6 +906,211 @@ await expectOk('17. migration applies cleanly when the legacy RPC is absent', as
   }
 })
 
+// ===========================================================================
+// 18–23. The NULL-identity trust defect.
+//
+//     The guard used to bypass on "auth.uid() is null" alone. An anonymous
+//     PostgREST request also has a null auth.uid(), so an unauthenticated
+//     caller that reached a SECURITY DEFINER function inherited trusted-server
+//     privileges. These tests drive each row of the required decision table.
+//
+//     The anon tests need a definer probe anon may actually execute, otherwise
+//     they would die on "permission denied for function" and prove nothing
+//     about the guard. probe_anon_definer_* is that probe; it is SECURITY
+//     DEFINER, owned by the bootstrap superuser, and granted to anon.
+// ===========================================================================
+await db.exec(`
+  create or replace function public.probe_anon_definer_set_status(p_id uuid, p_status text)
+  returns void language plpgsql security definer set search_path to 'public' as $fn$
+  begin
+    update public.users set status = p_status where id = p_id;
+  end;
+  $fn$;
+
+  create or replace function public.probe_anon_definer_set_bio(p_id uuid, p_bio text)
+  returns void language plpgsql security definer set search_path to 'public' as $fn$
+  begin
+    update public.users set bio = p_bio where id = p_id;
+  end;
+  $fn$;
+
+  -- Prove the probe itself is a valid attack surface from an anon session.
+  create or replace function public.probe_anon_whoami() returns text
+  language plpgsql security definer as $fn$
+  begin return current_user; end;
+  $fn$;
+
+  grant execute on function public.probe_anon_definer_set_status(uuid, text) to anon;
+  grant execute on function public.probe_anon_definer_set_bio(uuid, text) to anon;
+  grant execute on function public.probe_anon_whoami() to anon;
+`)
+
+// Reputation probe for anon, defined alongside the others.
+await db.exec(`
+  create or replace function public.probe_anon_definer_set_reputation_via(p_id uuid, p_score integer)
+  returns void language plpgsql security definer set search_path to 'public' as $fn$
+  begin
+    update public.users set reputation_score = p_score where id = p_id;
+  end;
+  $fn$;
+  grant execute on function public.probe_anon_definer_set_reputation_via(uuid, integer) to anon;
+`)
+
+// ---- Test A — anonymous SECURITY DEFINER bypass of a protected column ----
+await expectOk('18. anon definer probe really does escalate current_user', async () => {
+  const row = await asAnon(() => scalar(`select public.probe_anon_whoami() as u`))
+  assert.ok(
+    ['postgres', 'supabase_admin', 'service_role'].includes(row.u),
+    `anon definer probe ran as ${row.u}; it does not reproduce the escalation`
+  )
+  // And the anon request genuinely has no identity.
+  const uid = await asAnon(() => scalar(`select auth.uid() as uid`))
+  assert.equal(uid.uid, null, 'anon session unexpectedly carries an auth.uid()')
+})
+
+await expectDenied('18a. anon cannot set status via SECURITY DEFINER', async () => {
+  await asAnon(() => db.query(
+    `select public.probe_anon_definer_set_status($1, 'active')`, [ERIN]))
+}, 'not authorised|insufficient')
+
+await expectOk('18b. protected value unchanged after anon definer attempt', async () => {
+  const row = await scalar(`select status from public.users where id = $1`, [ERIN])
+  assert.equal(row.status, 'suspended', `anon definer bypass changed status to ${row.status}`)
+})
+
+await expectDenied('18c. anon cannot raise reputation via SECURITY DEFINER', async () => {
+  await asAnon(() => db.query(
+    `select public.probe_anon_definer_set_reputation_via($1, 9999)`, [ALICE]))
+}, 'not authorised|insufficient|permission denied')
+
+await expectOk('18d. reputation unchanged after the anon definer attempt', async () => {
+  const row = await scalar(`select reputation_score from public.users where id = $1`, [ALICE])
+  assert.equal(row.reputation_score, 100, `reputation became ${row.reputation_score}`)
+})
+
+// ---- Test B — anonymous SECURITY DEFINER bypass of an editable field ----
+await expectDenied('19. anon cannot edit another user bio via SECURITY DEFINER', async () => {
+  await asAnon(() => db.query(
+    `select public.probe_anon_definer_set_bio($1, 'anon was here')`, [BOB]))
+}, 'not authorised|insufficient')
+
+await expectOk('19b. editable field unchanged after anon definer attempt', async () => {
+  const row = await scalar(`select bio from public.users where id = $1`, [BOB])
+  assert.notEqual(row.bio, 'anon was here', 'anon definer bypass overwrote Bob\'s bio')
+})
+
+// The same write must also be refused for anon outside any definer function.
+await expectDenied('19c. anon cannot edit a bio directly either', async () => {
+  await asAnon(() => db.query(
+    `update public.users set bio = 'anon direct' where id = $1`, [BOB]))
+}, 'permission denied|not authorised')
+
+await expectOk('19d. editable field still unchanged after the direct attempt', async () => {
+  const row = await scalar(`select bio from public.users where id = $1`, [BOB])
+  assert.notEqual(row.bio, 'anon direct')
+})
+
+// ---- Test C — authenticated SECURITY DEFINER regression ----
+await expectDenied('20. authenticated user cannot reactivate a suspended account via definer', async () => {
+  // Erin is suspended on the status axis. Park profile_status so the
+  // transition rule is the one under test, then attack through the definer.
+  await db.exec(`reset role`)
+  await db.query(`update public.users set profile_status = 'paused' where id = $1`, [ERIN])
+  await asUser(ERIN, () => db.query(
+    `select public.probe_definer_set_profile_status('active')`))
+}, 'suspended')
+
+await expectOk('20b. suspended account still suspended and still parked', async () => {
+  const row = await scalar(
+    `select status, profile_status from public.users where id = $1`, [ERIN])
+  assert.equal(row.status, 'suspended', 'status changed through a definer function')
+  assert.equal(row.profile_status, 'paused', 'profile_status changed through a definer function')
+  await db.exec(`update public.users set profile_status = 'active' where id = '${ERIN}'`)
+})
+
+// ---- Test D — trusted service-role regression ----
+await expectOk('21. service_role still performs a legitimate status change', async () => {
+  const before = await scalar(`select status from public.users where id = $1`, [CAROL])
+  const target = before.status === 'suspended' ? 'active' : 'suspended'
+  await asServiceRole(null, () => db.query(
+    `update public.users set status = $2 where id = $1`, [CAROL, target]))
+  const after = await scalar(`select status from public.users where id = $1`, [CAROL])
+  assert.equal(after.status, target, `service_role write did not land (${after.status})`)
+  // Restore.
+  await db.exec(`update public.users set status = '${before.status}' where id = '${CAROL}'`)
+})
+
+// ---- Test E — trusted direct database session ----
+await expectOk('22. direct database session bypasses client restrictions', async () => {
+  // No JWT role at all, and session_user is the database owner: this is the
+  // migration / psql / cron path. It must still be able to change status.
+  await db.exec(`reset role`)
+  await setJwt(null, null)
+  const row = await scalar(
+    `select session_user as su, current_user as cu,
+            current_setting('request.jwt.claim.role', true) as r`)
+  assert.ok(
+    ['postgres', 'supabase_admin'].includes(row.su),
+    `test 22 is not running as a trusted direct session (session_user=${row.su})`
+  )
+  const before = await scalar(`select status from public.users where id = $1`, [DAVE])
+  await db.query(`update public.users set status = 'suspended' where id = $1`, [DAVE])
+  const after = await scalar(`select status from public.users where id = $1`, [DAVE])
+  assert.equal(after.status, 'suspended', 'direct database session was wrongly restricted')
+  await db.query(`update public.users set status = $2 where id = $1`, [DAVE, before.status])
+})
+
+await expectOk('22b. direct session bypass needs no auth.uid()', async () => {
+  const uid = await scalar(`select auth.uid() as uid`)
+  assert.equal(uid.uid, null, 'direct session had an identity; test 22 proved nothing')
+})
+
+// ---- Test F — untrusted missing / unknown role ----
+await expectDenied('23. untrusted session with no JWT role is rejected', async () => {
+  // Same shape as test 22 but from a role that is not a database owner.
+  await setJwt(null, null)
+  await db.exec(`set role authenticated`)
+  try {
+    await db.query(`update public.users set status = 'active' where id = $1`, [ERIN])
+  } finally {
+    await db.exec(`reset role`)
+  }
+}, 'permission denied|not authorised')
+
+await expectDenied('23b. unknown JWT role is rejected even from a definer function', async () => {
+  await assertUnknownRoleRejected()
+}, 'permission denied|not authorised')
+
+await expectOk('23c. database state unchanged after the untrusted attempts', async () => {
+  const row = await scalar(
+    `select status, profile_status from public.users where id = $1`, [ERIN])
+  assert.equal(row.status, 'suspended', 'untrusted attempt changed status')
+})
+
+// ---------------------------------------------------------------------------
+// Test 23b helper: run as a definer-rights function with an unknown JWT role,
+// so the rejection is the guard's, not merely a missing table privilege.
+// ---------------------------------------------------------------------------
+async function assertUnknownRoleRejected() {
+  await db.exec(`
+    create or replace function public.probe_anon_definer_set_status_untrusted(p_id uuid, p_status text)
+    returns void language plpgsql security definer set search_path to 'public' as $fn$
+    begin update public.users set status = p_status where id = p_id; end;
+    $fn$;
+    grant execute on function public.probe_anon_definer_set_status_untrusted(uuid, text)
+      to authenticated;
+  `)
+  await setJwt(ERIN, 'bogus_role')
+  await db.exec(`set role authenticated`)
+  try {
+    await db.query(
+      `select public.probe_anon_definer_set_status_untrusted($1, 'active')`, [ERIN])
+  } finally {
+    await db.exec(`reset role`)
+    await setJwt(null, null)
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Minimal fixture for test 17: the shape the migration's preconditions need,
 // built with exprssly NO public.admin_update_user_status.

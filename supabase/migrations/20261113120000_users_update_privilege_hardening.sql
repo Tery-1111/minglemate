@@ -227,16 +227,29 @@ create policy "users_update_own_row"
 --    for them.
 --
 --    PostgREST publishes the verified role in request.jwt.claim.role (single
---    claim) and in request.jwt.claims (whole claims JSON). Both are read, with
---    current_user only as a last-resort fallback for non-PostgREST callers such
---    as a direct psql session or a migration.
+--    claim) and in request.jwt.claims (whole claims JSON). Both are read. When
+--    neither is present the request did not come through PostgREST at all, and
+--    the session check below decides.
 --
---    The bypass is granted only when:
---      * auth.uid() is null  — no end-user identity on the request, i.e. the
---        caller is the database itself (migrations, triggers, cron), or
---      * v_jwt_role = 'service_role' — the verified server-side role.
---    An authenticated request therefore stays subject to every rule below even
---    when a SECURITY DEFINER function has raised current_user to postgres.
+--    The trust decision is a two-branch test. A bare "auth.uid() is null" is
+--    NOT sufficient, because an anonymous PostgREST request also has a null
+--    auth.uid(): treating that as a server-side writer let an unauthenticated
+--    caller inherit trusted privileges through any SECURITY DEFINER function.
+--
+--      * v_jwt_role = 'service_role'  — the verified server-side role. Bypass.
+--      * no JWT role at all AND session_user is a database owner
+--        (postgres / supabase_admin) — a direct session: psql, a migration, a
+--        cron job. Bypass. session_user is the login role and cannot be
+--        escalated by a SECURITY DEFINER function, which is exactly why it is
+--        used here instead of current_user.
+--
+--    Everything else fails closed:
+--      * authenticated with a null auth.uid()  -> reject
+--      * anon, with or without an auth.uid()   -> reject
+--      * an unknown JWT role                   -> reject
+--    An authenticated or anonymous request therefore stays subject to every
+--    rule below even when a SECURITY DEFINER function has raised current_user
+--    to postgres.
 -- ---------------------------------------------------------------------------
 create or replace function public.guard_users_client_update()
 returns trigger
@@ -248,12 +261,13 @@ declare
   v_next_profile_status text := coalesce(new.profile_status, 'incomplete');
   v_jwt_role             text;
   v_jwt_uid              uuid;
+  v_trusted_session      boolean;
 begin
-  -- Trust boundary: the request JWT, never current_user alone.
+  -- Trust boundary: the verified request JWT. current_user is deliberately NOT
+  -- part of this chain — a SECURITY DEFINER function rewrites it for the caller.
   v_jwt_role := coalesce(
     nullif(current_setting('request.jwt.claim.role', true), ''),
-    (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role'),
-    current_user
+    (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role')
   );
 
   begin
@@ -262,8 +276,22 @@ begin
     v_jwt_uid := null;  -- auth schema absent (bare database, migration runner)
   end;
 
-  if v_jwt_uid is null or v_jwt_role = 'service_role' then
+  -- The only session-layer bypass: a direct database session, identified by
+  -- the login role (session_user), never by current_user.
+  v_trusted_session :=
+    v_jwt_role is null
+    and session_user in ('postgres', 'supabase_admin');
+
+  if v_jwt_role = 'service_role' or v_trusted_session then
     return new;  -- server-side writer (payment callback, admin RPC, definer triggers)
+  end if;
+
+  -- Fail closed. A known end-user role without an identity is not a trusted
+  -- server writer; it is a request that lost its subject claim.
+  if v_jwt_role is distinct from 'authenticated' or v_jwt_uid is null then
+    raise exception
+      'this request is not authorised to modify public.users'
+      using errcode = 'insufficient_privilege';
   end if;
 
   -- a. Allowed profile_status vocabulary.
