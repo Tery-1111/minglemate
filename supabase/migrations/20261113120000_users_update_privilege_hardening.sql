@@ -46,7 +46,11 @@
 --      of an administrator suspension.
 --   4. Make discover_candidates() refuse suspended/paused callers and exclude
 --      suspended candidates.
---   5. Leave clamp_user_protected_columns() and its trigger exactly as they are.
+--   5. Restrict the production-only legacy RPC public.admin_update_user_status
+--      (uuid, text) to service_role; it had no authorization check and was
+--      executable by PUBLIC/anon/authenticated. Conditional: skipped when the
+--      routine is absent.
+--   6. Leave clamp_user_protected_columns() and its trigger exactly as they are.
 --
 -- Why a WITH CHECK expression and not a column grant for profile_status
 --   Pause/resume requires the client to write profile_status, so the column
@@ -63,6 +67,8 @@
 --   legitimate edit.
 --
 -- Explicitly NOT done
+--   * No administrator authorization system is invented. The legacy RPC is
+--     restricted, not repurposed; it is not made the admin suspension path.
 --   * No FORCE ROW LEVEL SECURITY. The owner keeps bypassing RLS, preserving
 --     service_role writes, the payment callback and definer-rights routines.
 --   * No change to INSERT or DELETE privileges.
@@ -209,9 +215,28 @@ create policy "users_update_own_row"
 --         (The column is also revoked in section 1; this is the second line.)
 --      d. reputation_score is server-owned; a changing client write is rejected.
 --
---    Client detection mirrors clamp_user_protected_columns(): the server-side
---    writers are service_role / supabase_admin / postgres. Any other current
---    user is an application role and is subject to the rules.
+--    Client detection is by REQUEST JWT ROLE, not by current_user.
+--
+--    current_user is the wrong trust signal. A SECURITY DEFINER function owned
+--    by postgres sets current_user = 'postgres' for the duration of the call,
+--    so an authenticated caller that finds any definer-rights function updating
+--    public.users would be treated as a trusted server writer and could flip
+--    status / reputation_score / profile_status. That is a privilege-escalation
+--    path, not a theoretical one: the trust boundary is the JWT, which the
+--    caller cannot rewrite, and current_user, which a definer function rewrites
+--    for them.
+--
+--    PostgREST publishes the verified role in request.jwt.claim.role (single
+--    claim) and in request.jwt.claims (whole claims JSON). Both are read, with
+--    current_user only as a last-resort fallback for non-PostgREST callers such
+--    as a direct psql session or a migration.
+--
+--    The bypass is granted only when:
+--      * auth.uid() is null  — no end-user identity on the request, i.e. the
+--        caller is the database itself (migrations, triggers, cron), or
+--      * v_jwt_role = 'service_role' — the verified server-side role.
+--    An authenticated request therefore stays subject to every rule below even
+--    when a SECURITY DEFINER function has raised current_user to postgres.
 -- ---------------------------------------------------------------------------
 create or replace function public.guard_users_client_update()
 returns trigger
@@ -221,8 +246,23 @@ set search_path to 'public'
 as $function$
 declare
   v_next_profile_status text := coalesce(new.profile_status, 'incomplete');
+  v_jwt_role             text;
+  v_jwt_uid              uuid;
 begin
-  if current_user in ('service_role', 'supabase_admin', 'postgres') then
+  -- Trust boundary: the request JWT, never current_user alone.
+  v_jwt_role := coalesce(
+    nullif(current_setting('request.jwt.claim.role', true), ''),
+    (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role'),
+    current_user
+  );
+
+  begin
+    v_jwt_uid := auth.uid();
+  exception when others then
+    v_jwt_uid := null;  -- auth schema absent (bare database, migration runner)
+  end;
+
+  if v_jwt_uid is null or v_jwt_role = 'service_role' then
     return new;  -- server-side writer (payment callback, admin RPC, definer triggers)
   end if;
 
@@ -346,7 +386,54 @@ as $function$
 $function$;
 
 -- ---------------------------------------------------------------------------
--- 5. Postconditions — fail the file if the result is not as specified.
+-- 5. Legacy admin RPC lockdown.
+--
+--    Production carries public.admin_update_user_status(uuid, text) with:
+--      * no administrator authorization check inside the body;
+--      * it writes profile_status (not the status suspension axis);
+--      * EXECUTE granted to PUBLIC, anon and authenticated;
+--      * no application caller anywhere in the inspected repository.
+--
+--    An unauthenticated or ordinary authenticated caller can therefore invoke
+--    it and rewrite any user's profile_status. Until an administrator
+--    authorization system exists (which this migration deliberately does not
+--    invent), the correct posture is to make the routine unreachable from the
+--    client roles and leave it callable only by service_role.
+--
+--    The block is conditional: the function is production-only and is absent
+--    from this repository, so a fresh or test database must not fail here.
+--
+--    This does NOT make the legacy RPC the administrator suspension path. It
+--    stays unused by the application; it is only de-fanged.
+-- ---------------------------------------------------------------------------
+do $$
+begin
+  if to_regprocedure('public.admin_update_user_status(uuid, text)') is null then
+    raise notice
+      'H-1: public.admin_update_user_status(uuid,text) is absent; nothing to revoke';
+  else
+    revoke all on function public.admin_update_user_status(uuid, text) from public;
+    -- Revoke from the two application roles explicitly as well: PUBLIC may
+    -- have been the grant path, and a direct grant would survive the PUBLIC
+    -- revoke otherwise.
+    if exists (select 1 from pg_roles where rolname = 'anon') then
+      execute 'revoke all on function public.admin_update_user_status(uuid, text) from anon';
+    end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then
+      execute 'revoke all on function public.admin_update_user_status(uuid, text) from authenticated';
+    end if;
+    if exists (select 1 from pg_roles where rolname = 'service_role') then
+      grant execute on function public.admin_update_user_status(uuid, text) to service_role;
+    end if;
+
+    raise notice
+      'H-1: public.admin_update_user_status(uuid,text) restricted to service_role';
+  end if;
+end
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 6. Postconditions — fail the file if the result is not as specified.
 -- ---------------------------------------------------------------------------
 do $$
 declare
@@ -436,7 +523,30 @@ begin
     raise exception 'H-1 postcondition failed: a PUBLIC-scoped UPDATE policy still exists on users';
   end if;
 
-  -- ---- 6. The pre-existing clamp trigger is untouched. ------------------
+  -- ---- 7. The legacy admin RPC, when present, is service_role only. ---
+  if to_regprocedure('public.admin_update_user_status(uuid, text)') is not null then
+    if has_function_privilege('authenticated',
+         'public.admin_update_user_status(uuid, text)', 'EXECUTE') then
+      raise exception
+        'H-1 postcondition failed: authenticated can still execute admin_update_user_status';
+    end if;
+
+    if exists (select 1 from pg_roles where rolname = 'anon')
+       and has_function_privilege('anon',
+             'public.admin_update_user_status(uuid, text)', 'EXECUTE') then
+      raise exception
+        'H-1 postcondition failed: anon can still execute admin_update_user_status';
+    end if;
+
+    if exists (select 1 from pg_roles where rolname = 'service_role')
+       and not has_function_privilege('service_role',
+             'public.admin_update_user_status(uuid, text)', 'EXECUTE') then
+      raise exception
+        'H-1 postcondition failed: service_role lost EXECUTE on admin_update_user_status';
+    end if;
+  end if;
+
+  -- ---- 8. The pre-existing clamp trigger is untouched. ------------------
   if not exists (
     select 1 from pg_trigger
      where tgrelid = 'public.users'::regclass
