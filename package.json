@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test:section1-db": "node scripts/test-section1-production-migration.mjs",
     "section1:options": "node scripts/generate-section1-option-bank.mjs --write",
-    "verify": "node scripts/verify-section1-weights.mjs && node scripts/verify-matching-eligibility.mjs && node scripts/verify-weekly-generation-safety.mjs && node scripts/verify-payment-ticket.mjs && node scripts/generate-section1-option-bank.mjs --check && node scripts/verify-section1-question-mapping.mjs && node scripts/verify-section1-questionnaire.mjs && node scripts/verify-section2-isolation.mjs && node scripts/verify-section2-contact-rules.mjs && node scripts/verify-force-connect-pairing.mjs && node scripts/verify-production-payment-schema.mjs"
+    "verify": "node scripts/verify-section1-weights.mjs && node scripts/verify-matching-eligibility.mjs && node scripts/verify-weekly-generation-safety.mjs && node scripts/verify-payment-ticket.mjs && node scripts/generate-section1-option-bank.mjs --check && node scripts/verify-section1-question-mapping.mjs && node scripts/verify-section1-questionnaire.mjs && node scripts/verify-section2-isolation.mjs && node scripts/verify-section2-contact-rules.mjs && node scripts/verify-force-connect-pairing.mjs && node scripts/verify-production-payment-schema.mjs",
+    "test:users-update": "node scripts/test-users-update-hardening.mjs"
   },
   "dependencies": {
     "@sentry/react": "^10.75.0",
