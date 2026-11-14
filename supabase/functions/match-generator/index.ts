@@ -61,11 +61,17 @@ serve(async (req) => {
     }
   }
 
+  // Eligibility is decided by the database, not by the caller: only accounts
+  // that are active on BOTH state axes and have finished Section 1 may be
+  // matched. `status` is the administrator axis ('suspended' is set by the
+  // admin RPC and can no longer be cleared by the client), `profile_status` is
+  // the user axis ('paused' is the user's own pause). A suspended or paused
+  // account must not be selected as either side of a pair.
   const { data: users, error: usersError } = await supabase
     .from('users')
     .select('id, gender, campus_id')
     .eq('section1_complete', true)
-    // Account states: paused/pending-deletion profiles leave matching
+    .eq('status', 'active')
     .eq('profile_status', 'active')
 
   if (usersError) {
