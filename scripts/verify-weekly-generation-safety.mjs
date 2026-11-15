@@ -46,6 +46,14 @@ function executableSql(sql) {
     .replace(/'(?:[^']|'')*'/g, "''")
 }
 
+// A GRANT/REVOKE may legitimately name the TRUNCATE privilege (for example
+// "revoke delete, truncate, references, trigger ... from anon, authenticated").
+// That is an ACL statement, not an executable TRUNCATE, so it is removed
+// before the DML scan. The guard's subject is a statement that clears a table.
+function withoutPrivilegeStatements(sql) {
+  return sql.replace(/\b(?:grant|revoke)\b[^;]*;/gi, '')
+}
+
 // --- 1. No executable TRUNCATE in any migration ---------------------------
 const migrationsDir = join(root, 'supabase', 'migrations')
 const migrationFiles = readdirSync(migrationsDir).filter((f) => f.endsWith('.sql')).sort()
@@ -53,7 +61,7 @@ assert.ok(migrationFiles.length > 0, 'no migration files found')
 
 let truncateCount = 0
 for (const file of migrationFiles) {
-  const sql = executableSql(read(join('supabase', 'migrations', file)))
+  const sql = withoutPrivilegeStatements(executableSql(read(join('supabase', 'migrations', file))))
   assert.ok(
     !/\btruncate\b/i.test(sql),
     `${file} contains an executable TRUNCATE — weekly generation must never clear tables`
