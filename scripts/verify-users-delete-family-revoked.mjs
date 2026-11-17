@@ -121,8 +121,15 @@ equal(rawTruncates, [], 'a client or edge function still runs TRUNCATE users')
 // Positive controls: the paths that must keep working are still where the
 // report says they are.
 ok(/\.auth\.signUp\s*\(/.test(read('src/pages/Signup.jsx')), 'Signup.jsx no longer calls auth.signUp — signup audit is stale')
-ok(/rpc\(\s*['"]request_account_deletion['"]/.test(read('src/pages/Settings.jsx')),
-  'Settings.jsx no longer calls request_account_deletion — account-deletion audit is stale')
+// Account deletion moved from a direct client RPC to the request-account-deletion
+// Edge Function (B1). The client must reach it through functions.invoke(), and
+// must NOT go back to calling the superseded RPC directly. The RPC itself stays
+// SECURITY DEFINER on the server and is still asserted below.
+const settingsJsx = read('src/pages/Settings.jsx')
+ok(/functions\.invoke\(\s*['"]request-account-deletion['"]/.test(settingsJsx),
+  'Settings.jsx no longer invokes the request-account-deletion function — account-deletion audit is stale')
+ok(!/rpc\(\s*['"]request_account_deletion['"]/.test(settingsJsx),
+  'Settings.jsx still calls request_account_deletion directly through rpc() — the obsolete client path is back')
 ok(/\.from\(\s*['"]users['"]\s*\)\s*\.update\s*\(/.test(read('src/pages/Profile.jsx')),
   'Profile.jsx no longer updates public.users — profile-edit audit is stale')
 

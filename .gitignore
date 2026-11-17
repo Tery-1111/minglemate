@@ -29,3 +29,34 @@ dist-ssr
 
 # Sandbox proof transcripts (real receipts, phone numbers, conversation ids)
 scripts/out/
+
+# ---------------------------------------------------------------
+# Database dumps, backup archives and review archives.
+# These routinely contain personal data (profiles, answers, phone
+# numbers, payment metadata) and must never be committed.
+# NOTE: *.sql is deliberately NOT ignored — real migrations and
+# production SQL scripts must stay trackable.
+# ---------------------------------------------------------------
+*.sql.gz
+*.dump
+*.tar.gz
+*.backup
+backups/
+*.zip
+main-schema.sql
+MingleMate-*-Review.txt
+MingleMate-*-Review.zip
+minglemate_sql_review.txt
+
+# Local Supabase CLI state (per-machine, not source)
+supabase/.temp/
+
+# Java build artifacts and scratch output
+*.class
+*.jar
+
+# Local agent configuration (machine-specific, may hold local paths)
+.pi/
+opencode.json
+.claude/
+.cursor/

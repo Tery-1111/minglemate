@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import './Settings.css'
@@ -22,6 +22,9 @@ export default function Settings() {
   const [deleteText, setDeleteText] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  // Synchronous guard against double submission: React state commits async,
+  // a ref is set in the same tick as the first click and checked on every one.
+  const deleteInFlightRef = useRef(false)
 
   // Logout: acknowledged immediately, guarded against double clicks.
   // We do NOT fake a logged-out screen before signOut() completes.
@@ -86,23 +89,58 @@ export default function Settings() {
   }
 
   async function confirmDelete() {
-    // Type-to-confirm: the word DELETE, exactly.
-    if (deleteText !== 'DELETE' || deleting) return
+    // Type-to-confirm: the word DELETE, exactly. The ref closes a race where
+    // rapid synchronous clicks land before React commits the `deleting` state.
+    if (deleteText !== 'DELETE' || deleting || deleteInFlightRef.current) return
+    deleteInFlightRef.current = true
     setDeleting(true)
     setDeleteError('')
 
-    // RPC is SECURITY DEFINER: server derives who from auth.uid() —
-    // a client can never pass someone else's id.
-    const { error } = await supabase.rpc('request_account_deletion')
+    // The Edge Function derives the account from the verified session token —
+    // a client can never nominate someone else's account for deletion.
+    let result = null
+    let invokeError = null
+    try {
+      const response = await supabase.functions.invoke('request-account-deletion', {
+        method: 'POST',
+      })
+      invokeError = response.error
+      result = response.data
+    } catch {
+      invokeError = { message: 'network' }
+    }
 
-    if (error) {
-      setDeleteError(error.message || 'Could not start deletion. Try again.')
+    // A 401 means the session lapsed, not that deletion failed on the server.
+    // FunctionsHttpError keeps the status on `context`.
+    const status = invokeError?.context?.status
+    if (status === 401 || result?.error === 'unauthenticated' || result?.error === 'session_expired') {
+      setDeleteError('Your session has expired. Please sign in again, then retry.')
       setDeleting(false)
+      deleteInFlightRef.current = false
       return
     }
 
-    await supabase.auth.signOut()
-    navigate('/')
+    // Only a genuine success signs the user out. Anything else leaves the
+    // account paused and retryable — we never pretend deletion completed.
+    if (!invokeError && result?.success === true && result?.pending === false) {
+      await supabase.auth.signOut()
+      navigate('/')
+      return
+    }
+
+    if (invokeError || result?.success !== true) {
+      // Deliberately generic: no raw SQL, stack trace or infrastructure detail.
+      setDeleteError(
+        'Your profile is hidden and deletion is still in progress. ' +
+          'Please try again in a moment.',
+      )
+      setDeleting(false)
+      deleteInFlightRef.current = false
+      return
+    }
+
+    setDeleting(false)
+    deleteInFlightRef.current = false
   }
 
   if (loading) {
@@ -247,6 +285,11 @@ export default function Settings() {
               This removes your profile, photos, questionnaire answers,
               matches and messages. Your profile stops appearing to
               others immediately. This cannot be undone.
+            </p>
+            <p className="delete-modal-sub">
+              Payment records and contact-unlock records may be retained
+              after deletion for legal and dispute-resolution purposes, as
+              described in our Privacy Policy.
             </p>
             <p className="delete-modal-sub">
               Type <strong>DELETE</strong> to confirm.
