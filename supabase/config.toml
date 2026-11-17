@@ -420,3 +420,10 @@ enabled = true
 
 [functions.payment-callback]
 verify_jwt = false
+
+# Account deletion runs as the authenticated user and derives identity from the
+# verified JWT (auth.uid()), so JWT verification must stay ON. The function then
+# switches to a service-role client for storage cleanup, finalisation and the
+# auth-user delete. Never set verify_jwt = false here.
+[functions.request-account-deletion]
+verify_jwt = true

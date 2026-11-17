@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test:otp": "node scripts/test-otp-flow.mjs",
     "test:section1-db": "node scripts/test-section1-production-migration.mjs",
     "section1:options": "node scripts/generate-section1-option-bank.mjs --write",
     "verify": "node scripts/verify-section1-weights.mjs && node scripts/verify-matching-eligibility.mjs && node scripts/verify-weekly-generation-safety.mjs && node scripts/verify-payment-ticket.mjs && node scripts/generate-section1-option-bank.mjs --check && node scripts/verify-section1-question-mapping.mjs && node scripts/verify-section1-questionnaire.mjs && node scripts/verify-section2-isolation.mjs && node scripts/verify-section2-contact-rules.mjs && node scripts/verify-force-connect-pairing.mjs && node scripts/verify-production-payment-schema.mjs && node scripts/verify-users-delete-family-revoked.mjs",
@@ -23,6 +24,8 @@
     "react-router-dom": "^7.18.4"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.0",
+    "@babel/plugin-transform-react-jsx": "^7.28.6",
     "@electric-sql/pglite": "^0.5.11",
     "@eslint/js": "^9.39.4",
     "@types/react": "^19.2.14",
@@ -32,6 +35,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
+    "jsdom": "^27.4.0",
     "postgres": "^3.4.9",
     "vite": "^8.0.1"
   }
