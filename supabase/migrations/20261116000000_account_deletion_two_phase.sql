@@ -50,7 +50,7 @@ comment on table public.account_deletion_requests is
 
 alter table public.account_deletion_requests enable row level security;
 
-revoke all on table public.account_deletion_requests from anon, authenticated;
+revoke all on table public.account_deletion_requests from public, anon, authenticated;
 grant select, insert, update, delete on table public.account_deletion_requests to service_role;
 
 -- ------------------------------------------------------------
@@ -127,7 +127,7 @@ create or replace function public.request_account_deletion()
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   uid uuid := auth.uid();
@@ -146,7 +146,17 @@ begin
     attempts   = public.account_deletion_requests.attempts + 1,
     updated_at = now();
 
-  -- 2. Stop discovery + notifications. profiles.onesignal_player_id is a
+  -- 2. Close the payment window now: pending intents involving this user
+  --    expire and lose their callback key, so a late callback cannot unlock.
+  update public.payment_intents
+     set status = 'expired',
+         status_reason = coalesce(status_reason, 'account_deletion_requested'),
+         callback_key = null,
+         unlock_error = coalesce(unlock_error, 'account_deletion_requested')
+   where status = 'pending'
+     and (user_id = uid or recipient_user_id = uid);
+
+  -- 3. Stop discovery + notifications. profiles.onesignal_player_id is a
   --    separate mirrored copy in production and must be cleared too.
   update public.users set
     profile_status = 'paused',
@@ -176,7 +186,7 @@ create or replace function public.finalize_account_deletion(p_user_id uuid)
 returns boolean
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   v_request public.account_deletion_requests;
@@ -314,7 +324,7 @@ begin
   -- ---------- Matching / engagement ----------
   -- Most of these tables are production-only; each is guarded individually.
   if to_regclass('public.likes') is not null then
-    delete from public.likes where user_id = p_user_id or target_user_id = p_user_id;
+    delete from public.likes where sender_id = p_user_id or recipient_id = p_user_id;
   end if;
   if to_regclass('public.match_interactions') is not null then
     delete from public.match_interactions where user_id = p_user_id;
@@ -323,7 +333,7 @@ begin
     delete from public.match_queue where user_id = p_user_id;
   end if;
   if to_regclass('public.match_signals') is not null then
-    delete from public.match_signals where user_id = p_user_id;
+    delete from public.match_signals where sender_id = p_user_id or receiver_id = p_user_id;
   end if;
   if to_regclass('public.match_behavior') is not null then
     delete from public.match_behavior where user_id = p_user_id
@@ -349,12 +359,11 @@ begin
    where user_id_a = p_user_id or user_id_b = p_user_id;
 
   -- Other users' history keeps its rows; the dangling slot is cleared.
+  -- tier1/tier2_match_id are FKs to users: compare with the leaving user's id.
   update public.match_history set tier1_match_id = null
-   where tier1_match_id in (select id from public.matches
-                            where user_a_id = p_user_id or user_b_id = p_user_id);
+   where tier1_match_id = p_user_id;
   update public.match_history set tier2_match_id = null
-   where tier2_match_id in (select id from public.matches
-                            where user_a_id = p_user_id or user_b_id = p_user_id);
+   where tier2_match_id = p_user_id;
 
   delete from public.match_history where user_id = p_user_id;
 
@@ -409,7 +418,7 @@ create or replace function public.record_account_deletion_failure(
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 begin
   update public.account_deletion_requests

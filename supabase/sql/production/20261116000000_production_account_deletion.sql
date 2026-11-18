@@ -64,7 +64,7 @@ comment on table public.account_deletion_requests is
 
 alter table public.account_deletion_requests enable row level security;
 
-revoke all on table public.account_deletion_requests from anon, authenticated;
+revoke all on table public.account_deletion_requests from public, anon, authenticated;
 grant select, insert, update, delete on table public.account_deletion_requests to service_role;
 
 -- ------------------------------------------------------------
@@ -137,7 +137,7 @@ create or replace function public.request_account_deletion()
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   uid uuid := auth.uid();
@@ -156,7 +156,20 @@ begin
     attempts   = public.account_deletion_requests.attempts + 1,
     updated_at = now();
 
-  -- 2. Stop discovery + notifications. profiles.onesignal_player_id is a
+  -- 2. Close the payment window NOW, not at finalization. A pending intent
+  --    involving this user becomes 'expired' and loses its callback key, so
+  --    payment-callback fails closed (expired -> recorded, never unlocked;
+  --    no key -> 401) and complete_connect_unlock refuses (status is not
+  --    'succeeded'). The finalizer repeats this idempotently.
+  update public.payment_intents
+     set status = 'expired',
+         status_reason = coalesce(status_reason, 'account_deletion_requested'),
+         callback_key = null,
+         unlock_error = coalesce(unlock_error, 'account_deletion_requested')
+   where status = 'pending'
+     and (user_id = uid or recipient_user_id = uid);
+
+  -- 3. Stop discovery + notifications. profiles.onesignal_player_id is a
   --    separate mirrored copy in production and must be cleared too.
   update public.users set
     profile_status = 'paused',
@@ -183,7 +196,7 @@ create or replace function public.finalize_account_deletion(p_user_id uuid)
 returns boolean
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   v_request public.account_deletion_requests;
@@ -285,10 +298,10 @@ begin
   update public.reports set reported_id = null where reported_id = p_user_id;
 
   -- ---------- Matching / engagement ----------
-  delete from public.likes        where user_id = p_user_id or target_user_id = p_user_id;
+  delete from public.likes        where sender_id = p_user_id or recipient_id = p_user_id;
   delete from public.match_interactions where user_id = p_user_id;
   delete from public.match_queue  where user_id = p_user_id;
-  delete from public.match_signals where user_id = p_user_id;
+  delete from public.match_signals where sender_id = p_user_id or receiver_id = p_user_id;
   delete from public.match_behavior where user_id = p_user_id
      or match_history_id in (select id from public.match_history where user_id = p_user_id);
   delete from public.compatibility_scores
@@ -300,13 +313,14 @@ begin
   delete from public.section2_chat_progress
    where user_id_a = p_user_id or user_id_b = p_user_id;
 
-  -- Other users' history keeps its rows; the dangling slot is cleared.
+  -- Other users' history keeps its rows; the slot that points at the
+  -- leaving user is cleared. tier1_match_id / tier2_match_id are foreign
+  -- keys to public.users (they hold the matched USER's id, not a
+  -- matches.id), so they are compared to p_user_id directly.
   update public.match_history set tier1_match_id = null
-   where tier1_match_id in (select id from public.matches
-                            where user_a_id = p_user_id or user_b_id = p_user_id);
+   where tier1_match_id = p_user_id;
   update public.match_history set tier2_match_id = null
-   where tier2_match_id in (select id from public.matches
-                            where user_a_id = p_user_id or user_b_id = p_user_id);
+   where tier2_match_id = p_user_id;
 
   delete from public.match_history where user_id = p_user_id;
 
@@ -351,7 +365,7 @@ create or replace function public.record_account_deletion_failure(
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 begin
   update public.account_deletion_requests
