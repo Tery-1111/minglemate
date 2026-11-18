@@ -17,8 +17,17 @@ assert.equal(areEligibleCandidates(unaffiliated1, campusA2, blockedPairs), false
 assert.equal(areEligibleCandidates(campusA2, unaffiliated1, blockedPairs), false, 'non-null and null campuses are excluded in reverse order')
 assert.equal(areEligibleCandidates(campusA1, candidate('same-campus-female', 'female', 'campus-a'), blockedPairs), false, 'same-gender candidates remain excluded')
 
+// D5: the only matchable gender pair is exactly male/female, in either order.
+assert.equal(areEligibleCandidates(campusA2, campusA1, blockedPairs), true, 'male/female is eligible in reverse order')
+assert.equal(areEligibleCandidates(candidate('n1', null, 'campus-a'), campusA1, blockedPairs), false, 'null gender is never eligible')
+assert.equal(areEligibleCandidates(candidate('n2', '', 'campus-a'), campusA2, blockedPairs), false, 'empty gender is never eligible')
+assert.equal(areEligibleCandidates(candidate('n3', 'other', 'campus-a'), campusA2, blockedPairs), false, 'unknown gender is never eligible')
+assert.equal(areEligibleCandidates(candidate('n4', 'nonbinary', 'campus-a'), campusA1, blockedPairs), false, 'third gender value is never eligible')
+assert.equal(areEligibleCandidates(candidate('n5', 'MALE', 'campus-a'), campusA1, blockedPairs), false, 'gender is compared case-sensitively')
+assert.equal(areEligibleCandidates(candidate('n1', null, 'campus-a'), candidate('n2', null, 'campus-a'), blockedPairs), false, 'two null genders are never eligible')
+
 const blocked = new Set([pairKey('a1', 'a2')])
 assert.equal(areEligibleCandidates(campusA1, campusA2, blocked), false, 'blocked pairs remain excluded')
 assert.equal(areEligibleCandidates(campusA2, campusA1, blocked), false, 'block exclusion is direction-agnostic')
 
-console.log('8 matching eligibility checks passed')
+console.log('17 matching eligibility checks passed')
