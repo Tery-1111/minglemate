@@ -81,8 +81,8 @@ create table public.user_blocks (
 );
 create table public.likes (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid references public.users(id) on delete cascade,
-  target_user_id uuid references public.users(id) on delete cascade
+  sender_id uuid references public.users(id) on delete cascade,
+  recipient_id uuid references public.users(id) on delete cascade
 );
 
 create table public.matches (
@@ -116,7 +116,8 @@ create table public.match_queue (
 );
 create table public.match_signals (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid
+  sender_id uuid,
+  receiver_id uuid
 );
 create table public.compatibility_scores (
   id uuid primary key default gen_random_uuid(),

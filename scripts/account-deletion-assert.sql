@@ -78,8 +78,8 @@ insert into public.matches (id, user_a_id, user_b_id, status, is_visible, compat
   ('60000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000000bb', '00000000-0000-0000-0000-0000000000bb', 'pending', false, 10);
 
 insert into public.match_history (id, user_id, tier1_match_id, tier2_match_id) values
-  ('70000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000aa', '60000000-0000-0000-0000-000000000001', null),
-  ('70000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000000bb', '60000000-0000-0000-0000-000000000001', null);
+  ('70000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000aa', '00000000-0000-0000-0000-0000000000bb', null),
+  ('70000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-0000000000bb', '00000000-0000-0000-0000-0000000000aa', null);
 
 insert into public.payments (id, user_id, phone_number, amount, status, match_id) values
   ('80000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000aa', '254700000003', 50, 'succeeded', '60000000-0000-0000-0000-000000000001'),
@@ -98,7 +98,7 @@ insert into public.payment_prompts (id, sender_user_id, recipient_user_id, amoun
 insert into public.section2_chat_progress (id, user_id_a, user_id_b) values
   ('93000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000aa', '00000000-0000-0000-0000-0000000000bb');
 
-insert into public.likes (id, user_id, target_user_id) values
+insert into public.likes (id, sender_id, recipient_id) values
   ('94000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000aa', '00000000-0000-0000-0000-0000000000bb');
 
 insert into public.badges (id, user_id) values
@@ -119,7 +119,7 @@ insert into public.match_behavior (id, user_id, date, value) values
 insert into public.match_queue (id, user_id) values
   ('99100000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000aa');
 
-insert into public.match_signals (id, user_id) values
+insert into public.match_signals (id, sender_id) values
   ('99200000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000aa');
 
 insert into public.match_interactions (id, user_id) values
